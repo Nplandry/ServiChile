@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from app.api.deps import (
     AuthServiceDep,
+    CuentaServiceDep,
     CurrentUserDep,
     PasaporteServiceDep,
     RateLimiterDep,
@@ -9,8 +10,9 @@ from app.api.deps import (
     demasiadas_solicitudes,
 )
 from app.api.mapeos import to_usuario_out
-from app.api.schemas import LoginIn, RegistroIn, TokenOut, UsuarioOut
+from app.api.schemas import EliminarCuentaIn, LoginIn, RegistroIn, TokenOut, UsuarioOut
 from app.services.auth_service import CredencialesInvalidas, EmailYaRegistrado
+from app.services.cuenta_service import ContrasenaIncorrecta
 
 router = APIRouter(prefix="/v1/auth", tags=["Autenticación"])
 
@@ -66,3 +68,13 @@ def login(datos: LoginIn, request: Request, auth: AuthServiceDep, limiter: RateL
 @router.get("/yo", response_model=UsuarioOut)
 def yo(usuario: CurrentUserDep, pasaporte: PasaporteServiceDep):
     return to_usuario_out(usuario, pasaporte.estado(usuario))
+
+
+@router.delete("/yo", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_cuenta(datos: EliminarCuentaIn, usuario: CurrentUserDep, cuenta: CuentaServiceDep):
+    """Borra la cuenta y sus datos. Requiere la contraseña actual."""
+    try:
+        cuenta.eliminar(usuario, datos.password)
+    except ContrasenaIncorrecta:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "La contraseña no coincide.") from None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

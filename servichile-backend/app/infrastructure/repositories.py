@@ -134,6 +134,13 @@ class UsuarioRepository:
         """Crea la entidad en memoria. Se persiste con guardar()."""
         return Usuario(id=uuid.uuid4(), email=email, nombre=nombre, password_hash=password_hash)
 
+    def eliminar(self, usuario_id: uuid.UUID) -> None:
+        """Borra el usuario. Perfil, reservas, consultas y verificaciones se borran en cascada."""
+        u = self.session.get(orm.Usuario, usuario_id)
+        if u is not None:
+            self.session.delete(u)
+            self.session.commit()
+
     def guardar(self, usuario: Usuario) -> Usuario:
         """Inserta o actualiza el usuario y su perfil."""
         u = self.session.get(orm.Usuario, usuario.id)
@@ -250,6 +257,10 @@ class NegocioRepository:
                 orm.BusinessEntity.nombre.ilike(patron) | orm.BusinessEntity.direccion.ilike(patron)
             )
         return [_negocio(n) for n in self.session.scalars(stmt.limit(limite))]
+
+    def listar_reclamados_por(self, usuario_id: uuid.UUID) -> list[Negocio]:
+        stmt = select(orm.BusinessEntity).where(orm.BusinessEntity.reclamado_por == usuario_id)
+        return [_negocio(n) for n in self.session.scalars(stmt)]
 
     def guardar(self, negocio: Negocio) -> Negocio:
         """Inserta o actualiza el negocio y sus métricas."""

@@ -56,6 +56,8 @@ Estado verificado el 2026-11-06. La suite de pruebas pasa (`41 passed, 14 skippe
 | POST | `/v1/perfil/documentos` | Sí | Nivel 2: score de arriendo desde un PDF procesado en memoria (201) | `app/api/v1/perfil.py` | Implementado con extractor falso |
 | GET | `/v1/reservas` | Sí | Reservas del usuario con su código QR | `app/api/v1/reservas.py` | Implementado y probado |
 | POST | `/v1/reservas` | Sí | Reserva un cupo en un comercio (201) | `app/api/v1/reservas.py` | Implementado y probado |
+| DELETE | `/v1/reservas/{id}` | Sí | Cancela una reserva propia que siga activa | `app/api/v1/reservas.py` | Implementado y probado |
+| DELETE | `/v1/auth/yo` | Sí | Elimina la cuenta, con confirmación por contraseña (204) | `app/api/v1/auth.py` | Implementado y probado |
 | POST | `/v1/businesses/{id}/checkin` | Sí (titular) | El dueño registra asistencia con el QR del usuario | `app/api/v1/negocios.py` | Implementado y probado |
 | POST | `/v1/businesses/{id}/reservas/{reserva_id}/no-show` | Sí (titular) | El dueño marca una reserva como no-show | `app/api/v1/negocios.py` | Implementado y probado |
 | POST | `/v1/consultas` | Sí | Crea consulta IA con RAG (201) | `app/api/v1/consultas.py` | Implementado y probado |

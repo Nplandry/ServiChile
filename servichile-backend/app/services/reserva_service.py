@@ -38,6 +38,12 @@ class ReservaService:
     def listar(self, usuario_id: uuid.UUID) -> list[Reserva]:
         return self.reservas.listar_por_usuario(usuario_id)
 
+    def cancelar(self, usuario_id: uuid.UUID, reserva_id: uuid.UUID) -> Reserva:
+        reserva = self.reservas.get(reserva_id)
+        if reserva is None or reserva.usuario_id != usuario_id:
+            raise ReservaNoEncontrada()
+        return self._cerrar(reserva, "cancelada")
+
     def registrar_asistencia(self, business_id: uuid.UUID, usuario_id: uuid.UUID, qr_token: str) -> Reserva:
         self._verificar_titular(business_id, usuario_id)
         reserva = self.reservas.get_por_qr(business_id, qr_token)

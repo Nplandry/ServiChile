@@ -28,6 +28,14 @@ class CredencialesInvalidas(Exception):
     pass
 
 
+def verificar_contrasena(password_hash: str, password: str) -> bool:
+    try:
+        _hasher.verify(password_hash, password)
+    except (VerifyMismatchError, InvalidHashError):
+        return False
+    return True
+
+
 class AuthService:
     def __init__(self, usuarios: UsuarioRepository, settings: Settings) -> None:
         self.usuarios = usuarios

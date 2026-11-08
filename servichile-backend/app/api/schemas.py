@@ -237,3 +237,11 @@ class CheckinIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     qr_token: str = Field(min_length=10, max_length=64)
+
+
+class EliminarCuentaIn(BaseModel):
+    """Confirmación para borrar la cuenta: la contraseña actual, para evitar borrados accidentales."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    password: str = Field(min_length=1, max_length=128)

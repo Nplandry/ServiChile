@@ -21,6 +21,8 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 | GET | `/v1/consultas?limite=50` | Sí | n/a | 200 lista de `ConsultaResumen` | 401, 422 |
 | GET | `/v1/businesses/{id}/reputation` | No | n/a | 200 `ReputacionOut` | 404 negocio no encontrado |
 | POST | `/v1/businesses/{id}/claim` | Sí | `documento_verificacion` (3 a 120), `nombre`/`telefono`/`sitio_web` opcionales | 201 `ClaimOut` | 401, 404, 409 ya reclamado, 422 |
+| DELETE | `/v1/auth/yo` | Sí | `password` (confirmación de la contraseña actual) | 204 sin cuerpo | 401 sesión inválida, 403 contraseña incorrecta, 422 |
+| DELETE | `/v1/reservas/{id}` | Sí | n/a | 200 `ReservaOut` con `estado: cancelada` | 401, 404 reserva ajena o inexistente, 409 ya no está activa |
 
 ## Esquemas
 

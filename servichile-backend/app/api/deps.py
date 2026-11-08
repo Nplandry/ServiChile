@@ -28,6 +28,7 @@ from app.infrastructure.verificacion import (
 from app.services.ai_assistant import AiAssistant
 from app.services.auth_service import AuthService, CredencialesInvalidas
 from app.services.consulta_service import ConsultaService
+from app.services.cuenta_service import CuentaService
 from app.services.negocio_service import NegocioService
 from app.services.pasaporte_service import PasaporteService
 from app.services.reserva_service import ReservaService
@@ -97,10 +98,15 @@ def get_consulta_service(session: SessionDep) -> ConsultaService:
     return ConsultaService(ConsultaRepository(session))
 
 
+def get_cuenta_service(session: SessionDep) -> CuentaService:
+    return CuentaService(UsuarioRepository(session), NegocioRepository(session))
+
+
 PasaporteServiceDep = Annotated[PasaporteService, Depends(get_pasaporte_service)]
 ReservaServiceDep = Annotated[ReservaService, Depends(get_reserva_service)]
 NegocioServiceDep = Annotated[NegocioService, Depends(get_negocio_service)]
 ConsultaServiceDep = Annotated[ConsultaService, Depends(get_consulta_service)]
+CuentaServiceDep = Annotated[CuentaService, Depends(get_cuenta_service)]
 
 _bearer = HTTPBearer(auto_error=False)
 
