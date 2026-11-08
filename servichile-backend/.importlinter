@@ -1,0 +1,53 @@
+[importlinter]
+root_package = app
+include_external_packages = True
+
+# Arquitectura en capas: cada capa solo puede importar las de abajo.
+# api -> services -> infrastructure -> domain -> utils/config
+[importlinter:contract:capas]
+name = Capas de la aplicación
+type = layers
+layers =
+    app.api
+    app.services
+    app.infrastructure
+    app.domain
+
+# El dominio es puro: ni SQLAlchemy, ni FastAPI, ni Pydantic.
+[importlinter:contract:dominio-puro]
+name = El dominio no depende de frameworks
+type = forbidden
+source_modules =
+    app.domain
+forbidden_modules =
+    sqlalchemy
+    fastapi
+    pydantic
+
+# Los servicios trabajan con entidades del dominio, no con modelos ORM ni con schemas de API.
+[importlinter:contract:servicios-sin-orm-ni-api]
+name = Los servicios no conocen el ORM ni la API
+type = forbidden
+source_modules =
+    app.services
+forbidden_modules =
+    app.infrastructure.db
+    app.api
+    sqlalchemy
+# Un servicio puede usar repositorios (que sí usan el ORM). Lo prohibido es importar el ORM o la API directamente.
+allow_indirect_imports = True
+
+# Los routers no tocan la base ni los repositorios: pasan por servicios. Solo deps.py ensambla dependencias.
+[importlinter:contract:api-sin-base-de-datos]
+name = La API no accede a la base de datos directamente
+type = forbidden
+source_modules =
+    app.api
+forbidden_modules =
+    app.infrastructure.db
+    app.infrastructure.repositories
+# Solo imports directos. deps.py es el ensamblador de dependencias y puede usar la sesión y los repositorios.
+allow_indirect_imports = True
+ignore_imports =
+    app.api.deps -> app.infrastructure.db
+    app.api.deps -> app.infrastructure.repositories

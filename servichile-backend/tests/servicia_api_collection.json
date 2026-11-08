@@ -1,0 +1,304 @@
+{
+  "info": {
+    "name": "ServicIA API v1",
+    "description": "Ejecute las peticiones en orden. Login guarda el token en la variable {{token}}. El registro acepta 201 (nuevo) o 409 (ya existía), para poder repetir la demostración.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "email",
+      "value": "demo@servicia.cl"
+    },
+    {
+      "key": "password",
+      "value": "clave-demo-123"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Salud",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('estado ok', () => pm.expect(pm.response.json().estado).to.eql('ok'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/salud"
+      }
+    },
+    {
+      "name": "2. Registro",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 creado o 409 ya registrado', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));",
+              "if (pm.response.code === 201) {",
+              "  pm.test('no expone el hash', () => pm.expect(pm.response.json()).to.not.have.property('password_hash'));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/v1/auth/registro",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"nombre\": \"María González\",\n  \"password\": \"{{password}}\",\n  \"perfil\": {\n    \"edad\": 68,\n    \"preocupacion\": \"seguros\",\n    \"proposito\": \"autoinformarse\"\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "3. Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('token bearer', () => pm.expect(pm.response.json().token_type).to.eql('bearer'));",
+              "pm.collectionVariables.set('token', pm.response.json().access_token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/v1/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "4. Mi perfil",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('correo de la sesión', () => pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get('email')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/v1/auth/yo"
+      }
+    },
+    {
+      "name": "4b. Actualizar perfil (PATCH)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('cambió solo el propósito', () => { const p = pm.response.json(); pm.expect(p.proposito).to.eql('asesorar'); pm.expect(p).to.have.property('edad'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/v1/perfil",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"proposito\": \"asesorar\"\n}"
+        }
+      }
+    },
+    {
+      "name": "5. Consulta a la IA (seguros)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 creado', () => pm.response.to.have.status(201));",
+              "const d = pm.response.json();",
+              "pm.test('trae respuesta y lista de fuentes', () => { pm.expect(d.respuesta).to.be.a('string').and.not.empty; pm.expect(d.fuentes).to.be.an('array'); });",
+              "pm.test('sin fuentes deriva a humano', () => pm.expect(d.requiere_humano).to.eql(d.fuentes.length === 0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/v1/consultas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pregunta\": \"Me descuentan un seguro de la pensión que nunca contraté. Mi RUT es 12.345.678-5. ¿Qué hago?\",\n  \"categoria\": \"seguros\"\n}"
+        }
+      }
+    },
+    {
+      "name": "6. Historial de consultas",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const h = pm.response.json();",
+              "pm.test('incluye la consulta anterior', () => pm.expect(h.length).to.be.above(0));",
+              "pm.test('el RUT quedó redactado', () => { pm.expect(h[0].pregunta_redactada).to.include('[RUT]'); pm.expect(h[0].pregunta_redactada).to.not.include('12.345.678'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/v1/consultas?limite=10"
+      }
+    },
+    {
+      "name": "7. Error: consulta sin sesión (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401 sin token', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/v1/consultas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pregunta\": \"¿Pueden embargar mi casa por teléfono?\"\n}"
+        }
+      }
+    },
+    {
+      "name": "8. Error: clave incorrecta (401 genérico)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401', () => pm.response.to.have.status(401));",
+              "pm.test('mensaje genérico', () => pm.expect(pm.response.json().detail).to.eql('Correo o contraseña incorrectos.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/v1/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"clave-equivocada\"\n}"
+        }
+      }
+    }
+  ]
+}
