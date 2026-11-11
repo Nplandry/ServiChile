@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 
-def _registrar(client: TestClient, email="perfil@servicia.cl", perfil=None) -> dict[str, str]:
+def _registrar(client: TestClient, email="perfil@servichile.cl", perfil=None) -> dict[str, str]:
     datos = {"email": email, "nombre": "Rosa", "password": "clave-perfil-123"}
     if perfil is not None:
         datos["perfil"] = perfil
@@ -68,8 +68,8 @@ def test_rut_con_k_se_acepta_en_minuscula(client: TestClient):
 
 
 def test_rut_ya_usado_por_otra_cuenta_da_409(client: TestClient):
-    h1 = _registrar(client, "uno@servicia.cl")
-    h2 = _registrar(client, "dos@servicia.cl")
+    h1 = _registrar(client, "uno@servichile.cl")
+    h2 = _registrar(client, "dos@servichile.cl")
     assert client.patch("/v1/perfil", json={"rut": "12345678-5"}, headers=h1).status_code == 200
     r = client.patch("/v1/perfil", json={"rut": "12345678-5"}, headers=h2)
     assert r.status_code == 409
@@ -96,15 +96,15 @@ def test_validaciones_del_perfil(client: TestClient):
 
 
 def test_registro_con_perfil_invalido_no_crea_usuario(client: TestClient):
-    datos = {"email": "x@servicia.cl", "nombre": "Ana", "password": "clave-segura-1", "perfil": {"edad": 5}}
+    datos = {"email": "x@servichile.cl", "nombre": "Ana", "password": "clave-segura-1", "perfil": {"edad": 5}}
     assert client.post("/v1/auth/registro", json=datos).status_code == 422
-    r = client.post("/v1/auth/login", json={"email": "x@servicia.cl", "password": "clave-segura-1"})
+    r = client.post("/v1/auth/login", json={"email": "x@servichile.cl", "password": "clave-segura-1"})
     assert r.status_code == 401
 
 
 def test_registro_no_acepta_rut(client: TestClient):
     # El RUT se verifica después del registro, no se acepta en el alta.
-    datos = {"email": "r@servicia.cl", "nombre": "Ana", "password": "clave-segura-1", "perfil": {"rut": "12345678-5"}}
+    datos = {"email": "r@servichile.cl", "nombre": "Ana", "password": "clave-segura-1", "perfil": {"rut": "12345678-5"}}
     assert client.post("/v1/auth/registro", json=datos).status_code == 422
 
 
@@ -114,8 +114,8 @@ def test_perfil_requiere_sesion(client: TestClient):
 
 
 def test_perfil_es_privado(client: TestClient):
-    h1 = _registrar(client, "uno@servicia.cl", {"edad": 70})
-    h2 = _registrar(client, "dos@servicia.cl", {"edad": 40})
+    h1 = _registrar(client, "uno@servichile.cl", {"edad": 70})
+    h2 = _registrar(client, "dos@servichile.cl", {"edad": 40})
     client.patch("/v1/perfil", json={"edad": 99}, headers=h2)
     assert client.get("/v1/perfil", headers=h1).json()["edad"] == 70
 

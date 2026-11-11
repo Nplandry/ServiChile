@@ -25,7 +25,7 @@ class GeminiProvider:
         if proyecto in settings.gcp_proyectos_prohibidos:
             raise RuntimeError(f"El proyecto {proyecto} está en GCP_PROYECTOS_PROHIBIDOS")
         # Las credenciales locales pueden traer otro proyecto de cuota, y el SDK lo envía en
-        # x-goog-user-project. Se fuerza el de ServicIA para que ningún uso se cargue a otro proyecto.
+        # x-goog-user-project. Se fuerza el de ServiChile para que ningún uso se cargue a otro proyecto.
         credenciales, _ = google.auth.default(
             scopes=["https://www.googleapis.com/auth/cloud-platform"], quota_project_id=proyecto
         )

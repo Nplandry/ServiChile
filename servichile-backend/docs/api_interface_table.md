@@ -1,4 +1,4 @@
-# Interfaz de programación ServicIA API v1
+# Interfaz de programación ServiChile API v1
 
 URL base local: `http://localhost:8000`. Documentación interactiva: `/docs` (desactivada con `APP_ENV=production`).
 

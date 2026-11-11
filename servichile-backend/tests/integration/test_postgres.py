@@ -2,9 +2,9 @@
 
 Requieren una base vacía dedicada a pruebas (se borra y se recrea en cada ejecución):
 
-    createdb -O servicia servicia_test
-    psql -d servicia_test -c "CREATE EXTENSION IF NOT EXISTS vector"   # como superusuario
-    TEST_DATABASE_URL=postgresql+psycopg://servicia:CLAVE@localhost:5432/servicia_test pytest tests/integration
+    createdb -O servichile servichile_test
+    psql -d servichile_test -c "CREATE EXTENSION IF NOT EXISTS vector"   # como superusuario
+    TEST_DATABASE_URL=postgresql+psycopg://servichile:CLAVE@localhost:5432/servichile_test pytest tests/integration
 
 Sin TEST_DATABASE_URL se omiten.
 """
@@ -34,8 +34,8 @@ TABLAS = ("consultas", "fragmentos", "documentos", "perfiles", "usuarios")
 
 @pytest.fixture(scope="module")
 def engine():
-    if "servicia_test" not in URL:
-        pytest.fail("TEST_DATABASE_URL debe apuntar a una base llamada servicia_test: estas pruebas borran tablas")
+    if "servichile_test" not in URL:
+        pytest.fail("TEST_DATABASE_URL debe apuntar a una base llamada servichile_test: estas pruebas borran tablas")
     eng = create_engine(URL)
     with eng.begin() as c:
         for t in TABLAS:
@@ -174,7 +174,7 @@ def client(cargado):
 
 
 def _token(client: TestClient) -> str:
-    datos = {"email": "Int@Servicia.cl", "nombre": "Prueba", "password": "clave-integracion-1"}
+    datos = {"email": "Int@Servichile.cl", "nombre": "Prueba", "password": "clave-integracion-1"}
     assert client.post("/v1/auth/registro", json=datos).status_code == 201
     r = client.post("/v1/auth/login", json={"email": datos["email"], "password": datos["password"]})
     assert r.status_code == 200
@@ -214,7 +214,7 @@ def test_flujo_sin_fuentes_y_redaccion(client, cargado):
 def test_historial_es_privado_por_usuario(client):
     h1 = {"Authorization": f"Bearer {_token(client)}"}
     client.post("/v1/consultas", json={"pregunta": "Pregunta del usuario uno"}, headers=h1)
-    otro = {"email": "otro@servicia.cl", "nombre": "Otro", "password": "clave-otro-123"}
+    otro = {"email": "otro@servichile.cl", "nombre": "Otro", "password": "clave-otro-123"}
     client.post("/v1/auth/registro", json=otro)
     t2 = client.post("/v1/auth/login", json={"email": otro["email"], "password": otro["password"]}).json()
     h2 = {"Authorization": f"Bearer {t2['access_token']}"}
@@ -252,7 +252,7 @@ def test_perfil_constraints_y_cascade(db):
 
 def test_registro_y_patch_perfil_en_postgres(client, cargado):
     datos = {
-        "email": "perfil.pg@servicia.cl", "nombre": "Rosa", "password": "clave-perfil-pg",
+        "email": "perfil.pg@servichile.cl", "nombre": "Rosa", "password": "clave-perfil-pg",
         "perfil": {"edad": 68, "preocupacion": "telecom", "proposito": "investigar"},
     }
     assert client.post("/v1/auth/registro", json=datos).status_code == 201

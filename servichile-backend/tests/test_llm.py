@@ -1,4 +1,4 @@
-"""El proveedor Gemini debe cargar todo el uso al proyecto de ServicIA, nunca al de las credenciales locales."""
+"""El proveedor Gemini debe cargar todo el uso al proyecto de ServiChile, nunca al de las credenciales locales."""
 import google.auth
 import pytest
 from google import genai
@@ -30,15 +30,15 @@ def capturado(monkeypatch):
 
 
 def _settings(**cambios):
-    base = {"llm_provider": "gemini", "gcp_project": "servicia-dev", "gcp_proyectos_prohibidos": ["prohibido-cl"]}
+    base = {"llm_provider": "gemini", "gcp_project": "servichile-dev", "gcp_proyectos_prohibidos": ["prohibido-cl"]}
     return get_settings().model_copy(update={**base, **cambios})
 
 
-def test_fuerza_el_proyecto_de_cuota_de_servicia(capturado):
+def test_fuerza_el_proyecto_de_cuota_de_servichile(capturado):
     GeminiProvider(_settings())
-    assert capturado["quota_pedido"] == "servicia-dev"
-    assert capturado["client"]["credentials"].quota_project_id == "servicia-dev"
-    assert capturado["client"]["project"] == "servicia-dev"
+    assert capturado["quota_pedido"] == "servichile-dev"
+    assert capturado["client"]["credentials"].quota_project_id == "servichile-dev"
+    assert capturado["client"]["project"] == "servichile-dev"
 
 
 def test_rechaza_proyecto_prohibido(capturado):

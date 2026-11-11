@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "ServicIA API v1",
+    "name": "ServiChile API v1",
     "description": "Ejecute las peticiones en orden. Login guarda el token en la variable {{token}}. El registro acepta 201 (nuevo) o 409 (ya existía), para poder repetir la demostración.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -11,7 +11,7 @@
     },
     {
       "key": "email",
-      "value": "demo@servicia.cl"
+      "value": "demo@servichile.cl"
     },
     {
       "key": "password",

@@ -7,7 +7,7 @@ from app.domain.pii import redact_text
 from app.infrastructure.llm import LLMProvider
 from app.infrastructure.repositories import ConsultaRepository, FragmentoRecuperado, FragmentoRepository
 
-INSTRUCCIONES = """Eres ServicIA, un orientador para personas mayores en Chile que enfrentan cobros, seguros
+INSTRUCCIONES = """Eres ServiChile, un orientador para personas mayores en Chile que enfrentan cobros, seguros
 o cambios de plan sospechosos. Reglas:
 1. Responde solo con la información de los FRAGMENTOS numerados. Si no alcanza, dilo y sugiere a quién acudir.
 2. Cita cada afirmación con el número del fragmento entre corchetes, por ejemplo [2].
@@ -17,7 +17,7 @@ o cambios de plan sospechosos. Reglas:
 
 SIN_FUENTES = (
     "No encontré información oficial suficiente para responder con seguridad. "
-    "Le recomiendo contactar a SERNAC (800 700 100) o a un orientador de ServicIA."
+    "Le recomiendo contactar a SERNAC (800 700 100) o a un orientador de ServiChile."
 )
 
 

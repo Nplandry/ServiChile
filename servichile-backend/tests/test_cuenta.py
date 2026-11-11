@@ -33,7 +33,7 @@ def _reservar(client: TestClient, headers, business_id) -> dict:
 
 def test_cancelar_reserva_propia_cambia_estado(client: TestClient, session_factory):
     bid = _negocio(session_factory)
-    h = _cuenta(client, "cancela@servicia.cl")
+    h = _cuenta(client, "cancela@servichile.cl")
     reserva = _reservar(client, h, bid)
     r = client.delete(f"/v1/reservas/{reserva['id']}", headers=h)
     assert r.status_code == 200, r.text
@@ -44,7 +44,7 @@ def test_cancelar_reserva_propia_cambia_estado(client: TestClient, session_facto
 
 def test_cancelar_dos_veces_da_409(client: TestClient, session_factory):
     bid = _negocio(session_factory)
-    h = _cuenta(client, "dos@servicia.cl")
+    h = _cuenta(client, "dos@servichile.cl")
     reserva = _reservar(client, h, bid)
     client.delete(f"/v1/reservas/{reserva['id']}", headers=h)
     assert client.delete(f"/v1/reservas/{reserva['id']}", headers=h).status_code == 409
@@ -52,8 +52,8 @@ def test_cancelar_dos_veces_da_409(client: TestClient, session_factory):
 
 def test_cancelar_reserva_ajena_da_404(client: TestClient, session_factory):
     bid = _negocio(session_factory)
-    dueno = _cuenta(client, "dueno@servicia.cl")
-    otro = _cuenta(client, "otro@servicia.cl")
+    dueno = _cuenta(client, "dueno@servichile.cl")
+    otro = _cuenta(client, "otro@servichile.cl")
     reserva = _reservar(client, dueno, bid)
     assert client.delete(f"/v1/reservas/{reserva['id']}", headers=otro).status_code == 404
 
@@ -65,24 +65,24 @@ def test_cancelar_requiere_sesion(client: TestClient):
 # --- Eliminar cuenta (DELETE /v1/auth/yo) ---
 
 def test_eliminar_cuenta_con_contrasena_incorrecta_da_403(client: TestClient):
-    h = _cuenta(client, "nofunciona@servicia.cl")
+    h = _cuenta(client, "nofunciona@servichile.cl")
     r = client.request("DELETE", "/v1/auth/yo", json={"password": "otra-clave-123"}, headers=h)
     assert r.status_code == 403
     assert client.get("/v1/auth/yo", headers=h).status_code == 200
 
 
 def test_eliminar_cuenta_borra_el_acceso(client: TestClient):
-    h = _cuenta(client, "borrame@servicia.cl")
+    h = _cuenta(client, "borrame@servichile.cl")
     r = client.request("DELETE", "/v1/auth/yo", json={"password": CLAVE}, headers=h)
     assert r.status_code == 204
     assert client.get("/v1/auth/yo", headers=h).status_code == 401
-    login = client.post("/v1/auth/login", json={"email": "borrame@servicia.cl", "password": CLAVE})
+    login = client.post("/v1/auth/login", json={"email": "borrame@servichile.cl", "password": CLAVE})
     assert login.status_code == 401
 
 
 def test_eliminar_cuenta_libera_negocios_reclamados(client: TestClient, session_factory):
     bid = _negocio(session_factory, nombre="Negocio a reclamar")
-    h = _cuenta(client, "titular@servicia.cl")
+    h = _cuenta(client, "titular@servichile.cl")
     claim = client.post(
         f"/v1/businesses/{bid}/claim", json={"documento_verificacion": "76.543.210-K"}, headers=h
     )

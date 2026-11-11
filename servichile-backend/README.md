@@ -1,13 +1,13 @@
-# ServicIA API
+# ServiChile API
 
-Backend de ServicIA: autenticación de usuarios y asistente de orientación con IA que responde citando normativa oficial cargada desde PDFs (RAG con pgvector).
+Backend de ServiChile: autenticación de usuarios y asistente de orientación con IA que responde citando normativa oficial cargada desde PDFs (RAG con pgvector).
 
 Stack: Python 3.12, FastAPI, SQLAlchemy 2, PostgreSQL 16 con pgvector, Gemini en Vertex AI.
 
 ## Estructura
 
 ```
-servicia-backend/
+servichile-backend/
 ├── app/
 │   ├── main.py                  # Aplicación FastAPI, CORS y routers
 │   ├── config.py                # Variables de entorno (Pydantic Settings)
@@ -84,15 +84,15 @@ Los endpoints marcados con "Sí" en Sesión requieren la cabecera `Authorization
 Requisitos: Python 3.12 y PostgreSQL 16 con pgvector. La forma más simple de tener la base es con Docker:
 
 ```bash
-docker run -d --name servicia-db -p 5432:5432 \
-  -e POSTGRES_USER=servicia -e POSTGRES_PASSWORD=servicia -e POSTGRES_DB=servicia \
+docker run -d --name servichile-db -p 5432:5432 \
+  -e POSTGRES_USER=servichile -e POSTGRES_PASSWORD=servichile -e POSTGRES_DB=servichile \
   pgvector/pgvector:pg16
 ```
 
 Luego:
 
 ```bash
-cd servicia-backend
+cd servichile-backend
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
@@ -101,12 +101,12 @@ cp .env.example .env
 # Edite .env: DATABASE_URL con la clave de su base y JWT_SECRET con un valor aleatorio:
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 
-psql "postgresql://servicia:servicia@localhost:5432/servicia" -v ON_ERROR_STOP=1 -f db/init_script.sql
+psql "postgresql://servichile:servichile@localhost:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
 
 uvicorn app.main:app --reload
 ```
 
-Abra http://localhost:8000/docs para probar los endpoints, o importe `tests/servicia_api_collection.json` en Postman o Insomnia.
+Abra http://localhost:8000/docs para probar los endpoints, o importe `tests/servichile_api_collection.json` en Postman o Insomnia.
 
 Con `LLM_PROVIDER=fake` la API funciona sin Google Cloud: genera embeddings deterministas y una respuesta de prueba. Sirve para probar el flujo completo, no la calidad de las respuestas.
 
@@ -142,11 +142,11 @@ Las pruebas usan SQLite en memoria y el proveedor falso. No necesitan PostgreSQL
 ## Despliegue en Cloud Run
 
 ```bash
-gcloud run deploy servicia-api \
+gcloud run deploy servichile-api \
   --source . \
   --region southamerica-west1 \
-  --service-account servicia-api@PROYECTO.iam.gserviceaccount.com \
-  --add-cloudsql-instances PROYECTO:REGION:serviclia-db \
+  --service-account servichile-api@PROYECTO.iam.gserviceaccount.com \
+  --add-cloudsql-instances PROYECTO:REGION:servichile-db \
   --set-env-vars APP_ENV=production,LLM_PROVIDER=gemini,GCP_PROJECT=PROYECTO,CORS_ORIGINS=https://SU-FRONTEND,TRUST_PROXY=true \
   --set-secrets JWT_SECRET=jwt-secret:latest,DATABASE_URL=database-url:latest
 ```

@@ -16,7 +16,7 @@ from app.utils import ahora_utc
 
 _hasher = PasswordHasher()  # Argon2id con parámetros por defecto de argon2-cffi
 # Hash fijo para gastar el mismo tiempo cuando el correo no existe (evita enumerar usuarios por tiempo)
-_DUMMY_HASH = _hasher.hash("servicia-dummy-password")
+_DUMMY_HASH = _hasher.hash("servichile-dummy-password")
 _ALGORITHM = "HS256"
 
 

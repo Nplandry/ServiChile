@@ -1,6 +1,6 @@
 -- Migración 002: perfil del usuario (datos del onboarding).
 -- Uso en una base existente:
---   psql "postgresql://USUARIO@HOST:5432/servicia" -v ON_ERROR_STOP=1 -f db/migrations/002_perfiles.sql
+--   psql "postgresql://USUARIO@HOST:5432/servichile" -v ON_ERROR_STOP=1 -f db/migrations/002_perfiles.sql
 -- Las bases nuevas lo reciben desde db/init_script.sql.
 
 BEGIN;

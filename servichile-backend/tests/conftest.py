@@ -79,7 +79,7 @@ def client(fragmentos: FakeFragmentos, session_factory):
 
 @pytest.fixture
 def token(client: TestClient) -> str:
-    datos = {"email": "Maria@Servicia.cl", "nombre": "María González", "password": "clave-segura-123"}
+    datos = {"email": "Maria@Servichile.cl", "nombre": "María González", "password": "clave-segura-123"}
     assert client.post("/v1/auth/registro", json=datos).status_code == 201
     r = client.post("/v1/auth/login", json={"email": datos["email"], "password": datos["password"]})
     return r.json()["access_token"]
