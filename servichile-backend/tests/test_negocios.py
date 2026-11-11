@@ -163,6 +163,9 @@ def test_listado_publico_devuelve_negocios_con_indice(client: TestClient, sessio
     assert item["indice_transparencia"] == 7.5
     assert item["latitud"] == -33.45 and item["longitud"] == -70.66
     assert item["requiere_nivel"] == 1
+    assert item["cta_texto"] == "Agendar pase"
+    assert item["logo_texto"]
+    assert item["imagen_url"]
     # Blindaje legal: el listado no expone datos crudos de reseñas.
     assert "google_reviews_count" not in item and "sentiment_positive_ratio" not in item
 

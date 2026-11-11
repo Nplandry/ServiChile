@@ -1,5 +1,7 @@
 # Cómo levantar
 
+## Backend
+
 ```bash
 cd servicia-backend
 python3.12 -m venv .venv
@@ -7,10 +9,48 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env
 python -c "import secrets; print(secrets.token_urlsafe(48))"
-docker run -d --name servicia-db -p 5432:5432 -e POSTGRES_USER=servicia -e POSTGRES_PASSWORD=servicia -e POSTGRES_DB=servicia pgvector/pgvector:pg16
+# Pegue el token en JWT_SECRET del .env
+```
+
+Base Postgres con pgvector (solo si aún no tiene contenedor):
+
+```bash
+docker run -d --name servicia-db -p 5432:5432 \
+  -e POSTGRES_USER=servicia -e POSTGRES_PASSWORD=servicia -e POSTGRES_DB=servicia \
+  pgvector/pgvector:pg16
+```
+
+### Base nueva (schema completo + datos demo)
+
+```bash
 psql "postgresql://servicia:servicia@localhost:5432/servicia" -v ON_ERROR_STOP=1 -f db/init_script.sql
+python -m scripts.cargar_db_demo
 uvicorn app.main:app --reload
 ```
+
+`init_script.sql` ya incluye marketplace (`direccion`, `descripcion`, `requiere_nivel`, `imagen_url`, `logo_url`).  
+`cargar_db_demo` siembra/actualiza los 5 negocios `seed:*` (fotos Unsplash, índices, niveles).
+
+### Base ya existente (solo migrar + seed)
+
+```bash
+python -m scripts.cargar_db_demo
+# o, si prefiere SQL a mano:
+# psql "postgresql://USUARIO@localhost:5432/servicia" -v ON_ERROR_STOP=1 -f db/migrations/003_negocios.sql
+# psql ... -f db/migrations/004_pasaporte.sql
+# psql ... -f db/migrations/005_marketplace.sql
+# psql ... -f db/migrations/006_marketplace_media.sql
+# python -m scripts.sembrar_negocios
+```
+
+Refrescar solo el seed (borra y recrea `seed:*`):
+
+```bash
+python -m scripts.cargar_db_demo --reset-seed
+# o: python -m scripts.sembrar_negocios --reset
+```
+
+## Frontend
 
 ```bash
 cd serviclia-frontend
@@ -22,12 +62,7 @@ API:       http://localhost:8000/docs
 Frontend:  http://localhost:5500/index.html
 ```
 
-```bash
-psql "postgresql://nicolaspoblete@localhost:5432/servicia" -v ON_ERROR_STOP=1 -f db/migrations/003_negocios.sql
-psql "postgresql://nicolaspoblete@localhost:5432/servicia" -v ON_ERROR_STOP=1 -f db/migrations/004_pasaporte.sql
-psql "postgresql://nicolaspoblete@localhost:5432/servicia" -v ON_ERROR_STOP=1 -f db/migrations/005_marketplace.sql
-python -m scripts.sembrar_negocios
-```
+## Tests
 
 ```bash
 pytest

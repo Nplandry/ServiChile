@@ -13,6 +13,7 @@ from app.domain.entidades import (
     Reputacion,
     ResultadoReclamo,
 )
+from app.domain.marketplace import cta_texto, imagen_efectiva, logo_texto
 from app.domain.reputacion import EntradaScore, calcular_indice
 from app.infrastructure.repositories import NegocioRepository
 from app.utils import ahora_utc
@@ -82,6 +83,10 @@ class NegocioService:
                     longitud=negocio.longitud,
                     direccion=negocio.direccion,
                     descripcion=negocio.descripcion,
+                    imagen_url=imagen_efectiva(negocio.imagen_url, negocio.categoria),
+                    logo_url=negocio.logo_url,
+                    logo_texto=logo_texto(negocio.nombre),
+                    cta_texto=cta_texto(negocio.categoria),
                     indice_transparencia=indice,
                     is_verified_profile=bool(m and m.is_verified_profile),
                     requiere_nivel=negocio.requiere_nivel,

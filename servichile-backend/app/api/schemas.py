@@ -159,6 +159,10 @@ class NegocioEnMapaOut(BaseModel):
     longitud: float | None
     direccion: str | None
     descripcion: str | None
+    imagen_url: str
+    logo_url: str | None = None
+    logo_texto: str
+    cta_texto: str
     indice_transparencia: float
     is_verified_profile: bool
     # Nivel de pasaporte requerido para la acción (p. ej. arriendos o eventos VIP piden nivel 2).

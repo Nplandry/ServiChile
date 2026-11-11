@@ -24,14 +24,23 @@ class NoEsTitularDelNegocio(Exception):
     pass
 
 
+class NivelInsuficiente(Exception):
+    def __init__(self, requiere: int) -> None:
+        self.requiere = requiere
+
+
 class ReservaService:
     def __init__(self, negocios: NegocioRepository, reservas: ReservaRepository) -> None:
         self.negocios = negocios
         self.reservas = reservas
 
-    def crear(self, usuario_id: uuid.UUID, business_id: uuid.UUID) -> Reserva:
-        if self.negocios.get(business_id) is None:
+    def crear(self, usuario_id: uuid.UUID, business_id: uuid.UUID, nivel_usuario: int = 1) -> Reserva:
+        negocio = self.negocios.get(business_id)
+        if negocio is None:
             raise NegocioNoEncontrado()
+        pide = negocio.requiere_nivel or 1
+        if pide > nivel_usuario:
+            raise NivelInsuficiente(pide)
         # El token del QR lo genera el servicio (regla de negocio); el repositorio persiste.
         return self.reservas.crear(usuario_id, business_id, secrets.token_urlsafe(24))
 
