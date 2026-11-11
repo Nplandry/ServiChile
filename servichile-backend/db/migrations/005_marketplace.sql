@@ -1,7 +1,7 @@
 -- Migración 005: campos de marketplace geolocalizado en los comercios.
 -- Agrega dirección, descripción, nivel requerido y amplía las categorías.
 -- Uso en una base existente (después de 004):
---   psql "postgresql://USUARIO@HOST:5432/servicia" -v ON_ERROR_STOP=1 -f db/migrations/005_marketplace.sql
+--   psql "postgresql://USUARIO@HOST:5432/servichile" -v ON_ERROR_STOP=1 -f db/migrations/005_marketplace.sql
 -- Las bases nuevas lo reciben desde db/init_script.sql.
 
 BEGIN;

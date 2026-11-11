@@ -63,7 +63,7 @@ def test_checkin_del_titular_da_score_100(client: TestClient, session_factory, t
     titular = {"Authorization": f"Bearer {token}"}
     _reclamar(client, titular, bid)
 
-    cliente = _cuenta(client, "cliente@servicia.cl")
+    cliente = _cuenta(client, "cliente@servichile.cl")
     reserva = _reservar(client, cliente, bid)
 
     r = client.post(
@@ -79,7 +79,7 @@ def test_no_show_baja_el_score(client: TestClient, session_factory, token: str):
     titular = {"Authorization": f"Bearer {token}"}
     _reclamar(client, titular, bid)
 
-    cliente = _cuenta(client, "cliente@servicia.cl")
+    cliente = _cuenta(client, "cliente@servichile.cl")
     asistio = _reservar(client, cliente, bid)
     faltó = _reservar(client, cliente, bid)
     client.post(f"/v1/businesses/{bid}/checkin", json={"qr_token": asistio["qr_token"]}, headers=titular)
@@ -95,8 +95,8 @@ def test_checkin_de_otro_usuario_da_403(client: TestClient, session_factory, tok
     titular = {"Authorization": f"Bearer {token}"}
     _reclamar(client, titular, bid)
 
-    otro = _cuenta(client, "otro@servicia.cl")
-    cliente = _cuenta(client, "cliente@servicia.cl")
+    otro = _cuenta(client, "otro@servichile.cl")
+    cliente = _cuenta(client, "cliente@servichile.cl")
     reserva = _reservar(client, cliente, bid)
     r = client.post(f"/v1/businesses/{bid}/checkin", json={"qr_token": reserva["qr_token"]}, headers=otro)
     assert r.status_code == 403
@@ -104,7 +104,7 @@ def test_checkin_de_otro_usuario_da_403(client: TestClient, session_factory, tok
 
 def test_checkin_en_negocio_no_reclamado_da_403(client: TestClient, session_factory, token: str):
     bid = _negocio(session_factory)
-    cliente = _cuenta(client, "cliente@servicia.cl")
+    cliente = _cuenta(client, "cliente@servichile.cl")
     reserva = _reservar(client, cliente, bid)
     r = client.post(f"/v1/businesses/{bid}/checkin", json={"qr_token": reserva["qr_token"]}, headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403
@@ -117,7 +117,7 @@ def test_qr_de_otro_negocio_da_404(client: TestClient, session_factory, token: s
     _reclamar(client, titular, bid_a)
     _reclamar(client, titular, bid_b)
 
-    cliente = _cuenta(client, "cliente@servicia.cl")
+    cliente = _cuenta(client, "cliente@servichile.cl")
     reserva_b = _reservar(client, cliente, bid_b)
     # El QR pertenece a bid_b: el titular de bid_a no puede usarlo en bid_a.
     r = client.post(f"/v1/businesses/{bid_a}/checkin", json={"qr_token": reserva_b["qr_token"]}, headers=titular)
@@ -128,7 +128,7 @@ def test_reserva_cerrada_no_se_puede_volver_a_cerrar(client: TestClient, session
     bid = _negocio(session_factory)
     titular = {"Authorization": f"Bearer {token}"}
     _reclamar(client, titular, bid)
-    cliente = _cuenta(client, "cliente@servicia.cl")
+    cliente = _cuenta(client, "cliente@servichile.cl")
     reserva = _reservar(client, cliente, bid)
     client.post(f"/v1/businesses/{bid}/checkin", json={"qr_token": reserva["qr_token"]}, headers=titular)
     r = client.post(f"/v1/businesses/{bid}/checkin", json={"qr_token": reserva["qr_token"]}, headers=titular)

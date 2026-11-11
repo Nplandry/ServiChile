@@ -24,16 +24,16 @@ def test_registro_password_corta(client: TestClient):
 def test_login_y_yo(client: TestClient, token: str):
     r = client.get("/v1/auth/yo", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
-    assert r.json()["email"] == "maria@servicia.cl"
+    assert r.json()["email"] == "maria@servichile.cl"
 
 
 def test_login_password_incorrecta(client: TestClient, token: str):
-    r = client.post("/v1/auth/login", json={"email": "maria@servicia.cl", "password": "otra-clave"})
+    r = client.post("/v1/auth/login", json={"email": "maria@servichile.cl", "password": "otra-clave"})
     assert r.status_code == 401
 
 
 def test_login_email_inexistente_mismo_error(client: TestClient):
-    r = client.post("/v1/auth/login", json={"email": "nadie@servicia.cl", "password": "x"})
+    r = client.post("/v1/auth/login", json={"email": "nadie@servichile.cl", "password": "x"})
     assert r.status_code == 401
     assert r.json()["detail"] == "Correo o contraseña incorrectos."
 
@@ -45,7 +45,7 @@ def test_token_invalido(client: TestClient):
 
 def test_rate_limit_login(client: TestClient):
     codigos = [
-        client.post("/v1/auth/login", json={"email": "x@servicia.cl", "password": "x"}).status_code for _ in range(6)
+        client.post("/v1/auth/login", json={"email": "x@servichile.cl", "password": "x"}).status_code for _ in range(6)
     ]
     assert codigos[:5] == [401] * 5
     assert codigos[5] == 429

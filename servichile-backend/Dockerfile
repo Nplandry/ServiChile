@@ -14,8 +14,8 @@ COPY app ./app
 COPY scripts ./scripts
 COPY db ./db
 
-RUN useradd --system --uid 10001 servicia
-USER servicia
+RUN useradd --system --uid 10001 servichile
+USER servichile
 
 # Cloud Run define PORT (8080 por defecto)
 EXPOSE 8080

@@ -3,7 +3,7 @@
 ## Backend
 
 ```bash
-cd servicia-backend
+cd servichile-backend
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
@@ -15,15 +15,15 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 Base Postgres con pgvector (solo si aún no tiene contenedor):
 
 ```bash
-docker run -d --name servicia-db -p 5432:5432 \
-  -e POSTGRES_USER=servicia -e POSTGRES_PASSWORD=servicia -e POSTGRES_DB=servicia \
+docker run -d --name servichile-db -p 5432:5432 \
+  -e POSTGRES_USER=servichile -e POSTGRES_PASSWORD=servichile -e POSTGRES_DB=servichile \
   pgvector/pgvector:pg16
 ```
 
 ### Base nueva (schema completo + datos demo)
 
 ```bash
-psql "postgresql://servicia:servicia@localhost:5432/servicia" -v ON_ERROR_STOP=1 -f db/init_script.sql
+psql "postgresql://servichile:servichile@localhost:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
 python -m scripts.cargar_db_demo
 uvicorn app.main:app --reload
 ```
@@ -36,7 +36,7 @@ uvicorn app.main:app --reload
 ```bash
 python -m scripts.cargar_db_demo
 # o, si prefiere SQL a mano:
-# psql "postgresql://USUARIO@localhost:5432/servicia" -v ON_ERROR_STOP=1 -f db/migrations/003_negocios.sql
+# psql "postgresql://USUARIO@localhost:5432/servichile" -v ON_ERROR_STOP=1 -f db/migrations/003_negocios.sql
 # psql ... -f db/migrations/004_pasaporte.sql
 # psql ... -f db/migrations/005_marketplace.sql
 # psql ... -f db/migrations/006_marketplace_media.sql
@@ -53,7 +53,7 @@ python -m scripts.cargar_db_demo --reset-seed
 ## Frontend
 
 ```bash
-cd serviclia-frontend
+cd servichile-frontend
 python3 -m http.server 5500
 ```
 

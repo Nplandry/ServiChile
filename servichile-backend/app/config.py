@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     app_env: Literal["local", "test", "production"] = "local"
 
-    database_url: str = "postgresql+psycopg://servicia:servicia@localhost:5432/servicia"
+    database_url: str = "postgresql+psycopg://servichile:servichile@localhost:5432/servichile"
 
     jwt_secret: SecretStr = Field(min_length=32)
     jwt_expires_minutes: int = Field(default=60, ge=5, le=1440)

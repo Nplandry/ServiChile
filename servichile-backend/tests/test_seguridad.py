@@ -23,10 +23,10 @@ def _hash_de(session_factory, email: str) -> str:
 # 1. Sal aleatorio por contraseña
 
 def test_sal_distinto_para_la_misma_contrasena(client: TestClient, session_factory):
-    for email in ("uno@servicia.cl", "dos@servicia.cl"):
+    for email in ("uno@servichile.cl", "dos@servichile.cl"):
         client.post("/v1/auth/registro", json={"email": email, "nombre": "Ana", "password": "misma-clave-123"})
-    h1 = _hash_de(session_factory, "uno@servicia.cl")
-    h2 = _hash_de(session_factory, "dos@servicia.cl")
+    h1 = _hash_de(session_factory, "uno@servichile.cl")
+    h2 = _hash_de(session_factory, "dos@servichile.cl")
     assert h1 != h2
     # El formato Argon2 incluye la sal en base64: "$argon2id$v=19$m=...,t=...,p=...$SALT$HASH"
     sal1, sal2 = h1.split("$")[4], h2.split("$")[4]
@@ -44,26 +44,26 @@ def test_no_hay_sal_fijo_en_el_codigo():
 
 
 def test_hash_no_contiene_la_contrasena(client: TestClient, session_factory):
-    client.post("/v1/auth/registro", json={"email": "h@servicia.cl", "nombre": "Ana", "password": "clave-visible-99"})
-    assert "clave-visible-99" not in _hash_de(session_factory, "h@servicia.cl")
+    client.post("/v1/auth/registro", json={"email": "h@servichile.cl", "nombre": "Ana", "password": "clave-visible-99"})
+    assert "clave-visible-99" not in _hash_de(session_factory, "h@servichile.cl")
 
 
 # 2. Mensajes genéricos y 401
 
 def test_mismo_mensaje_correo_inexistente_y_clave_incorrecta(client: TestClient):
-    client.post("/v1/auth/registro", json={"email": "real@servicia.cl", "nombre": "Ana", "password": "clave-real-123"})
-    a = client.post("/v1/auth/login", json={"email": "real@servicia.cl", "password": "otra-clave-999"})
-    b = client.post("/v1/auth/login", json={"email": "fantasma@servicia.cl", "password": "otra-clave-999"})
+    client.post("/v1/auth/registro", json={"email": "real@servichile.cl", "nombre": "Ana", "password": "clave-real-123"})
+    a = client.post("/v1/auth/login", json={"email": "real@servichile.cl", "password": "otra-clave-999"})
+    b = client.post("/v1/auth/login", json={"email": "fantasma@servichile.cl", "password": "otra-clave-999"})
     assert a.status_code == b.status_code == 401
     assert a.json() == b.json() == {"detail": "Correo o contraseña incorrectos."}
 
 
 def test_usuario_inactivo_recibe_el_mismo_error(client: TestClient, session_factory):
-    client.post("/v1/auth/registro", json={"email": "baja@servicia.cl", "nombre": "Ana", "password": "clave-baja-123"})
+    client.post("/v1/auth/registro", json={"email": "baja@servichile.cl", "nombre": "Ana", "password": "clave-baja-123"})
     with session_factory() as s:
-        s.query(Usuario).filter(Usuario.email == "baja@servicia.cl").update({"activo": False})
+        s.query(Usuario).filter(Usuario.email == "baja@servichile.cl").update({"activo": False})
         s.commit()
-    r = client.post("/v1/auth/login", json={"email": "baja@servicia.cl", "password": "clave-baja-123"})
+    r = client.post("/v1/auth/login", json={"email": "baja@servichile.cl", "password": "clave-baja-123"})
     assert r.status_code == 401
     assert r.json() == {"detail": "Correo o contraseña incorrectos."}
 
@@ -80,13 +80,13 @@ def _mediana_login(client: TestClient, email: str, repeticiones: int) -> float:
 
 
 def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
-    datos = {"email": "tiempo@servicia.cl", "nombre": "Ana", "password": "clave-tiempo-1"}
+    datos = {"email": "tiempo@servichile.cl", "nombre": "Ana", "password": "clave-tiempo-1"}
     client.post("/v1/auth/registro", json=datos)
     app.dependency_overrides[deps.get_rate_limiter] = lambda: SinLimite()
     try:
-        _mediana_login(client, "tiempo@servicia.cl", 2)  # calentamiento
-        con_cuenta = _mediana_login(client, "tiempo@servicia.cl", 7)
-        sin_cuenta = _mediana_login(client, "nadie@servicia.cl", 7)
+        _mediana_login(client, "tiempo@servichile.cl", 2)  # calentamiento
+        con_cuenta = _mediana_login(client, "tiempo@servichile.cl", 7)
+        sin_cuenta = _mediana_login(client, "nadie@servichile.cl", 7)
     finally:
         app.dependency_overrides.pop(deps.get_rate_limiter, None)
     cociente = max(con_cuenta, sin_cuenta) / min(con_cuenta, sin_cuenta)
@@ -98,7 +98,7 @@ def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
 
 def test_limite_por_correo(client: TestClient):
     codigos = [
-        client.post("/v1/auth/login", json={"email": "x@servicia.cl", "password": "x"}).status_code for _ in range(6)
+        client.post("/v1/auth/login", json={"email": "x@servichile.cl", "password": "x"}).status_code for _ in range(6)
     ]
     assert codigos[:5] == [401] * 5
     assert codigos[5] == 429
@@ -106,7 +106,7 @@ def test_limite_por_correo(client: TestClient):
 
 def test_limite_por_ip_aunque_cambie_el_correo(client: TestClient):
     codigos = [
-        client.post("/v1/auth/login", json={"email": f"n{i}@servicia.cl", "password": "x"}).status_code
+        client.post("/v1/auth/login", json={"email": f"n{i}@servichile.cl", "password": "x"}).status_code
         for i in range(21)
     ]
     assert codigos[:20] == [401] * 20
@@ -126,7 +126,7 @@ def test_limite_registro_por_ip(client: TestClient, monkeypatch):
     codigos = [
         client.post(
             "/v1/auth/registro",
-            json={"email": f"r{i}@servicia.cl", "nombre": "Ana", "password": "clave-registro-1"},
+            json={"email": f"r{i}@servichile.cl", "nombre": "Ana", "password": "clave-registro-1"},
         ).status_code
         for i in range(21)
     ]
@@ -136,8 +136,8 @@ def test_limite_registro_por_ip(client: TestClient, monkeypatch):
 
 def test_respuesta_429_incluye_retry_after(client: TestClient):
     for _ in range(5):
-        client.post("/v1/auth/login", json={"email": "rl@servicia.cl", "password": "x"})
-    r = client.post("/v1/auth/login", json={"email": "rl@servicia.cl", "password": "x"})
+        client.post("/v1/auth/login", json={"email": "rl@servichile.cl", "password": "x"})
+    r = client.post("/v1/auth/login", json={"email": "rl@servichile.cl", "password": "x"})
     assert r.status_code == 429
     assert r.headers["retry-after"] == "60"
 
@@ -156,7 +156,7 @@ def test_sin_proxy_de_confianza_se_ignora_x_forwarded_for(client: TestClient):
         codigos = [
             client.post(
                 "/v1/auth/login",
-                json={"email": f"s{i}@servicia.cl", "password": "x"},
+                json={"email": f"s{i}@servichile.cl", "password": "x"},
                 headers={"X-Forwarded-For": f"10.0.0.{i}"},
             ).status_code
             for i in range(21)
@@ -176,7 +176,7 @@ def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(client: Tes
         codigos = [
             client.post(
                 "/v1/auth/login",
-                json={"email": f"p{i}@servicia.cl", "password": "x"},
+                json={"email": f"p{i}@servichile.cl", "password": "x"},
                 headers={"X-Forwarded-For": f"10.9.9.{i}, 203.0.113.7"},
             ).status_code
             for i in range(21)
@@ -185,7 +185,7 @@ def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(client: Tes
         otros = [
             client.post(
                 "/v1/auth/login",
-                json={"email": f"q{i}@servicia.cl", "password": "x"},
+                json={"email": f"q{i}@servichile.cl", "password": "x"},
                 headers={"X-Forwarded-For": f"203.0.113.{i + 50}"},
             ).status_code
             for i in range(3)

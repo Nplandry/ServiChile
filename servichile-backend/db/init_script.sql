@@ -1,8 +1,8 @@
--- ServicIA: crea el esquema completo desde cero.
+-- ServiChile: crea el esquema completo desde cero.
 -- Requisitos: PostgreSQL 16 con la extensión pgvector (disponible en Cloud SQL).
 -- Uso:
---   createdb servicia
---   psql "postgresql://USUARIO@HOST:5432/servicia" -v ON_ERROR_STOP=1 -f db/init_script.sql
+--   createdb servichile
+--   psql "postgresql://USUARIO@HOST:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
 -- La dimensión vector(768) debe coincidir con EMBEDDING_DIM en .env.
 
 BEGIN;
