@@ -69,6 +69,8 @@ def _negocio(n: orm.BusinessEntity) -> Negocio:
         longitud=n.longitud,
         direccion=n.direccion,
         descripcion=n.descripcion,
+        imagen_url=n.imagen_url,
+        logo_url=n.logo_url,
         requiere_nivel=n.requiere_nivel,
         is_claimed=n.is_claimed,
         reclamado_por=n.reclamado_por,
@@ -274,6 +276,8 @@ class NegocioRepository:
         n.longitud = negocio.longitud
         n.direccion = negocio.direccion
         n.descripcion = negocio.descripcion
+        n.imagen_url = negocio.imagen_url
+        n.logo_url = negocio.logo_url
         n.requiere_nivel = negocio.requiere_nivel
         n.is_claimed = negocio.is_claimed
         n.reclamado_por = negocio.reclamado_por

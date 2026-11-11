@@ -99,6 +99,8 @@ class BusinessEntity(Base):
     longitud: Mapped[float | None] = mapped_column(Float)
     direccion: Mapped[str | None] = mapped_column(String(200))
     descripcion: Mapped[str | None] = mapped_column(Text)
+    imagen_url: Mapped[str | None] = mapped_column(String(500))
+    logo_url: Mapped[str | None] = mapped_column(String(500))
     # Nivel de Pasaporte requerido para la acción (1 básico, 2 verificado: arriendos y eventos VIP).
     requiere_nivel: Mapped[int] = mapped_column(SmallInteger, default=1)
     # Fuente externa (p. ej. place_id de Google Maps) para la ingesta periódica.

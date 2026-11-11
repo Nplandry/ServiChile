@@ -53,6 +53,8 @@ class Negocio:
     longitud: float | None = None
     direccion: str | None = None
     descripcion: str | None = None
+    imagen_url: str | None = None
+    logo_url: str | None = None
     requiere_nivel: int = 1
     is_claimed: bool = False
     reclamado_por: uuid.UUID | None = None
@@ -153,6 +155,10 @@ class NegocioEnMapa:
     longitud: float | None
     direccion: str | None
     descripcion: str | None
+    imagen_url: str
+    logo_url: str | None
+    logo_texto: str
+    cta_texto: str
     indice_transparencia: float
     is_verified_profile: bool
     requiere_nivel: int

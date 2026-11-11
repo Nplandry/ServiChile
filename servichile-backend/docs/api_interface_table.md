@@ -53,6 +53,8 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 
 Valores de `categoria`: `embargo-falso`, `seguros`, `portabilidad` (los mismos `id` de `js/data/categorias.js` del frontend).
 
+**NegocioEnMapaOut** (listado marketplace): `id`, `nombre`, `categoria`, `latitud`, `longitud`, `direccion`, `descripcion`, `imagen_url`, `logo_url` (null o URL), `logo_texto` (iniciales si no hay logo), `cta_texto` (acción por categoría), `indice_transparencia`, `is_verified_profile`, `requiere_nivel` (1 o 2).
+
 **ReputacionOut** (Índice de Transparencia): `business_id` (uuid), `nombre`, `categoria` (`gimnasio`, `clinica-dental`, `comercio`, `restaurante`, `automotriz`, `otro`), `is_verified_profile` (bool), `estado_perfil` (`"Perfil Verificado"` o `"Perfil No Verificado / Índice Básico"`), `google_rating_avg` (0 a 5 o null), `google_reviews_count` (entero), `sentiment_positive_ratio` (0 a 1 o null), `response_time_score` (0 a 1 o null), `indice_transparencia` (1.0 a 10.0), `actualizado_en` (ISO 8601), `descargo` (texto fijo que aclara que el índice no es un juicio de valor). Nunca incluye textos de reseñas ni comentarios.
 
 **ClaimIn**: `documento_verificacion` (3 a 120, obligatorio), `nombre` (2 a 160), `telefono` (≤30), `sitio_web` (≤200), todos opcionales salvo el documento. Campos desconocidos dan 422.

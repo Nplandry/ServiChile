@@ -82,6 +82,8 @@ CREATE TABLE business_entities (
     longitud       double precision,
     direccion      varchar(200),
     descripcion    text,
+    imagen_url     varchar(500),
+    logo_url       varchar(500),
     -- Nivel de Pasaporte requerido para la acción (1 básico, 2 verificado: arriendos y eventos VIP)
     requiere_nivel smallint NOT NULL DEFAULT 1 CHECK (requiere_nivel IN (1, 2)),
     external_ref   varchar(200) UNIQUE,            -- p. ej. place_id de Google Maps (ingesta)

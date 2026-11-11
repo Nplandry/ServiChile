@@ -3,21 +3,32 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.api.deps import CurrentUserDep, ReservaServiceDep
+from app.api.deps import CurrentUserDep, PasaporteServiceDep, ReservaServiceDep
 from app.api.schemas import ReservaIn, ReservaOut
 from app.services.negocio_service import NegocioNoEncontrado
-from app.services.reserva_service import ReservaNoEncontrada, ReservaYaCerrada
+from app.services.reserva_service import NivelInsuficiente, ReservaNoEncontrada, ReservaYaCerrada
 
 router = APIRouter(prefix="/v1/reservas", tags=["Reservas"])
 
 
 @router.post("", response_model=ReservaOut, status_code=status.HTTP_201_CREATED)
-def crear_reserva(datos: ReservaIn, usuario: CurrentUserDep, servicio: ReservaServiceDep):
+def crear_reserva(
+    datos: ReservaIn,
+    usuario: CurrentUserDep,
+    servicio: ReservaServiceDep,
+    pasaporte: PasaporteServiceDep,
+):
     """Reserva un cupo y devuelve el código QR que el usuario muestra en el comercio."""
+    nivel = pasaporte.estado(usuario).nivel_pasaporte
     try:
-        return servicio.crear(usuario.id, datos.business_id)
+        return servicio.crear(usuario.id, datos.business_id, nivel)
     except NegocioNoEncontrado:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Negocio no encontrado.") from None
+    except NivelInsuficiente as e:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"Este lugar pide nivel {e.requiere}. Suba su nivel de confianza para continuar.",
+        ) from None
 
 
 @router.get("", response_model=list[ReservaOut])
