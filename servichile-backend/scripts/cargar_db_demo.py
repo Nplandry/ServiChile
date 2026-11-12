@@ -26,6 +26,9 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "004_pasaporte.sql",
     ROOT / "db" / "migrations" / "005_marketplace.sql",
     ROOT / "db" / "migrations" / "006_marketplace_media.sql",
+    ROOT / "db" / "migrations" / "007_biometria.sql",
+    ROOT / "db" / "migrations" / "008_xp.sql",
+    ROOT / "db" / "migrations" / "009_tipo_cuenta.sql",
 ]
 
 
@@ -66,8 +69,31 @@ def main() -> None:
     engine = get_engine()
     database_url = str(engine.url)
 
-    if not args.solo_seed and not _schema_listo(engine):
-        print("Schema incompleto. Aplicando migraciones 003-006...")
+    def _tiene_biometria() -> bool:
+        insp = inspect(engine)
+        if not insp.has_table("usuarios"):
+            return False
+        cols = {c["name"] for c in insp.get_columns("usuarios")}
+        return "biometria_verificada" in cols
+
+    def _tiene_xp() -> bool:
+        insp = inspect(engine)
+        if not insp.has_table("usuarios"):
+            return False
+        cols = {c["name"] for c in insp.get_columns("usuarios")}
+        return "xp" in cols and insp.has_table("usuario_xp_eventos")
+
+    def _tiene_tipo_cuenta() -> bool:
+        insp = inspect(engine)
+        if not insp.has_table("perfiles"):
+            return False
+        cols = {c["name"] for c in insp.get_columns("perfiles")}
+        return "tipo_cuenta" in cols
+
+    if not args.solo_seed and (
+        not _schema_listo(engine) or not _tiene_biometria() or not _tiene_xp() or not _tiene_tipo_cuenta()
+    ):
+        print("Schema incompleto o falta biometría/XP/tipo_cuenta. Aplicando migraciones 003-009...")
         for migracion in MIGRACIONES:
             if not migracion.exists():
                 raise SystemExit(f"No existe {migracion}")
@@ -85,6 +111,21 @@ def main() -> None:
         raise SystemExit(
             "El schema sigue incompleto. Cargue db/init_script.sql en una base nueva "
             "o aplique las migraciones manualmente."
+        )
+    if not _tiene_biometria():
+        raise SystemExit(
+            "Falta biometria_verificada en usuarios. Aplique db/migrations/007_biometria.sql "
+            "con el usuario dueño de la base."
+        )
+    if not _tiene_xp():
+        raise SystemExit(
+            "Falta xp / usuario_xp_eventos. Aplique db/migrations/008_xp.sql "
+            "con el usuario dueño de la base."
+        )
+    if not _tiene_tipo_cuenta():
+        raise SystemExit(
+            "Falta tipo_cuenta en perfiles. Aplique db/migrations/009_tipo_cuenta.sql "
+            "con el usuario dueño de la base."
         )
 
     with engine.connect() as conn:

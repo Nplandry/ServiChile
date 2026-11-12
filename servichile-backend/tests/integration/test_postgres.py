@@ -174,7 +174,12 @@ def client(cargado):
 
 
 def _token(client: TestClient) -> str:
-    datos = {"email": "Int@Servichile.cl", "nombre": "Prueba", "password": "clave-integracion-1"}
+    datos = {
+        "email": "Int@Servichile.cl",
+        "nombre": "Prueba",
+        "password": "clave-integracion-1",
+        "perfil": {"tipo_cuenta": "persona"},
+    }
     assert client.post("/v1/auth/registro", json=datos).status_code == 201
     r = client.post("/v1/auth/login", json={"email": datos["email"], "password": datos["password"]})
     assert r.status_code == 200
@@ -214,7 +219,12 @@ def test_flujo_sin_fuentes_y_redaccion(client, cargado):
 def test_historial_es_privado_por_usuario(client):
     h1 = {"Authorization": f"Bearer {_token(client)}"}
     client.post("/v1/consultas", json={"pregunta": "Pregunta del usuario uno"}, headers=h1)
-    otro = {"email": "otro@servichile.cl", "nombre": "Otro", "password": "clave-otro-123"}
+    otro = {
+        "email": "otro@servichile.cl",
+        "nombre": "Otro",
+        "password": "clave-otro-123",
+        "perfil": {"tipo_cuenta": "persona"},
+    }
     client.post("/v1/auth/registro", json=otro)
     t2 = client.post("/v1/auth/login", json={"email": otro["email"], "password": otro["password"]}).json()
     h2 = {"Authorization": f"Bearer {t2['access_token']}"}
@@ -252,13 +262,22 @@ def test_perfil_constraints_y_cascade(db):
 
 def test_registro_y_patch_perfil_en_postgres(client, cargado):
     datos = {
-        "email": "perfil.pg@servichile.cl", "nombre": "Rosa", "password": "clave-perfil-pg",
-        "perfil": {"edad": 68, "preocupacion": "telecom", "proposito": "investigar"},
+        "email": "perfil.pg@servichile.cl",
+        "nombre": "Rosa",
+        "password": "clave-perfil-pg",
+        "perfil": {
+            "tipo_cuenta": "persona",
+            "edad": 68,
+            "preocupacion": "telecom",
+            "proposito": "investigar",
+        },
     }
     assert client.post("/v1/auth/registro", json=datos).status_code == 201
     t = client.post("/v1/auth/login", json={"email": datos["email"], "password": datos["password"]}).json()
     h = {"Authorization": f"Bearer {t['access_token']}"}
-    assert client.get("/v1/auth/yo", headers=h).json()["perfil"] == datos["perfil"]
+    perfil = client.get("/v1/auth/yo", headers=h).json()["perfil"]
+    assert perfil["edad"] == 68
+    assert perfil["tipo_cuenta"] == "persona"
     client.patch("/v1/perfil", json={"preocupacion": "embargo"}, headers=h)
     with cargado() as s:
         fila = s.execute(text("select edad, preocupacion, proposito from perfiles")).one()

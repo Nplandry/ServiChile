@@ -47,7 +47,7 @@ def registro(
     settings: SettingsDep,
 ):
     _limitar_intento(request, "registro", datos.email.lower(), limiter, settings)
-    perfil = datos.perfil.model_dump(exclude_unset=True) if datos.perfil is not None else None
+    perfil = datos.perfil.model_dump(exclude_unset=True)
     try:
         usuario = auth.registrar(datos.email, datos.nombre, datos.password, perfil)
     except EmailYaRegistrado:

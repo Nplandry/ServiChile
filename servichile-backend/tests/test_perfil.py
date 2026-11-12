@@ -2,9 +2,14 @@ from fastapi.testclient import TestClient
 
 
 def _registrar(client: TestClient, email="perfil@servichile.cl", perfil=None) -> dict[str, str]:
-    datos = {"email": email, "nombre": "Rosa", "password": "clave-perfil-123"}
+    datos = {
+        "email": email,
+        "nombre": "Rosa",
+        "password": "clave-perfil-123",
+        "perfil": {"tipo_cuenta": "persona"},
+    }
     if perfil is not None:
-        datos["perfil"] = perfil
+        datos["perfil"] = {"tipo_cuenta": "persona", **perfil}
     r = client.post("/v1/auth/registro", json=datos)
     assert r.status_code == 201, r.text
     t = client.post("/v1/auth/login", json={"email": email, "password": datos["password"]}).json()
@@ -96,7 +101,12 @@ def test_validaciones_del_perfil(client: TestClient):
 
 
 def test_registro_con_perfil_invalido_no_crea_usuario(client: TestClient):
-    datos = {"email": "x@servichile.cl", "nombre": "Ana", "password": "clave-segura-1", "perfil": {"edad": 5}}
+    datos = {
+        "email": "x@servichile.cl",
+        "nombre": "Ana",
+        "password": "clave-segura-1",
+        "perfil": {"tipo_cuenta": "persona", "edad": 5},
+    }
     assert client.post("/v1/auth/registro", json=datos).status_code == 422
     r = client.post("/v1/auth/login", json={"email": "x@servichile.cl", "password": "clave-segura-1"})
     assert r.status_code == 401
@@ -104,7 +114,12 @@ def test_registro_con_perfil_invalido_no_crea_usuario(client: TestClient):
 
 def test_registro_no_acepta_rut(client: TestClient):
     # El RUT se verifica después del registro, no se acepta en el alta.
-    datos = {"email": "r@servichile.cl", "nombre": "Ana", "password": "clave-segura-1", "perfil": {"rut": "12345678-5"}}
+    datos = {
+        "email": "r@servichile.cl",
+        "nombre": "Ana",
+        "password": "clave-segura-1",
+        "perfil": {"tipo_cuenta": "persona", "rut": "12345678-5"},
+    }
     assert client.post("/v1/auth/registro", json=datos).status_code == 422
 
 

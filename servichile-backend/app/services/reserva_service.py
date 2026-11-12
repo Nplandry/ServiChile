@@ -10,6 +10,7 @@ import uuid
 from app.domain.entidades import Reserva
 from app.infrastructure.repositories import NegocioRepository, ReservaRepository
 from app.services.negocio_service import NegocioNoEncontrado
+from app.services.xp_service import XpService
 
 
 class ReservaNoEncontrada(Exception):
@@ -30,9 +31,15 @@ class NivelInsuficiente(Exception):
 
 
 class ReservaService:
-    def __init__(self, negocios: NegocioRepository, reservas: ReservaRepository) -> None:
+    def __init__(
+        self,
+        negocios: NegocioRepository,
+        reservas: ReservaRepository,
+        xp: XpService | None = None,
+    ) -> None:
         self.negocios = negocios
         self.reservas = reservas
+        self.xp = xp
 
     def crear(self, usuario_id: uuid.UUID, business_id: uuid.UUID, nivel_usuario: int = 1) -> Reserva:
         negocio = self.negocios.get(business_id)
@@ -78,4 +85,7 @@ class ReservaService:
         if reserva.estado != "reservada":
             raise ReservaYaCerrada()
         reserva.estado = estado
-        return self.reservas.guardar(reserva)
+        reserva = self.reservas.guardar(reserva)
+        if estado == "asistido" and self.xp is not None:
+            self.xp.por_asistencia(reserva.usuario_id, reserva.id)
+        return reserva

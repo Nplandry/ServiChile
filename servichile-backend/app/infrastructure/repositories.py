@@ -27,7 +27,12 @@ from app.utils import ahora_utc
 def _perfil(p: orm.Perfil | None) -> Perfil | None:
     if p is None:
         return None
-    return Perfil(edad=p.edad, preocupacion=p.preocupacion, proposito=p.proposito)
+    return Perfil(
+        edad=p.edad,
+        tipo_cuenta=p.tipo_cuenta,
+        preocupacion=p.preocupacion,
+        proposito=p.proposito,
+    )
 
 
 def _usuario(u: orm.Usuario) -> Usuario:
@@ -40,6 +45,9 @@ def _usuario(u: orm.Usuario) -> Usuario:
         rut=u.rut,
         rut_verificado=u.rut_verificado,
         telefono=u.telefono,
+        biometria_verificada=bool(u.biometria_verificada),
+        biometria_verificada_en=u.biometria_verificada_en,
+        xp=int(u.xp or 0),
         creado_en=u.creado_en,
         perfil=_perfil(u.perfil),
     )
@@ -156,15 +164,52 @@ class UsuarioRepository:
         u.rut = usuario.rut
         u.rut_verificado = usuario.rut_verificado
         u.telefono = usuario.telefono
+        u.biometria_verificada = usuario.biometria_verificada
+        u.biometria_verificada_en = usuario.biometria_verificada_en
+        u.xp = int(usuario.xp or 0)
         if usuario.perfil is not None:
             if u.perfil is None:
                 u.perfil = orm.Perfil(usuario_id=usuario.id)
             u.perfil.edad = usuario.perfil.edad
+            u.perfil.tipo_cuenta = usuario.perfil.tipo_cuenta
             u.perfil.preocupacion = usuario.perfil.preocupacion
             u.perfil.proposito = usuario.perfil.proposito
         self.session.commit()
         self.session.refresh(u)
         return _usuario(u)
+
+
+class XpRepository:
+    """Otorga XP de forma idempotente: un (usuario, evento) solo premia una vez."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def otorgar(self, usuario_id: uuid.UUID, evento: str, puntos: int) -> int:
+        """Devuelve los puntos sumados (0 si el evento ya existía)."""
+        if puntos <= 0:
+            return 0
+        ya = self.session.scalar(
+            select(orm.UsuarioXpEvento.id).where(
+                orm.UsuarioXpEvento.usuario_id == usuario_id,
+                orm.UsuarioXpEvento.evento == evento,
+            )
+        )
+        if ya is not None:
+            return 0
+        self.session.add(
+            orm.UsuarioXpEvento(usuario_id=usuario_id, evento=evento, puntos=puntos)
+        )
+        u = self.session.get(orm.Usuario, usuario_id)
+        if u is None:
+            return 0
+        u.xp = int(u.xp or 0) + puntos
+        self.session.commit()
+        return puntos
+
+    def total(self, usuario_id: uuid.UUID) -> int:
+        u = self.session.get(orm.Usuario, usuario_id)
+        return int(u.xp or 0) if u else 0
 
 
 @dataclass(frozen=True)

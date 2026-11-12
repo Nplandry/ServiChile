@@ -15,6 +15,8 @@ class Settings(BaseSettings):
 
     jwt_secret: SecretStr = Field(min_length=32)
     jwt_expires_minutes: int = Field(default=60, ge=5, le=1440)
+    # Mi QR: token de identidad de corta vida (firmado, distinto del JWT de sesión).
+    mi_qr_expires_minutes: int = Field(default=15, ge=1, le=120)
 
     # CORS: orígenes del frontend separados por coma
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5500"]

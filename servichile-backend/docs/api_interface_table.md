@@ -13,6 +13,7 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 | GET | `/v1/perfil` | Sí | n/a | 200 `PerfilOut` (Pasaporte de Confianza) | 401 |
 | PATCH | `/v1/perfil` | Sí | `PerfilIn` parcial (`edad`, `rut`, `telefono`) | 200 `PerfilOut` | 401, 422 RUT inválido o no verificable, 409 RUT en uso o ya verificado |
 | POST | `/v1/perfil/documentos` | Sí | multipart, campo `archivo` (PDF, máximo 1 MB) | 201 `InmobiliariaScoring` | 401, 413 archivo muy grande, 422 no es PDF o no se puede leer, 429 límite |
+| POST | `/v1/perfil/biometria` | Sí | multipart, campo `foto` (JPEG/PNG/WebP/GIF, máximo 5 MB) | 201 `BiometriaOut` | 401, 413 foto muy grande, 422 no es imagen, 429 límite |
 | GET | `/v1/reservas` | Sí | n/a | 200 lista de `ReservaOut` | 401 |
 | POST | `/v1/reservas` | Sí | `business_id` | 201 `ReservaOut` (incluye `qr_token`) | 401, 404 negocio, 422 |
 | POST | `/v1/businesses/{id}/checkin` | Sí (titular) | `qr_token` (10 a 64) | 200 `ReservaOut` con `estado: asistido` | 401, 403 no es titular del negocio, 404 QR no encontrado, 409 reserva ya cerrada, 422 |
@@ -23,6 +24,8 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 | POST | `/v1/businesses/{id}/claim` | Sí | `documento_verificacion` (3 a 120), `nombre`/`telefono`/`sitio_web` opcionales | 201 `ClaimOut` | 401, 404, 409 ya reclamado, 422 |
 | DELETE | `/v1/auth/yo` | Sí | `password` (confirmación de la contraseña actual) | 204 sin cuerpo | 401 sesión inválida, 403 contraseña incorrecta, 422 |
 | DELETE | `/v1/reservas/{id}` | Sí | n/a | 200 `ReservaOut` con `estado: cancelada` | 401, 404 reserva ajena o inexistente, 409 ya no está activa |
+| GET | `/v1/mi-qr` | Sí | n/a | 200 `MiQrOut` (payload + carnet propio) | 401 |
+| POST | `/v1/mi-qr/validar` | Sí | `payload` (URI `servichile://mi-qr/...` o JWT) | 200 `MiQrValidacionOut` (carnet público) | 401, 422 QR inválido/expirado, 429 |
 
 ## Esquemas
 
@@ -38,8 +41,11 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 - `estado_pasaporte`: `basico` (nunca subió documentos), `pendiente`, `verificado` o `rechazado`.
 - `score_confiabilidad` (0 a 100 o null): asistencias sobre reservas cerradas (asistidas más no-show), por 100. Null si no hay reservas cerradas.
 - `inmobiliaria_scoring` (objeto o null): `estado_verificacion`, `score_financiero` (0 a 1000) y `actualizado_en`. Null si nunca subió documentos.
+- `biometria_verificada` (bool) y `biometria_verificada_en` (ISO 8601 o null): la foto nunca se guarda.
 - `edad`.
 - `preocupacion` y `proposito`: siempre null. Deprecados.
+
+**BiometriaOut**: `biometria_verificada`, `biometria_verificada_en`, `mensaje` (aclara que la foto no se almacenó).
 
 **InmobiliariaScoring** (respuesta de POST `/v1/perfil/documentos`): `estado_verificacion`, `score_financiero`, `actualizado_en`. El PDF nunca se guarda.
 
@@ -61,6 +67,12 @@ Valores de `categoria`: `embargo-falso`, `seguros`, `portabilidad` (los mismos `
 
 **ClaimOut**: `business_id`, `is_claimed` (bool), `is_verified_profile` (bool), `reclamado_por` (uuid del usuario), `mensaje`.
 
+**MiQrOut** (GET `/v1/mi-qr`): `payload` (URI `servichile://mi-qr/<jwt>` para dibujar el QR), `token`, `expires_in` (segundos), `expires_at`, `nombre`, `email`, `nivel_pasaporte`, `estado_pasaporte`, `score_confiabilidad`, `rut_verificado`. El token es distinto del JWT de sesión y dura `MI_QR_EXPIRES_MINUTES` (por defecto 15).
+
+**MiQrValidarIn**: `payload` (10 a 2048). Acepta la URI completa o el JWT crudo.
+
+**MiQrValidacionOut**: `es_propio`, `nombre`, `nivel_pasaporte`, `estado_pasaporte`, `score_confiabilidad`, `rut_verificado`, `expires_at`. Nunca incluye correo ni RUT.
+
 ## Comportamiento
 
 - **Redacción de datos personales:** antes de buscar o llamar al modelo, la pregunta pasa por `app/domain/pii.py`, que reemplaza RUT, correos, teléfonos móviles y números de tarjeta. En la base solo se guarda la versión redactada.
@@ -71,5 +83,7 @@ Valores de `categoria`: `embargo-falso`, `seguros`, `portabilidad` (los mismos `
   - **Documentos de arriendo:** el PDF se lee en memoria con un límite de 1 MB, que es el umbral por encima del cual Starlette escribe a disco. El extractor es falso y devuelve métricas fijas. Solo se guardan `score_financiero` y fechas.
   - **Score de arriendo:** la fórmula es provisional (capacidad de pago, con tope de 300 si hay morosidad). Falta la definición de negocio.
   - **Reservas:** el dueño verificado de un comercio (`is_claimed` y `reclamado_por` igual a su usuario) registra asistencia o no-show. Un comercio sin reclamar no tiene quien registre asistencias.
+  - **Mi QR:** cada usuario autenticado obtiene un carnet firmado de corta vida (`GET /v1/mi-qr`). Cualquier otro usuario autenticado puede escanearlo (`POST /v1/mi-qr/validar`) y ver solo datos públicos de confianza. El JWT de sesión no sirve como Mi QR.
+
 - **Índice de Transparencia (blindaje legal):** `GET /v1/businesses/{id}/reputation` devuelve solo métricas estadísticas agregadas y el índice algorítmico (1.0 a 10.0), nunca textos de reseñas ni juicios de valor. La fórmula vive en `app/domain/reputacion.py`: `(0.4 × Google normalizado) + (0.3 × Volumen normalizado) + (0.3 × Factor de verificación)`, reescalada a 1.0–10.0. Un negocio no reclamado recibe un factor de verificación neutro (ni premia ni castiga). Reclamar el perfil (`POST /claim`, Derecho a Réplica) lo marca como verificado y recalcula el índice. El cálculo está pensado para ejecutarse en segundo plano (worker); `final_score` se lee de la base y solo se calcula al vuelo si falta.
 - **Errores:** siguen el formato de FastAPI, `{"detail": "mensaje"}`. Los errores 422 traen `detail` como lista de campos inválidos.

@@ -4,7 +4,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import auth, consultas, negocios, perfil, reservas
+from app.api.v1 import auth, consultas, mi_qr, negocios, perfil, reservas
 from app.config import get_settings
 
 settings = get_settings()
@@ -29,6 +29,7 @@ app.include_router(perfil.router)
 app.include_router(consultas.router)
 app.include_router(negocios.router)
 app.include_router(reservas.router)
+app.include_router(mi_qr.router)
 
 # Probes de browser/DevTools: responden 200 y no aparecen en el access log.
 _RUTAS_SILENCIOSAS = ("GET / ", "GET /json/version ")

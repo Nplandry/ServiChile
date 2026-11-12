@@ -24,7 +24,12 @@ def to_perfil_out(estado: EstadoPasaporte) -> PerfilOut:
         estado_pasaporte=estado.estado_pasaporte,
         score_confiabilidad=estado.score_confiabilidad,
         inmobiliaria_scoring=_inmobiliaria(estado.arriendo),
+        biometria_verificada=estado.biometria_verificada,
+        biometria_verificada_en=estado.biometria_verificada_en,
+        xp=estado.xp,
+        nivel_xp=estado.nivel_xp,
         edad=estado.edad,
+        tipo_cuenta=estado.tipo_cuenta,  # type: ignore[arg-type]
         # DEPRECADOS: no se devuelven.
         preocupacion=None,
         proposito=None,

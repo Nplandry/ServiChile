@@ -18,6 +18,7 @@ from app.infrastructure.repositories import (
     PasaporteRepository,
     ReservaRepository,
     UsuarioRepository,
+    XpRepository,
 )
 from app.infrastructure.verificacion import (
     ExtractorFinanciero,
@@ -30,8 +31,10 @@ from app.services.auth_service import AuthService, CredencialesInvalidas
 from app.services.consulta_service import ConsultaService
 from app.services.cuenta_service import CuentaService
 from app.services.negocio_service import NegocioService
+from app.services.mi_qr_service import MiQrService
 from app.services.pasaporte_service import PasaporteService
 from app.services.reserva_service import ReservaService
+from app.services.xp_service import XpService
 
 SessionDep = Annotated[Session, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -51,8 +54,12 @@ def get_fragmento_repo(session: SessionDep) -> FragmentoRepository:
     return FragmentoRepository(session)
 
 
+def get_xp_service(session: SessionDep) -> XpService:
+    return XpService(XpRepository(session))
+
+
 def get_auth_service(session: SessionDep, settings: SettingsDep) -> AuthService:
-    return AuthService(UsuarioRepository(session), settings)
+    return AuthService(UsuarioRepository(session), settings, get_xp_service(session))
 
 
 def get_assistant(
@@ -83,11 +90,24 @@ def get_pasaporte_service(
         PasaporteRepository(session),
         verificador,
         extractor,
+        get_xp_service(session),
     )
 
 
 def get_reserva_service(session: SessionDep) -> ReservaService:
-    return ReservaService(NegocioRepository(session), ReservaRepository(session))
+    return ReservaService(
+        NegocioRepository(session),
+        ReservaRepository(session),
+        get_xp_service(session),
+    )
+
+
+def get_mi_qr_service(
+    session: SessionDep,
+    settings: SettingsDep,
+    pasaporte: Annotated[PasaporteService, Depends(get_pasaporte_service)],
+) -> MiQrService:
+    return MiQrService(UsuarioRepository(session), pasaporte, settings)
 
 
 def get_negocio_service(session: SessionDep) -> NegocioService:
@@ -104,6 +124,7 @@ def get_cuenta_service(session: SessionDep) -> CuentaService:
 
 PasaporteServiceDep = Annotated[PasaporteService, Depends(get_pasaporte_service)]
 ReservaServiceDep = Annotated[ReservaService, Depends(get_reserva_service)]
+MiQrServiceDep = Annotated[MiQrService, Depends(get_mi_qr_service)]
 NegocioServiceDep = Annotated[NegocioService, Depends(get_negocio_service)]
 ConsultaServiceDep = Annotated[ConsultaService, Depends(get_consulta_service)]
 CuentaServiceDep = Annotated[CuentaService, Depends(get_cuenta_service)]
