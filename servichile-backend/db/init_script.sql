@@ -19,14 +19,32 @@ CREATE TABLE usuarios (
     rut            varchar(12) UNIQUE CHECK (rut ~ '^[0-9]{1,8}-[0-9K]$'),
     rut_verificado boolean NOT NULL DEFAULT false,
     telefono       varchar(30),
+    -- Biometría: solo bandera + fecha. La imagen se procesa en memoria y no se guarda.
+    biometria_verificada boolean NOT NULL DEFAULT false,
+    biometria_verificada_en timestamptz,
+    xp             integer NOT NULL DEFAULT 0 CHECK (xp >= 0),
     creado_en      timestamptz NOT NULL DEFAULT now()
 );
+
+-- Log idempotente de XP (un evento = un premio; no duplica).
+CREATE TABLE usuario_xp_eventos (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id  uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    evento      varchar(80) NOT NULL,
+    puntos      integer NOT NULL CHECK (puntos > 0),
+    creado_en   timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (usuario_id, evento)
+);
+
+CREATE INDEX usuario_xp_eventos_usuario_idx ON usuario_xp_eventos (usuario_id, creado_en DESC);
 
 -- Perfil del usuario, separado de las credenciales. Ver también db/migrations/002_perfiles.sql y 004_pasaporte.sql
 CREATE TABLE perfiles (
     usuario_id     uuid PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
     -- Ley 21.719: menores de 14 requieren consentimiento de sus padres, que la app no gestiona
     edad           smallint CHECK (edad BETWEEN 14 AND 120),
+    -- persona | empresa (onboarding). Nullable para cuentas anteriores.
+    tipo_cuenta    varchar(20) CHECK (tipo_cuenta IS NULL OR tipo_cuenta IN ('persona', 'empresa')),
     -- DEPRECADOS: nullable durante la transición. Se eliminan en una migración posterior.
     preocupacion   varchar(20) CHECK (preocupacion IN ('embargo', 'seguros', 'telecom', 'otro')),
     proposito      varchar(20) CHECK (proposito IN ('autoinformarse', 'asesorar', 'investigar', 'trabajo')),

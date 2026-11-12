@@ -12,6 +12,7 @@ from app.config import Settings
 from app.domain.entidades import TokenEmitido, Usuario
 from app.infrastructure.repositories import UsuarioRepository
 from app.services.perfil_service import aplicar_perfil
+from app.services.xp_service import XpService
 from app.utils import ahora_utc
 
 _hasher = PasswordHasher()  # Argon2id con parámetros por defecto de argon2-cffi
@@ -37,9 +38,15 @@ def verificar_contrasena(password_hash: str, password: str) -> bool:
 
 
 class AuthService:
-    def __init__(self, usuarios: UsuarioRepository, settings: Settings) -> None:
+    def __init__(
+        self,
+        usuarios: UsuarioRepository,
+        settings: Settings,
+        xp: XpService | None = None,
+    ) -> None:
         self.usuarios = usuarios
         self.settings = settings
+        self.xp = xp
 
     def registrar(self, email: str, nombre: str, password: str, perfil: dict | None) -> Usuario:
         email = email.lower()
@@ -48,7 +55,12 @@ class AuthService:
         usuario = self.usuarios.crear(email, nombre, _hasher.hash(password))
         if perfil:
             aplicar_perfil(usuario, perfil)
-        return self.usuarios.guardar(usuario)
+        usuario = self.usuarios.guardar(usuario)
+        if self.xp is not None:
+            self.xp.por_registro(usuario.id)
+            self.xp.por_perfil_basico(usuario)
+            usuario.xp = self.xp.total(usuario.id)
+        return usuario
 
     def login(self, email: str, password: str) -> TokenEmitido:
         usuario = self.usuarios.get_by_email(email.lower())

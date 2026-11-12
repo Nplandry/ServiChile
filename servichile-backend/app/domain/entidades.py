@@ -13,6 +13,8 @@ from datetime import datetime
 @dataclass
 class Perfil:
     edad: int | None = None
+    # persona | empresa (onboarding).
+    tipo_cuenta: str | None = None
     # DEPRECADOS: se guardan durante la transición y no se devuelven por la API.
     preocupacion: str | None = None
     proposito: str | None = None
@@ -28,6 +30,9 @@ class Usuario:
     rut: str | None = None
     rut_verificado: bool = False
     telefono: str | None = None
+    biometria_verificada: bool = False
+    biometria_verificada_en: datetime | None = None
+    xp: int = 0
     creado_en: datetime | None = None
     perfil: Perfil | None = None
 
@@ -114,6 +119,11 @@ class EstadoPasaporte:
     score_confiabilidad: float | None
     arriendo: VerificacionArriendo | None
     edad: int | None
+    tipo_cuenta: str | None = None
+    biometria_verificada: bool = False
+    biometria_verificada_en: datetime | None = None
+    xp: int = 0
+    nivel_xp: int = 1
 
 
 @dataclass
@@ -177,3 +187,36 @@ class ResultadoConsulta:
 class TokenEmitido:
     access_token: str
     expires_in: int
+
+
+@dataclass
+class MiQrEmitido:
+    """Carnet propio: payload para dibujar el QR y datos de confianza del titular."""
+
+    payload: str
+    token: str
+    expires_in: int
+    expires_at: datetime
+    nombre: str
+    email: str
+    nivel_pasaporte: int
+    estado_pasaporte: str
+    score_confiabilidad: float | None
+    rut_verificado: bool
+    xp: int = 0
+    nivel_xp: int = 1
+
+
+@dataclass
+class MiQrValidado:
+    """Resultado público al escanear el QR de otra persona (sin correo ni RUT)."""
+
+    es_propio: bool
+    nombre: str
+    nivel_pasaporte: int
+    estado_pasaporte: str
+    score_confiabilidad: float | None
+    rut_verificado: bool
+    expires_at: datetime
+    xp: int = 0
+    nivel_xp: int = 1

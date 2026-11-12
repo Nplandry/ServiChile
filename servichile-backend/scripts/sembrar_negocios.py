@@ -94,6 +94,21 @@ NEGOCIOS = [
         "google_reviews_count": 95,
         "is_verified_profile": True,
     },
+    {
+        "external_ref": "seed:umayor",
+        "nombre": "Universidad Mayor",
+        "categoria": "otro",
+        "direccion": "Av. Manuel Montt 367, Providencia",
+        "descripcion": "Universidad privada acreditada. Campus Manuel Montt con pregrado, postgrado y educación continua.",
+        "imagen_url": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=800&h=500&q=80",
+        "logo_url": None,
+        "latitud": -33.4318,
+        "longitud": -70.6182,
+        "requiere_nivel": 1,
+        "google_rating_avg": 4.3,
+        "google_reviews_count": 890,
+        "is_verified_profile": True,
+    },
 ]
 
 COLUMNAS_REQUERIDAS = (

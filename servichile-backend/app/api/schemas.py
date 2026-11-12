@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 Categoria = Literal["embargo-falso", "seguros", "portabilidad"]
 Preocupacion = Literal["embargo", "seguros", "telecom", "otro"]
 Proposito = Literal["autoinformarse", "asesorar", "investigar", "trabajo"]
+TipoCuenta = Literal["persona", "empresa"]
 
 
 # Perfil del usuario. Todos opcionales. Ver Pasaporte de Confianza en README.
@@ -17,6 +18,7 @@ class PerfilIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     edad: int | None = Field(default=None, ge=14, le=120)
+    tipo_cuenta: TipoCuenta | None = None
     # RUT con dígito verificador. Se valida con módulo 11 y luego con el verificador externo.
     rut: str | None = Field(default=None, min_length=3, max_length=15)
     telefono: str | None = Field(default=None, pattern=r"^\+?[0-9 ]{6,30}$")
@@ -26,10 +28,11 @@ class PerfilIn(BaseModel):
 
 
 class PerfilRegistroIn(BaseModel):
-    """Perfil opcional al crear la cuenta. Solo acepta datos básicos; el RUT se verifica después."""
+    """Perfil al crear la cuenta. tipo_cuenta es obligatorio en el alta."""
 
     model_config = ConfigDict(extra="forbid")
 
+    tipo_cuenta: TipoCuenta
     edad: int | None = Field(default=None, ge=14, le=120)
     # DEPRECADOS: se aceptan durante la transición y se eliminan en una migración posterior.
     preocupacion: Preocupacion | None = None
@@ -57,17 +60,35 @@ class PerfilOut(BaseModel):
     score_confiabilidad: float | None = None
     # Nivel 2: null si el usuario nunca subió documentos de arriendo.
     inmobiliaria_scoring: InmobiliariaScoring | None = None
+    # Biometría: solo bandera + fecha. La foto nunca se guarda.
+    biometria_verificada: bool = False
+    biometria_verificada_en: datetime | None = None
+    # Experiencia acumulada y nivel UI 1–4 derivado del XP.
+    xp: int = Field(default=0, ge=0)
+    nivel_xp: int = Field(default=1, ge=1, le=4)
     edad: int | None = None
+    tipo_cuenta: TipoCuenta | None = None
     # DEPRECADOS: null durante la transición.
     preocupacion: Preocupacion | None = None
     proposito: Proposito | None = None
+
+
+class BiometriaOut(BaseModel):
+    """Resultado de la verificación biométrica (sin imagen)."""
+
+    biometria_verificada: bool
+    biometria_verificada_en: datetime
+    xp: int = Field(default=0, ge=0)
+    nivel_xp: int = Field(default=1, ge=1, le=4)
+    mensaje: str = "Verificación biométrica completada. La foto no se almacenó."
 
 
 class RegistroIn(BaseModel):
     email: EmailStr
     nombre: str = Field(min_length=2, max_length=120)
     password: str = Field(min_length=8, max_length=128)
-    perfil: PerfilRegistroIn | None = None
+    # Obliga a declarar persona/empresa en el alta (onboarding).
+    perfil: PerfilRegistroIn
 
     @field_validator("nombre")
     @classmethod
@@ -249,3 +270,42 @@ class EliminarCuentaIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     password: str = Field(min_length=1, max_length=128)
+
+
+class MiQrOut(BaseModel):
+    """Carnet propio: payload para el QR + datos de confianza del titular."""
+
+    payload: str
+    token: str
+    expires_in: int
+    expires_at: datetime
+    nombre: str
+    email: EmailStr
+    nivel_pasaporte: Literal[1, 2]
+    estado_pasaporte: Literal["basico", "pendiente", "verificado", "rechazado"]
+    score_confiabilidad: float | None = None
+    rut_verificado: bool = False
+    xp: int = 0
+    nivel_xp: int = Field(default=1, ge=1, le=4)
+
+
+class MiQrValidarIn(BaseModel):
+    """Payload leído por el escáner (URI `servichile://mi-qr/...` o JWT crudo)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    payload: str = Field(min_length=10, max_length=2048)
+
+
+class MiQrValidacionOut(BaseModel):
+    """Resultado público al validar el QR de otra persona (sin correo ni RUT)."""
+
+    es_propio: bool
+    nombre: str
+    nivel_pasaporte: Literal[1, 2]
+    estado_pasaporte: Literal["basico", "pendiente", "verificado", "rechazado"]
+    score_confiabilidad: float | None = None
+    rut_verificado: bool = False
+    expires_at: datetime
+    xp: int = 0
+    nivel_xp: int = Field(default=1, ge=1, le=4)

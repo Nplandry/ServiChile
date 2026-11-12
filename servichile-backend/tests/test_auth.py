@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 
 
 def test_registro_normaliza_email_y_no_expone_hash(client: TestClient):
-    r = client.post("/v1/auth/registro", json={"email": "Ana@Mail.CL", "nombre": " Ana ", "password": "12345678"})
+    r = client.post("/v1/auth/registro", json={"email": "Ana@Mail.CL", "nombre": " Ana ", "password": "12345678", "perfil": {"tipo_cuenta": "persona"}})
     assert r.status_code == 201
     body = r.json()
     assert body["email"] == "ana@mail.cl"
@@ -11,13 +11,18 @@ def test_registro_normaliza_email_y_no_expone_hash(client: TestClient):
 
 
 def test_registro_duplicado(client: TestClient):
-    datos = {"email": "a@b.cl", "nombre": "Ana", "password": "12345678"}
+    datos = {
+        "email": "a@b.cl",
+        "nombre": "Ana",
+        "password": "12345678",
+        "perfil": {"tipo_cuenta": "persona"},
+    }
     client.post("/v1/auth/registro", json=datos)
     assert client.post("/v1/auth/registro", json=datos).status_code == 409
 
 
 def test_registro_password_corta(client: TestClient):
-    r = client.post("/v1/auth/registro", json={"email": "a@b.cl", "nombre": "Ana", "password": "corta"})
+    r = client.post("/v1/auth/registro", json={"email": "a@b.cl", "nombre": "Ana", "password": "corta", "perfil": {"tipo_cuenta": "persona"}})
     assert r.status_code == 422
 
 

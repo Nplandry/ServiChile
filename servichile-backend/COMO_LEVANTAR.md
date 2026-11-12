@@ -29,7 +29,9 @@ uvicorn app.main:app --reload
 ```
 
 `init_script.sql` ya incluye marketplace (`direccion`, `descripcion`, `requiere_nivel`, `imagen_url`, `logo_url`).  
-`cargar_db_demo` siembra/actualiza los 5 negocios `seed:*` (fotos Unsplash, índices, niveles).
+`cargar_db_demo` siembra/actualiza los 6 negocios `seed:*` (fotos Unsplash, índices, niveles) y aplica migraciones pendientes (incl. biometría y XP).
+
+Biometría (Zero-Retention): `POST /v1/perfil/biometria` con foto; cualquier imagen válida pasa y **no se guarda** la imagen, solo `biometria_verificada`.
 
 ### Base ya existente (solo migrar + seed)
 

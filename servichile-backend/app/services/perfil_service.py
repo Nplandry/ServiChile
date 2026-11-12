@@ -2,7 +2,7 @@
 from app.domain.entidades import Perfil, Usuario
 
 # Campos que viven en el perfil. RUT y teléfono viven en el usuario.
-CAMPOS_PERFIL = {"edad", "preocupacion", "proposito"}
+CAMPOS_PERFIL = {"edad", "tipo_cuenta", "preocupacion", "proposito"}
 
 
 def aplicar_perfil(usuario: Usuario, cambios: dict) -> None:

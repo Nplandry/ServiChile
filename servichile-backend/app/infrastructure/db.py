@@ -5,7 +5,7 @@ from datetime import date, datetime
 from functools import lru_cache
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Float, ForeignKey, Integer, SmallInteger, String, Text, create_engine
+from sqlalchemy import JSON, Float, ForeignKey, Integer, SmallInteger, String, Text, UniqueConstraint, create_engine
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
@@ -32,6 +32,10 @@ class Usuario(Base):
     rut: Mapped[str | None] = mapped_column(String(12), unique=True)
     rut_verificado: Mapped[bool] = mapped_column(default=False)
     telefono: Mapped[str | None] = mapped_column(String(30))
+    # Biometría: solo bandera. La foto nunca se guarda.
+    biometria_verificada: Mapped[bool] = mapped_column(default=False)
+    biometria_verificada_en: Mapped[datetime | None] = mapped_column(default=None)
+    xp: Mapped[int] = mapped_column(Integer, default=0)
     creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
 
     perfil: Mapped["Perfil | None"] = relationship(
@@ -39,11 +43,25 @@ class Usuario(Base):
     )
 
 
+class UsuarioXpEvento(Base):
+    """Premio de XP ya otorgado. UNIQUE(usuario_id, evento) evita duplicados."""
+
+    __tablename__ = "usuario_xp_eventos"
+    __table_args__ = (UniqueConstraint("usuario_id", "evento", name="usuario_xp_eventos_usuario_evento_key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"))
+    evento: Mapped[str] = mapped_column(String(80))
+    puntos: Mapped[int] = mapped_column(Integer)
+    creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
+
+
 class Perfil(Base):
     __tablename__ = "perfiles"
 
     usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True)
     edad: Mapped[int | None] = mapped_column(SmallInteger)
+    tipo_cuenta: Mapped[str | None] = mapped_column(String(20))
     preocupacion: Mapped[str | None] = mapped_column(String(20))
     proposito: Mapped[str | None] = mapped_column(String(20))
     actualizado_en: Mapped[datetime] = mapped_column(default=ahora_utc, onupdate=ahora_utc)

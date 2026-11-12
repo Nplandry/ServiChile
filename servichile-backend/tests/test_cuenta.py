@@ -9,7 +9,12 @@ CLAVE = "clave-segura-123"
 
 
 def _cuenta(client: TestClient, email: str) -> dict[str, str]:
-    datos = {"email": email, "nombre": "Usuario Prueba", "password": CLAVE}
+    datos = {
+        "email": email,
+        "nombre": "Usuario Prueba",
+        "password": CLAVE,
+        "perfil": {"tipo_cuenta": "persona"},
+    }
     assert client.post("/v1/auth/registro", json=datos).status_code == 201
     t = client.post("/v1/auth/login", json={"email": email, "password": CLAVE}).json()
     return {"Authorization": f"Bearer {t['access_token']}"}

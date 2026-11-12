@@ -24,7 +24,7 @@ def _hash_de(session_factory, email: str) -> str:
 
 def test_sal_distinto_para_la_misma_contrasena(client: TestClient, session_factory):
     for email in ("uno@servichile.cl", "dos@servichile.cl"):
-        client.post("/v1/auth/registro", json={"email": email, "nombre": "Ana", "password": "misma-clave-123"})
+        client.post("/v1/auth/registro", json={"email": email, "nombre": "Ana", "password": "misma-clave-123", "perfil": {"tipo_cuenta": "persona"}})
     h1 = _hash_de(session_factory, "uno@servichile.cl")
     h2 = _hash_de(session_factory, "dos@servichile.cl")
     assert h1 != h2
@@ -44,14 +44,14 @@ def test_no_hay_sal_fijo_en_el_codigo():
 
 
 def test_hash_no_contiene_la_contrasena(client: TestClient, session_factory):
-    client.post("/v1/auth/registro", json={"email": "h@servichile.cl", "nombre": "Ana", "password": "clave-visible-99"})
+    client.post("/v1/auth/registro", json={"email": "h@servichile.cl", "nombre": "Ana", "password": "clave-visible-99", "perfil": {"tipo_cuenta": "persona"}})
     assert "clave-visible-99" not in _hash_de(session_factory, "h@servichile.cl")
 
 
 # 2. Mensajes genéricos y 401
 
 def test_mismo_mensaje_correo_inexistente_y_clave_incorrecta(client: TestClient):
-    client.post("/v1/auth/registro", json={"email": "real@servichile.cl", "nombre": "Ana", "password": "clave-real-123"})
+    client.post("/v1/auth/registro", json={"email": "real@servichile.cl", "nombre": "Ana", "password": "clave-real-123", "perfil": {"tipo_cuenta": "persona"}})
     a = client.post("/v1/auth/login", json={"email": "real@servichile.cl", "password": "otra-clave-999"})
     b = client.post("/v1/auth/login", json={"email": "fantasma@servichile.cl", "password": "otra-clave-999"})
     assert a.status_code == b.status_code == 401
@@ -59,7 +59,7 @@ def test_mismo_mensaje_correo_inexistente_y_clave_incorrecta(client: TestClient)
 
 
 def test_usuario_inactivo_recibe_el_mismo_error(client: TestClient, session_factory):
-    client.post("/v1/auth/registro", json={"email": "baja@servichile.cl", "nombre": "Ana", "password": "clave-baja-123"})
+    client.post("/v1/auth/registro", json={"email": "baja@servichile.cl", "nombre": "Ana", "password": "clave-baja-123", "perfil": {"tipo_cuenta": "persona"}})
     with session_factory() as s:
         s.query(Usuario).filter(Usuario.email == "baja@servichile.cl").update({"activo": False})
         s.commit()
@@ -80,7 +80,12 @@ def _mediana_login(client: TestClient, email: str, repeticiones: int) -> float:
 
 
 def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
-    datos = {"email": "tiempo@servichile.cl", "nombre": "Ana", "password": "clave-tiempo-1"}
+    datos = {
+        "email": "tiempo@servichile.cl",
+        "nombre": "Ana",
+        "password": "clave-tiempo-1",
+        "perfil": {"tipo_cuenta": "persona"},
+    }
     client.post("/v1/auth/registro", json=datos)
     app.dependency_overrides[deps.get_rate_limiter] = lambda: SinLimite()
     try:
@@ -126,7 +131,7 @@ def test_limite_registro_por_ip(client: TestClient, monkeypatch):
     codigos = [
         client.post(
             "/v1/auth/registro",
-            json={"email": f"r{i}@servichile.cl", "nombre": "Ana", "password": "clave-registro-1"},
+            json={"email": f"r{i}@servichile.cl", "nombre": "Ana", "password": "clave-registro-1", "perfil": {"tipo_cuenta": "persona"}},
         ).status_code
         for i in range(21)
     ]
