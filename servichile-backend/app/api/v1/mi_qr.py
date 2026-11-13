@@ -27,6 +27,7 @@ def emitir_mi_qr(usuario: CurrentUserDep, servicio: MiQrServiceDep):
         rut_verificado=emitido.rut_verificado,
         xp=emitido.xp,
         nivel_xp=emitido.nivel_xp,
+        tipo_cuenta=emitido.tipo_cuenta,  # type: ignore[arg-type]
     )
 
 
@@ -54,4 +55,5 @@ def validar_mi_qr(
         expires_at=validado.expires_at,
         xp=validado.xp,
         nivel_xp=validado.nivel_xp,
+        tipo_cuenta=validado.tipo_cuenta,  # type: ignore[arg-type]
     )

@@ -12,7 +12,6 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 | GET | `/v1/auth/yo` | Sí | n/a | 200 `UsuarioOut` | 401 sesión inválida |
 | GET | `/v1/perfil` | Sí | n/a | 200 `PerfilOut` (Pasaporte de Confianza) | 401 |
 | PATCH | `/v1/perfil` | Sí | `PerfilIn` parcial (`edad`, `rut`, `telefono`) | 200 `PerfilOut` | 401, 422 RUT inválido o no verificable, 409 RUT en uso o ya verificado |
-| POST | `/v1/perfil/documentos` | Sí | multipart, campo `archivo` (PDF, máximo 1 MB) | 201 `InmobiliariaScoring` | 401, 413 archivo muy grande, 422 no es PDF o no se puede leer, 429 límite |
 | POST | `/v1/perfil/biometria` | Sí | multipart, campo `foto` (JPEG/PNG/WebP/GIF, máximo 5 MB) | 201 `BiometriaOut` | 401, 413 foto muy grande, 422 no es imagen, 429 límite |
 | GET | `/v1/reservas` | Sí | n/a | 200 lista de `ReservaOut` | 401 |
 | POST | `/v1/reservas` | Sí | `business_id` | 201 `ReservaOut` (incluye `qr_token`) | 401, 404 negocio, 422 |
@@ -20,8 +19,11 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 | POST | `/v1/businesses/{id}/reservas/{reserva_id}/no-show` | Sí (titular) | n/a | 200 `ReservaOut` con `estado: no_show` | 401, 403, 404, 409 |
 | POST | `/v1/consultas` | Sí | `pregunta` (5 a 2000), `categoria` opcional | 201 `ConsultaOut` | 401, 422, 429 |
 | GET | `/v1/consultas?limite=50` | Sí | n/a | 200 lista de `ConsultaResumen` | 401, 422 |
+| POST | `/v1/businesses` | Sí (empresa) | `nombre`, `categoria`, `direccion` (oficina); opcionales `descripcion`/`telefono`/`sitio_web`/`imagen_url`/`logo_url` | 201 `NegocioEnMapaOut` | 401, 403 si es persona, 422 |
+| GET | `/v1/businesses/mias` | Sí | n/a | 200 lista de `NegocioEnMapaOut` | 401 |
 | GET | `/v1/businesses/{id}/reputation` | No | n/a | 200 `ReputacionOut` | 404 negocio no encontrado |
-| POST | `/v1/businesses/{id}/claim` | Sí | `documento_verificacion` (3 a 120), `nombre`/`telefono`/`sitio_web` opcionales | 201 `ClaimOut` | 401, 404, 409 ya reclamado, 422 |
+| POST | `/v1/businesses/{id}/claim` | Sí (empresa) | `documento_verificacion` (3 a 120), `nombre`/`telefono`/`sitio_web` opcionales | 201 `ClaimOut` | 401, 403 si es persona, 404, 409 ya reclamado, 422 |
+| DELETE | `/v1/businesses/{id}/claim` | Sí (titular) | n/a | 204 sin cuerpo | 401, 403 no es titular, 404 |
 | DELETE | `/v1/auth/yo` | Sí | `password` (confirmación de la contraseña actual) | 204 sin cuerpo | 401 sesión inválida, 403 contraseña incorrecta, 422 |
 | DELETE | `/v1/reservas/{id}` | Sí | n/a | 200 `ReservaOut` con `estado: cancelada` | 401, 404 reserva ajena o inexistente, 409 ya no está activa |
 | GET | `/v1/mi-qr` | Sí | n/a | 200 `MiQrOut` (payload + carnet propio) | 401 |
@@ -33,21 +35,19 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 
 **PerfilIn** (PATCH): `edad` (14 a 120), `rut` (con dígito verificador, p. ej. `12.345.678-5`), `telefono` (solo dígitos y espacios, opcional `+`). Campos desconocidos dan 422. Un campo enviado como `null` se borra, salvo el RUT, que no se puede borrar. `preocupacion` y `proposito` se aceptan solo durante la transición.
 
-**PerfilOut** (GET, PATCH y `inmobiliaria_scoring` de `/v1/auth/yo`):
+**PerfilOut** (GET, PATCH y perfil de `/v1/auth/yo`):
 
 - `rut_verificado` (bool): `true` cuando el RUT pasó la validación del dígito verificador y la consulta al verificador.
 - `telefono` (texto o null).
-- `nivel_pasaporte` (1 o 2): 2 solo con un arriendo verificado. Todo usuario registrado es nivel 1.
-- `estado_pasaporte`: `basico` (nunca subió documentos), `pendiente`, `verificado` o `rechazado`.
+- `nivel_pasaporte`: siempre `1` (registrado).
+- `estado_pasaporte`: `basico` o `verificado` (según RUT).
 - `score_confiabilidad` (0 a 100 o null): asistencias sobre reservas cerradas (asistidas más no-show), por 100. Null si no hay reservas cerradas.
-- `inmobiliaria_scoring` (objeto o null): `estado_verificacion`, `score_financiero` (0 a 1000) y `actualizado_en`. Null si nunca subió documentos.
 - `biometria_verificada` (bool) y `biometria_verificada_en` (ISO 8601 o null): la foto nunca se guarda.
+- `xp` y `nivel_xp` (1 a 3).
 - `edad`.
 - `preocupacion` y `proposito`: siempre null. Deprecados.
 
-**BiometriaOut**: `biometria_verificada`, `biometria_verificada_en`, `mensaje` (aclara que la foto no se almacenó).
-
-**InmobiliariaScoring** (respuesta de POST `/v1/perfil/documentos`): `estado_verificacion`, `score_financiero`, `actualizado_en`. El PDF nunca se guarda.
+**BiometriaOut**: `biometria_verificada`, `biometria_verificada_en`, `xp`, `nivel_xp`, `mensaje` (aclara que la foto no se almacenó).
 
 **ReservaOut**: `id`, `business_id`, `estado` (`reservada`, `asistido`, `no_show`, `cancelada`), `qr_token` (lo muestra el usuario en el comercio), `creado_en`.
 
@@ -80,8 +80,6 @@ Valores de `categoria`: `embargo-falso`, `seguros`, `portabilidad` (los mismos `
 - **Límites por minuto:** 5 intentos de login o registro por correo, 10 consultas por usuario. Se configuran en `.env`.
 - **Pasaporte de Confianza:**
   - **RUT:** se valida el dígito verificador con módulo 11 y luego se consulta al verificador de RUT. Hoy el verificador es falso: acepta cualquier RUT con DV válido. No se devuelve el número de RUT, solo `rut_verificado`.
-  - **Documentos de arriendo:** el PDF se lee en memoria con un límite de 1 MB, que es el umbral por encima del cual Starlette escribe a disco. El extractor es falso y devuelve métricas fijas. Solo se guardan `score_financiero` y fechas.
-  - **Score de arriendo:** la fórmula es provisional (capacidad de pago, con tope de 300 si hay morosidad). Falta la definición de negocio.
   - **Reservas:** el dueño verificado de un comercio (`is_claimed` y `reclamado_por` igual a su usuario) registra asistencia o no-show. Un comercio sin reclamar no tiene quien registre asistencias.
   - **Mi QR:** cada usuario autenticado obtiene un carnet firmado de corta vida (`GET /v1/mi-qr`). Cualquier otro usuario autenticado puede escanearlo (`POST /v1/mi-qr/validar`) y ver solo datos públicos de confianza. El JWT de sesión no sirve como Mi QR.
 

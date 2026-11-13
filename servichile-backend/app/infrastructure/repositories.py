@@ -17,7 +17,6 @@ from app.domain.entidades import (
     Perfil,
     Reserva,
     Usuario,
-    VerificacionArriendo,
 )
 from app.infrastructure import db as orm
 from app.utils import ahora_utc
@@ -97,17 +96,6 @@ def _reserva(r: orm.Reserva) -> Reserva:
         qr_token=r.qr_token,
         creado_en=r.creado_en,
         actualizado_en=r.actualizado_en,
-    )
-
-
-def _verificacion(a: orm.PasaporteArriendo) -> VerificacionArriendo:
-    return VerificacionArriendo(
-        id=a.id,
-        usuario_id=a.usuario_id,
-        estado=a.estado,
-        score=a.score,
-        verificado_en=a.verificado_en,
-        creado_en=a.creado_en,
     )
 
 
@@ -383,28 +371,3 @@ class ReservaRepository:
         return _reserva(r)
 
 
-class PasaporteRepository:
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    def ultimo_arriendo(self, usuario_id: uuid.UUID) -> VerificacionArriendo | None:
-        stmt = (
-            select(orm.PasaporteArriendo)
-            .where(orm.PasaporteArriendo.usuario_id == usuario_id)
-            .order_by(orm.PasaporteArriendo.creado_en.desc())
-            .limit(1)
-        )
-        a = self.session.scalar(stmt)
-        return _verificacion(a) if a else None
-
-    def registrar_verificacion(self, usuario_id: uuid.UUID, estado: str, score: int | None) -> VerificacionArriendo:
-        a = orm.PasaporteArriendo(
-            usuario_id=usuario_id,
-            estado=estado,
-            score=score,
-            verificado_en=ahora_utc() if estado == "verificado" else None,
-        )
-        self.session.add(a)
-        self.session.commit()
-        self.session.refresh(a)
-        return _verificacion(a)

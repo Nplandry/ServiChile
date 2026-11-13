@@ -75,40 +75,18 @@ def test_rut_suma_xp(client: TestClient, token: str):
     assert r2.json()["xp"] == antes + reglas.XP_RUT
 
 
-def test_documento_arriendo_suma_xp(client: TestClient, token: str):
-    h = _headers(token)
-    antes = client.get("/v1/auth/yo", headers=h).json()["perfil"]["xp"]
-    pdf = b"%PDF-1.4\n% contenido de prueba\n%%EOF"
-    r = client.post(
-        "/v1/perfil/documentos",
-        headers=h,
-        files={"archivo": ("liq.pdf", pdf, "application/pdf")},
-    )
-    assert r.status_code == 201, r.text
-    despues = client.get("/v1/auth/yo", headers=h).json()["perfil"]["xp"]
-    assert despues == antes + reglas.XP_DOCUMENTO_ARRIENDO
-    # Segunda subida no duplica el evento one-shot.
-    r2 = client.post(
-        "/v1/perfil/documentos",
-        headers=h,
-        files={"archivo": ("liq2.pdf", pdf, "application/pdf")},
-    )
-    assert r2.status_code == 201
-    assert client.get("/v1/auth/yo", headers=h).json()["perfil"]["xp"] == despues
-
-
-def test_asistencia_suma_xp(client: TestClient, session_factory, token: str):
+def test_asistencia_suma_xp(client: TestClient, session_factory, token_empresa: str):
     import uuid
 
     from app.infrastructure.db import BusinessEntity
 
     with session_factory() as s:
-        negocio = BusinessEntity(nombre="XP Gym", categoria="gimnasio")
+        negocio = BusinessEntity(nombre="XP Tech", categoria="tecnologia")
         s.add(negocio)
         s.commit()
         bid = negocio.id
 
-    titular = _headers(token)
+    titular = _headers(token_empresa)
     assert (
         client.post(
             f"/v1/businesses/{bid}/claim",
@@ -145,5 +123,4 @@ def test_nivel_por_xp_umbrales():
     assert reglas.nivel_por_xp(100) == 2
     assert reglas.nivel_por_xp(249) == 2
     assert reglas.nivel_por_xp(250) == 3
-    assert reglas.nivel_por_xp(449) == 3
-    assert reglas.nivel_por_xp(450) == 4
+    assert reglas.nivel_por_xp(9999) == 3

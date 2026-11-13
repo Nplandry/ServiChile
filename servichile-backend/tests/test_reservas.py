@@ -8,14 +8,19 @@ from app.infrastructure.db import BusinessEntity
 
 def _negocio(session_factory) -> uuid.UUID:
     with session_factory() as s:
-        negocio = BusinessEntity(nombre="Gimnasio Central", categoria="gimnasio")
+        negocio = BusinessEntity(nombre="Proveedor TI Central", categoria="tecnologia")
         s.add(negocio)
         s.commit()
         return negocio.id
 
 
-def _cuenta(client: TestClient, email: str) -> dict[str, str]:
-    datos = {"email": email, "nombre": "Usuario Prueba", "password": "clave-segura-123", "perfil": {"tipo_cuenta": "persona"}}
+def _cuenta(client: TestClient, email: str, tipo: str = "persona") -> dict[str, str]:
+    datos = {
+        "email": email,
+        "nombre": "Usuario Prueba",
+        "password": "clave-segura-123",
+        "perfil": {"tipo_cuenta": tipo},
+    }
     assert client.post("/v1/auth/registro", json=datos).status_code == 201
     t = client.post("/v1/auth/login", json={"email": email, "password": datos["password"]}).json()
     return {"Authorization": f"Bearer {t['access_token']}"}
@@ -58,9 +63,9 @@ def test_listar_mis_reservas(client: TestClient, session_factory, token: str):
     assert len(client.get("/v1/reservas", headers=h).json()) == 2
 
 
-def test_checkin_del_titular_da_score_100(client: TestClient, session_factory, token: str):
+def test_checkin_del_titular_da_score_100(client: TestClient, session_factory, token_empresa: str):
     bid = _negocio(session_factory)
-    titular = {"Authorization": f"Bearer {token}"}
+    titular = {"Authorization": f"Bearer {token_empresa}"}
     _reclamar(client, titular, bid)
 
     cliente = _cuenta(client, "cliente@servichile.cl")
@@ -74,9 +79,9 @@ def test_checkin_del_titular_da_score_100(client: TestClient, session_factory, t
     assert client.get("/v1/perfil", headers=cliente).json()["score_confiabilidad"] == 100.0
 
 
-def test_no_show_baja_el_score(client: TestClient, session_factory, token: str):
+def test_no_show_baja_el_score(client: TestClient, session_factory, token_empresa: str):
     bid = _negocio(session_factory)
-    titular = {"Authorization": f"Bearer {token}"}
+    titular = {"Authorization": f"Bearer {token_empresa}"}
     _reclamar(client, titular, bid)
 
     cliente = _cuenta(client, "cliente@servichile.cl")
@@ -90,9 +95,9 @@ def test_no_show_baja_el_score(client: TestClient, session_factory, token: str):
     assert client.get("/v1/perfil", headers=cliente).json()["score_confiabilidad"] == 50.0
 
 
-def test_checkin_de_otro_usuario_da_403(client: TestClient, session_factory, token: str):
+def test_checkin_de_otro_usuario_da_403(client: TestClient, session_factory, token_empresa: str):
     bid = _negocio(session_factory)
-    titular = {"Authorization": f"Bearer {token}"}
+    titular = {"Authorization": f"Bearer {token_empresa}"}
     _reclamar(client, titular, bid)
 
     otro = _cuenta(client, "otro@servichile.cl")
@@ -110,10 +115,10 @@ def test_checkin_en_negocio_no_reclamado_da_403(client: TestClient, session_fact
     assert r.status_code == 403
 
 
-def test_qr_de_otro_negocio_da_404(client: TestClient, session_factory, token: str):
+def test_qr_de_otro_negocio_da_404(client: TestClient, session_factory, token_empresa: str):
     bid_a = _negocio(session_factory)
     bid_b = _negocio(session_factory)
-    titular = {"Authorization": f"Bearer {token}"}
+    titular = {"Authorization": f"Bearer {token_empresa}"}
     _reclamar(client, titular, bid_a)
     _reclamar(client, titular, bid_b)
 
@@ -124,9 +129,9 @@ def test_qr_de_otro_negocio_da_404(client: TestClient, session_factory, token: s
     assert r.status_code == 404
 
 
-def test_reserva_cerrada_no_se_puede_volver_a_cerrar(client: TestClient, session_factory, token: str):
+def test_reserva_cerrada_no_se_puede_volver_a_cerrar(client: TestClient, session_factory, token_empresa: str):
     bid = _negocio(session_factory)
-    titular = {"Authorization": f"Bearer {token}"}
+    titular = {"Authorization": f"Bearer {token_empresa}"}
     _reclamar(client, titular, bid)
     cliente = _cuenta(client, "cliente@servichile.cl")
     reserva = _reservar(client, cliente, bid)

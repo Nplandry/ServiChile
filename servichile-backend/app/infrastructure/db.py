@@ -119,7 +119,7 @@ class BusinessEntity(Base):
     descripcion: Mapped[str | None] = mapped_column(Text)
     imagen_url: Mapped[str | None] = mapped_column(String(500))
     logo_url: Mapped[str | None] = mapped_column(String(500))
-    # Nivel de Pasaporte requerido para la acción (1 básico, 2 verificado: arriendos y eventos VIP).
+    # Nivel de Pasaporte requerido para la acción (1 = registrado).
     requiere_nivel: Mapped[int] = mapped_column(SmallInteger, default=1)
     # Fuente externa (p. ej. place_id de Google Maps) para la ingesta periódica.
     external_ref: Mapped[str | None] = mapped_column(String(200), unique=True)
@@ -175,19 +175,6 @@ class Reserva(Base):
     qr_token: Mapped[str] = mapped_column(String(64), unique=True)
     creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
     actualizado_en: Mapped[datetime] = mapped_column(default=ahora_utc, onupdate=ahora_utc)
-
-
-class PasaporteArriendo(Base):
-    """Resultado de la verificación de arriendo. Solo guarda puntaje y fecha, nunca el PDF."""
-
-    __tablename__ = "pasaporte_arriendo"
-
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"))
-    estado: Mapped[str] = mapped_column(String(20))
-    score: Mapped[int | None] = mapped_column(SmallInteger)
-    verificado_en: Mapped[datetime | None]
-    creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
 
 
 @lru_cache

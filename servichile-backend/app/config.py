@@ -23,10 +23,9 @@ class Settings(BaseSettings):
 
     # Proveedor de IA: "gemini" usa Vertex AI, "fake" responde sin llamar a ningún modelo
     llm_provider: Literal["gemini", "fake"] = "fake"
-    # Verificador de RUT y extractor de PDF. "fake" no llama a ningún servicio externo.
-    # Cuando existan los proveedores reales, se agregan aquí y se construyen en deps.py.
+    # Verificador de RUT. "fake" no llama a ningún servicio externo.
+    # Cuando exista el proveedor real, se agrega aquí y se construye en deps.py.
     rut_verifier: Literal["fake"] = "fake"
-    pdf_extractor: Literal["fake"] = "fake"
     gcp_project: str | None = None
     gcp_proyectos_prohibidos: Annotated[list[str], NoDecode] = []
     gcp_location: str = "southamerica-east1"

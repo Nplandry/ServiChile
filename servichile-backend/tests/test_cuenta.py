@@ -8,21 +8,21 @@ from app.infrastructure.db import BusinessEntity
 CLAVE = "clave-segura-123"
 
 
-def _cuenta(client: TestClient, email: str) -> dict[str, str]:
+def _cuenta(client: TestClient, email: str, tipo: str = "persona") -> dict[str, str]:
     datos = {
         "email": email,
         "nombre": "Usuario Prueba",
         "password": CLAVE,
-        "perfil": {"tipo_cuenta": "persona"},
+        "perfil": {"tipo_cuenta": tipo},
     }
     assert client.post("/v1/auth/registro", json=datos).status_code == 201
     t = client.post("/v1/auth/login", json={"email": email, "password": CLAVE}).json()
     return {"Authorization": f"Bearer {t['access_token']}"}
 
 
-def _negocio(session_factory, nombre="Gimnasio Central") -> uuid.UUID:
+def _negocio(session_factory, nombre="Proveedor TI Central") -> uuid.UUID:
     with session_factory() as s:
-        negocio = BusinessEntity(nombre=nombre, categoria="gimnasio", latitud=-33.45, longitud=-70.66)
+        negocio = BusinessEntity(nombre=nombre, categoria="tecnologia", latitud=-33.45, longitud=-70.66)
         s.add(negocio)
         s.commit()
         return negocio.id
@@ -87,7 +87,7 @@ def test_eliminar_cuenta_borra_el_acceso(client: TestClient):
 
 def test_eliminar_cuenta_libera_negocios_reclamados(client: TestClient, session_factory):
     bid = _negocio(session_factory, nombre="Negocio a reclamar")
-    h = _cuenta(client, "titular@servichile.cl")
+    h = _cuenta(client, "titular@servichile.cl", tipo="empresa")
     claim = client.post(
         f"/v1/businesses/{bid}/claim", json={"documento_verificacion": "76.543.210-K"}, headers=h
     )

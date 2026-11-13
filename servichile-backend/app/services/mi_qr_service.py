@@ -69,6 +69,7 @@ class MiQrService:
             rut_verificado=estado.rut_verificado,
             xp=estado.xp,
             nivel_xp=estado.nivel_xp,
+            tipo_cuenta=estado.tipo_cuenta,
         )
 
     def validar(self, escaneado_por: Usuario, payload: str) -> MiQrValidado:
@@ -116,6 +117,7 @@ class MiQrService:
             expires_at=expires_at,
             xp=estado.xp,
             nivel_xp=estado.nivel_xp,
+            tipo_cuenta=estado.tipo_cuenta,
         )
 
     def _extraer_token(self, payload: str) -> str:
