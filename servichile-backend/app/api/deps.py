@@ -1,4 +1,3 @@
-"""Inyección de dependencias de FastAPI. Las pruebas reemplazan estas funciones con dependency_overrides."""
 from functools import lru_cache
 from typing import Annotated
 
@@ -8,28 +7,21 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.domain.entidades import Usuario
+from app.infrastructure.ciber_sonda import CiberSonda, build_ciber_sonda
 from app.infrastructure.db import get_session
-from app.infrastructure.llm import LLMProvider, build_provider
 from app.infrastructure.rate_limit import RateLimiter, build_rate_limiter
 from app.infrastructure.repositories import (
-    ConsultaRepository,
-    FragmentoRepository,
     NegocioRepository,
     ReservaRepository,
     UsuarioRepository,
     XpRepository,
 )
-from app.infrastructure.verificacion import (
-    VerificadorRut,
-    build_verificador_rut,
-)
-from app.services.ai_assistant import AiAssistant
+from app.infrastructure.verificacion import VerificadorRut, build_verificador_rut
 from app.services.auth_service import AuthService, CredencialesInvalidas
-from app.services.consulta_service import ConsultaService
 from app.services.cuenta_service import CuentaService
 from app.services.negocio_service import NegocioService
-from app.services.mi_qr_service import MiQrService
 from app.services.pasaporte_service import PasaporteService
+from app.services.reporte_service import ReporteService
 from app.services.reserva_service import ReservaService
 from app.services.xp_service import XpService
 
@@ -38,17 +30,8 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 @lru_cache
-def get_llm() -> LLMProvider:
-    return build_provider(get_settings())
-
-
-@lru_cache
 def get_rate_limiter() -> RateLimiter:
     return build_rate_limiter(get_settings().redis_url)
-
-
-def get_fragmento_repo(session: SessionDep) -> FragmentoRepository:
-    return FragmentoRepository(session)
 
 
 def get_xp_service(session: SessionDep) -> XpService:
@@ -57,15 +40,6 @@ def get_xp_service(session: SessionDep) -> XpService:
 
 def get_auth_service(session: SessionDep, settings: SettingsDep) -> AuthService:
     return AuthService(UsuarioRepository(session), settings, get_xp_service(session))
-
-
-def get_assistant(
-    session: SessionDep,
-    settings: SettingsDep,
-    llm: Annotated[LLMProvider, Depends(get_llm)],
-    fragmentos: Annotated[FragmentoRepository, Depends(get_fragmento_repo)],
-) -> AiAssistant:
-    return AiAssistant(llm, fragmentos, ConsultaRepository(session), settings)
 
 
 def get_verificador_rut() -> VerificadorRut:
@@ -92,33 +66,38 @@ def get_reserva_service(session: SessionDep) -> ReservaService:
     )
 
 
-def get_mi_qr_service(
+def get_reporte_service(
     session: SessionDep,
     settings: SettingsDep,
     pasaporte: Annotated[PasaporteService, Depends(get_pasaporte_service)],
-) -> MiQrService:
-    return MiQrService(UsuarioRepository(session), pasaporte, settings)
+) -> ReporteService:
+    return ReporteService(UsuarioRepository(session), pasaporte, settings)
 
 
-def get_negocio_service(session: SessionDep) -> NegocioService:
-    return NegocioService(NegocioRepository(session))
+@lru_cache
+def get_ciber_sonda() -> CiberSonda:
+    return build_ciber_sonda(get_settings().ciber_sonda)
 
 
-def get_consulta_service(session: SessionDep) -> ConsultaService:
-    return ConsultaService(ConsultaRepository(session))
+def get_negocio_service(
+    session: SessionDep,
+    sonda: Annotated[CiberSonda, Depends(get_ciber_sonda)],
+) -> NegocioService:
+    return NegocioService(NegocioRepository(session), sonda)
 
 
-def get_cuenta_service(session: SessionDep) -> CuentaService:
-    return CuentaService(UsuarioRepository(session), NegocioRepository(session))
+def get_cuenta_service(
+    session: SessionDep,
+    negocios: Annotated[NegocioService, Depends(get_negocio_service)],
+) -> CuentaService:
+    return CuentaService(UsuarioRepository(session), negocios)
 
 
 PasaporteServiceDep = Annotated[PasaporteService, Depends(get_pasaporte_service)]
 ReservaServiceDep = Annotated[ReservaService, Depends(get_reserva_service)]
-MiQrServiceDep = Annotated[MiQrService, Depends(get_mi_qr_service)]
+ReporteServiceDep = Annotated[ReporteService, Depends(get_reporte_service)]
 NegocioServiceDep = Annotated[NegocioService, Depends(get_negocio_service)]
-ConsultaServiceDep = Annotated[ConsultaService, Depends(get_consulta_service)]
 CuentaServiceDep = Annotated[CuentaService, Depends(get_cuenta_service)]
-
 _bearer = HTTPBearer(auto_error=False)
 
 
@@ -143,7 +122,6 @@ def _no_autorizado() -> HTTPException:
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
-AssistantDep = Annotated[AiAssistant, Depends(get_assistant)]
 CurrentUserDep = Annotated[Usuario, Depends(get_current_user)]
 RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
 

@@ -20,6 +20,7 @@ from sqlalchemy.orm import sessionmaker
 from app.domain.marketplace import IMAGEN_POR_CATEGORIA
 from app.domain.reputacion import EntradaScore, calcular_indice
 from app.infrastructure.db import BusinessEntity, BusinessReputationMetrics, get_engine
+from app.utils import ahora_utc
 
 # Distribución beachhead: Tecnología 30, Industria 30, Construcción 25, Profesionales 15.
 _PLANTILLAS = {
@@ -201,6 +202,18 @@ def _aplicar_metricas(negocio: BusinessEntity, n: dict) -> None:
     negocio.metricas.google_reviews_count = n["google_reviews_count"]
     negocio.metricas.is_verified_profile = n["is_verified_profile"]
     negocio.metricas.final_score = _indice(n)
+    # Perfil demo de observables ciber/operativa (alineado a FakeCiberSonda sin URL).
+    negocio.metricas.score_ssl_tls = n.get("score_ssl_tls", 83)
+    negocio.metricas.score_email_auth = n.get("score_email_auth", 80)
+    negocio.metricas.score_puertos = n.get("score_puertos", 88)
+    negocio.metricas.score_headers_http = n.get("score_headers_http", 79)
+    negocio.metricas.score_stack_vulnerable = n.get("score_stack_vulnerable", 74)
+    negocio.metricas.score_blacklist = n.get("score_blacklist", 77)
+    negocio.metricas.score_dnssec = n.get("score_dnssec", 72)
+    negocio.metricas.score_subdominios = n.get("score_subdominios", 85)
+    negocio.metricas.score_whois = n.get("score_whois", 73)
+    negocio.metricas.score_uptime = n.get("score_uptime", 90)
+    negocio.metricas.ciber_escaneado_en = ahora_utc()
 
 
 def _verificar_esquema(engine) -> None:

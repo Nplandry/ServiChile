@@ -1,8 +1,8 @@
 # ServiChile API
 
-Backend de ServiChile: autenticación de usuarios y asistente de orientación con IA que responde citando normativa oficial cargada desde PDFs (RAG con pgvector).
+Backend de ServiChile: autenticación, Pasaporte de Confianza, marketplace B2B e Índice de Transparencia.
 
-Stack: Python 3.12, FastAPI, SQLAlchemy 2, PostgreSQL 16 con pgvector, Gemini en Vertex AI.
+Stack: Python 3.12, FastAPI, SQLAlchemy 2, PostgreSQL.
 
 ## Estructura
 
@@ -12,26 +12,24 @@ servichile-backend/
 │   ├── main.py                  # Aplicación FastAPI, CORS y routers
 │   ├── config.py                # Variables de entorno (Pydantic Settings)
 │   ├── domain/                  # Capa 1: entidades y reglas puras (sin SQLAlchemy, FastAPI ni Pydantic)
-│   │   ├── entidades.py         # Usuario, Negocio, Reserva, Consulta y resultados de servicio
+│   │   ├── entidades.py         # Usuario, Negocio, Reserva y resultados de servicio
 │   │   ├── reputacion.py        # Fórmula del Índice de Transparencia
 │   │   ├── pasaporte.py         # RUT módulo 11 y score de confiabilidad
-│   │   └── pii.py               # Redacción de RUT, correos y teléfonos
+│   │   └── ciber_observables.py # Scores de observables medibles
 │   ├── services/                # Capa 2: casos de uso (solo entidades, sin ORM ni schemas de API)
 │   │   ├── auth_service.py      # Registro, login (Argon2id) y JWT
-│   │   ├── pasaporte_service.py, reserva_service.py, negocio_service.py, consulta_service.py
-│   │   └── ai_assistant.py      # Redacción, búsqueda de normativa, prompt y respuesta con citas
+│   │   └── pasaporte_service.py, reserva_service.py, negocio_service.py, …
 │   ├── infrastructure/          # Capa 3: adaptadores (convierten ORM <-> entidades)
 │   │   ├── db.py                # Conexión y modelos ORM
-│   │   ├── repositories.py      # Consultas SQL, mapeo a entidades y búsqueda vectorial
+│   │   ├── repositories.py      # Consultas SQL y mapeo a entidades
 │   │   ├── verificacion.py      # Verificador de RUT (configurable)
-│   │   ├── llm.py               # Proveedor de IA (Gemini o falso)
+│   │   ├── ciber_sonda.py       # Sonda de observables (fake|live)
 │   │   └── rate_limit.py        # Límite de solicitudes (Redis o memoria)
 │   └── api/                     # Capa 4: endpoints REST
 │       ├── schemas.py           # Schemas de entrada y salida (Pydantic)
 │       ├── mapeos.py            # Entidades y resultados -> respuestas
 │       ├── deps.py              # Ensamblado de dependencias (única capa que toca la base)
-│       └── v1/                  # Routers: auth, perfil, consultas, negocios, reservas
-├── scripts/ingest_pdfs.py       # Carga un PDF de normativa en la base de conocimiento
+│       └── v1/                  # Routers: auth, perfil, negocios, reservas, reporte
 ├── db/init_script.sql           # Crea el esquema completo desde cero
 ├── docs/
 │   ├── api_interface_table.md   # Tabla de la interfaz de programación
@@ -43,7 +41,7 @@ Las reglas de capas se verifican con `import-linter` (`lint-imports`, ver `.impo
 
 ## Endpoints y estado de desarrollo
 
-Estado verificado el 2026-11-06. La suite de pruebas pasa (`41 passed, 14 skipped`); los 14 saltados son los de integración con PostgreSQL (`tests/integration/test_postgres.py`), que requieren `TEST_DATABASE_URL`. El servidor no se ejecuta por defecto; con `LLM_PROVIDER=fake` responde sin llamar a Vertex AI.
+Los tests de integración con PostgreSQL (`tests/integration/`) se omiten sin `TEST_DATABASE_URL`.
 
 | Método | Ruta | Sesión | Descripción | Archivo | Estado |
 |---|---|---|---|---|---|
@@ -60,8 +58,6 @@ Estado verificado el 2026-11-06. La suite de pruebas pasa (`41 passed, 14 skippe
 | DELETE | `/v1/auth/yo` | Sí | Elimina la cuenta, con confirmación por contraseña (204) | `app/api/v1/auth.py` | Implementado y probado |
 | POST | `/v1/businesses/{id}/checkin` | Sí (titular) | El dueño registra asistencia con el QR del usuario | `app/api/v1/negocios.py` | Implementado y probado |
 | POST | `/v1/businesses/{id}/reservas/{reserva_id}/no-show` | Sí (titular) | El dueño marca una reserva como no-show | `app/api/v1/negocios.py` | Implementado y probado |
-| POST | `/v1/consultas` | Sí | Crea consulta IA con RAG (201) | `app/api/v1/consultas.py` | Implementado y probado |
-| GET | `/v1/consultas?limite=50` | Sí | Historial de consultas | `app/api/v1/consultas.py` | Implementado y probado |
 | GET | `/v1/businesses/{id}/reputation` | No | Índice de Transparencia y métricas estadísticas | `app/api/v1/negocios.py` | Implementado y probado |
 | POST | `/v1/businesses/{id}/claim` | Sí | Derecho a Réplica: el dueño reclama su perfil (201) | `app/api/v1/negocios.py` | Implementado y probado |
 
@@ -79,12 +75,12 @@ Los endpoints marcados con "Sí" en Sesión requieren la cabecera `Authorization
 
 ## Levantar en local
 
-Requisitos: Python 3.12 y PostgreSQL 16 con pgvector. La forma más simple de tener la base es con Docker:
+Requisitos: Python 3.12 y PostgreSQL. Ejemplo con Docker:
 
 ```bash
 docker run -d --name servichile-db -p 5432:5432 \
   -e POSTGRES_USER=servichile -e POSTGRES_PASSWORD=servichile -e POSTGRES_DB=servichile \
-  pgvector/pgvector:pg16
+  postgres:16
 ```
 
 Luego:
@@ -106,36 +102,13 @@ uvicorn app.main:app --reload
 
 Abra http://localhost:8000/docs para probar los endpoints, o importe `tests/servichile_api_collection.json` en Postman o Insomnia.
 
-Con `LLM_PROVIDER=fake` la API funciona sin Google Cloud: genera embeddings deterministas y una respuesta de prueba. Sirve para probar el flujo completo, no la calidad de las respuestas.
-
-## Cargar normativa (PDF)
-
-```bash
-python -m scripts.ingest_pdfs data/ley_19496.pdf \
-  --titulo "Ley 19.496 sobre Protección de los Derechos de los Consumidores" \
-  --url "https://www.bcn.cl/leychile/navegar?idNorma=61438" \
-  --categoria seguros
-```
-
-- Use el mismo `LLM_PROVIDER` al cargar y al consultar. Los vectores de `fake` y de `gemini` no son compatibles entre sí.
-- Si cambia de proveedor o de `EMBEDDING_DIM`, vacíe `documentos` y vuelva a cargar los PDFs.
-- Los PDFs escaneados necesitan OCR antes de cargarlos.
-
-## Usar Gemini (Vertex AI)
-
-```bash
-gcloud auth application-default login
-```
-
-En `.env`: `LLM_PROVIDER=gemini`, `GCP_PROJECT=su-proyecto` y `GCP_LOCATION` con una región donde estén disponibles los modelos configurados en `GEMINI_MODEL` y `EMBEDDING_MODEL`. Verifique la disponibilidad en la documentación de Vertex AI antes de elegir región.
-
 ## Pruebas
 
 ```bash
 pytest
 ```
 
-Las pruebas usan SQLite en memoria y el proveedor falso. No necesitan PostgreSQL ni conexión a Google Cloud.
+Las pruebas unitarias usan SQLite en memoria. No necesitan PostgreSQL.
 
 ## Despliegue en Cloud Run
 
@@ -145,11 +118,11 @@ gcloud run deploy servichile-api \
   --region southamerica-west1 \
   --service-account servichile-api@PROYECTO.iam.gserviceaccount.com \
   --add-cloudsql-instances PROYECTO:REGION:servichile-db \
-  --set-env-vars APP_ENV=production,LLM_PROVIDER=gemini,GCP_PROJECT=PROYECTO,CORS_ORIGINS=https://SU-FRONTEND,TRUST_PROXY=true \
+  --set-env-vars APP_ENV=production,CORS_ORIGINS=https://SU-FRONTEND,TRUST_PROXY=true \
   --set-secrets JWT_SECRET=jwt-secret:latest,DATABASE_URL=database-url:latest
 ```
 
-- La cuenta de servicio necesita los roles `roles/cloudsql.client`, `roles/aiplatform.user` y `roles/secretmanager.secretAccessor`, y ningún otro.
+- La cuenta de servicio necesita los roles `roles/cloudsql.client` y `roles/secretmanager.secretAccessor`.
 - `JWT_SECRET` y `DATABASE_URL` se guardan en Secret Manager, nunca en variables de entorno en texto plano.
 - Con más de una instancia, configure `REDIS_URL` (Memorystore). El límite en memoria no se comparte entre instancias.
 - `TRUST_PROXY=true` solo es seguro detrás de Cloud Run. Con `true` en un servidor expuesto directamente, cualquiera puede falsear su IP y evadir el límite por IP.

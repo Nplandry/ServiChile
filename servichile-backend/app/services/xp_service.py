@@ -1,14 +1,11 @@
-"""Otorga experiencia por hitos del Pasaporte ya implementados de punta a punta."""
 from __future__ import annotations
-
 import uuid
-
 from app.domain import xp as reglas
 from app.domain.entidades import Usuario
 from app.infrastructure.repositories import XpRepository
 
-
 class XpService:
+
     def __init__(self, xp: XpRepository) -> None:
         self.xp = xp
 
@@ -29,9 +26,7 @@ class XpService:
         return self.xp.otorgar(usuario_id, reglas.EVENTO_BIOMETRIA, reglas.XP_BIOMETRIA)
 
     def por_asistencia(self, usuario_id: uuid.UUID, reserva_id: uuid.UUID) -> int:
-        return self.xp.otorgar(
-            usuario_id, reglas.evento_asistencia(str(reserva_id)), reglas.XP_ASISTENCIA
-        )
+        return self.xp.otorgar(usuario_id, reglas.evento_asistencia(str(reserva_id)), reglas.XP_ASISTENCIA)
 
     def total(self, usuario_id: uuid.UUID) -> int:
         return self.xp.total(usuario_id)

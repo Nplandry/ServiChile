@@ -32,6 +32,9 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "010_categorias_b2b.sql",
     ROOT / "db" / "migrations" / "011_drop_pasaporte_arriendo.sql",
     ROOT / "db" / "migrations" / "012_categoria_logistica.sql",
+    ROOT / "db" / "migrations" / "013_ciber_observables.sql",
+    ROOT / "db" / "migrations" / "014_ciber_observables_extra.sql",
+    ROOT / "db" / "migrations" / "015_drop_consultas_rag.sql",
 ]
 
 
@@ -93,13 +96,47 @@ def main() -> None:
         cols = {c["name"] for c in insp.get_columns("perfiles")}
         return "tipo_cuenta" in cols
 
-    if not args.solo_seed and (
-        not _schema_listo(engine) or not _tiene_biometria() or not _tiene_xp() or not _tiene_tipo_cuenta()
-    ):
-        print("Schema incompleto o falta biometría/XP/tipo_cuenta. Aplicando migraciones 003-009...")
+    def _tiene_ciber() -> bool:
+        insp = inspect(engine)
+        if not insp.has_table("business_reputation_metrics"):
+            return False
+        cols = {c["name"] for c in insp.get_columns("business_reputation_metrics")}
+        return {
+            "score_ssl_tls",
+            "score_headers_http",
+            "score_blacklist",
+            "score_whois",
+            "score_email_auth",
+            "score_puertos",
+            "score_stack_vulnerable",
+            "score_dnssec",
+            "score_subdominios",
+            "score_uptime",
+        }.issubset(cols)
+
+    necesita_migrar = not args.solo_seed and (
+        not _schema_listo(engine)
+        or not _tiene_biometria()
+        or not _tiene_xp()
+        or not _tiene_tipo_cuenta()
+        or not _tiene_ciber()
+    )
+    if necesita_migrar:
+        print("Schema incompleto. Aplicando migraciones pendientes...")
         for migracion in MIGRACIONES:
             if not migracion.exists():
                 raise SystemExit(f"No existe {migracion}")
+            # Solo ciber faltante: aplicar 013/014 y seguir (evita fallar en 004 por ownership).
+            if (
+                _schema_listo(engine)
+                and _tiene_biometria()
+                and _tiene_xp()
+                and _tiene_tipo_cuenta()
+                and not _tiene_ciber()
+                and migracion.name
+                not in ("013_ciber_observables.sql", "014_ciber_observables_extra.sql")
+            ):
+                continue
             try:
                 _correr_sql(migracion, database_url)
             except FileNotFoundError:
@@ -107,7 +144,8 @@ def main() -> None:
             except subprocess.CalledProcessError as e:
                 raise SystemExit(
                     f"Falló {migracion.name}. Si la tabla es de otro dueño, "
-                    "corra el psql con el usuario dueño de la base."
+                    "corra el psql como el dueño de la tabla (p. ej. `psql -d NOMBRE_DB -f ...`) "
+                    "o transfiera ownership."
                 ) from e
 
     if not _schema_listo(engine):
@@ -129,6 +167,11 @@ def main() -> None:
         raise SystemExit(
             "Falta tipo_cuenta en perfiles. Aplique db/migrations/009_tipo_cuenta.sql "
             "con el usuario dueño de la base."
+        )
+    if not _tiene_ciber():
+        raise SystemExit(
+            "Faltan columnas ciber en business_reputation_metrics. "
+            "Aplique 013_ciber_observables.sql y 014_ciber_observables_extra.sql."
         )
 
     with engine.connect() as conn:

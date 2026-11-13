@@ -12,12 +12,12 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 # Pegue el token en JWT_SECRET del .env
 ```
 
-Base Postgres con pgvector (solo si aún no tiene contenedor):
+Base Postgres (solo si aún no tiene contenedor):
 
 ```bash
 docker run -d --name servichile-db -p 5432:5432 \
   -e POSTGRES_USER=servichile -e POSTGRES_PASSWORD=servichile -e POSTGRES_DB=servichile \
-  pgvector/pgvector:pg16
+  postgres:16
 ```
 
 ### Base nueva (schema completo + datos demo)
