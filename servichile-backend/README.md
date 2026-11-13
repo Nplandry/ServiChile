@@ -14,7 +14,7 @@ servichile-backend/
 │   ├── domain/                  # Capa 1: entidades y reglas puras (sin SQLAlchemy, FastAPI ni Pydantic)
 │   │   ├── entidades.py         # Usuario, Negocio, Reserva, Consulta y resultados de servicio
 │   │   ├── reputacion.py        # Fórmula del Índice de Transparencia
-│   │   ├── pasaporte.py         # RUT módulo 11, scores de confiabilidad y arriendo
+│   │   ├── pasaporte.py         # RUT módulo 11 y score de confiabilidad
 │   │   └── pii.py               # Redacción de RUT, correos y teléfonos
 │   ├── services/                # Capa 2: casos de uso (solo entidades, sin ORM ni schemas de API)
 │   │   ├── auth_service.py      # Registro, login (Argon2id) y JWT
@@ -23,7 +23,7 @@ servichile-backend/
 │   ├── infrastructure/          # Capa 3: adaptadores (convierten ORM <-> entidades)
 │   │   ├── db.py                # Conexión y modelos ORM
 │   │   ├── repositories.py      # Consultas SQL, mapeo a entidades y búsqueda vectorial
-│   │   ├── verificacion.py      # Verificador de RUT y extractor de PDF (configurables)
+│   │   ├── verificacion.py      # Verificador de RUT (configurable)
 │   │   ├── llm.py               # Proveedor de IA (Gemini o falso)
 │   │   └── rate_limit.py        # Límite de solicitudes (Redis o memoria)
 │   └── api/                     # Capa 4: endpoints REST
@@ -51,9 +51,9 @@ Estado verificado el 2026-11-06. La suite de pruebas pasa (`41 passed, 14 skippe
 | POST | `/v1/auth/registro` | No | Registra usuario (201) | `app/api/v1/auth.py` | Implementado y probado |
 | POST | `/v1/auth/login` | No | Login → `TokenOut` (JWT) | `app/api/v1/auth.py` | Implementado y probado |
 | GET | `/v1/auth/yo` | Sí | Datos del usuario autenticado | `app/api/v1/auth.py` | Implementado y probado |
-| GET | `/v1/perfil` | Sí | Estado del Pasaporte de Confianza (nivel, score de confiabilidad, arriendo) | `app/api/v1/perfil.py` | Implementado y probado |
+| GET | `/v1/perfil` | Sí | Estado del Pasaporte de Confianza (nivel, score de confiabilidad) | `app/api/v1/perfil.py` | Implementado y probado |
 | PATCH | `/v1/perfil` | Sí | Actualiza edad, teléfono y verifica el RUT | `app/api/v1/perfil.py` | Implementado y probado |
-| POST | `/v1/perfil/documentos` | Sí | Nivel 2: score de arriendo desde un PDF procesado en memoria (201) | `app/api/v1/perfil.py` | Implementado con extractor falso |
+| POST | `/v1/perfil/biometria` | Sí | Verificación biométrica; la foto no se almacena (201) | `app/api/v1/perfil.py` | Implementado y probado |
 | GET | `/v1/reservas` | Sí | Reservas del usuario con su código QR | `app/api/v1/reservas.py` | Implementado y probado |
 | POST | `/v1/reservas` | Sí | Reserva un cupo en un comercio (201) | `app/api/v1/reservas.py` | Implementado y probado |
 | DELETE | `/v1/reservas/{id}` | Sí | Cancela una reserva propia que siga activa | `app/api/v1/reservas.py` | Implementado y probado |
@@ -74,8 +74,6 @@ Los endpoints marcados con "Sí" en Sesión requieren la cabecera `Authorization
 - Worker de ingesta y recálculo del Índice de Transparencia (cron/Celery): recolectar métricas de Google Maps y NLP de sentimiento, y persistir `final_score` periódicamente. Hoy la fórmula (`app/domain/reputacion.py`) y el recálculo al reclamar/al vuelo ya existen; falta el proceso en segundo plano que alimente las métricas.
 - Pasaporte de Confianza, pendientes antes de producción:
   - Verificador de RUT real (proveedor de identidad). Hoy `FakeVerificadorRut` acepta cualquier RUT con DV válido.
-  - Extractor de PDF real con Gemini. Hoy `FakeExtractorFinanciero` devuelve métricas fijas. Antes de enviar documentos financieros a un tercero, revisar el tratamiento de datos.
-  - Fórmula definitiva del score de arriendo. Hoy es provisional (`app/domain/pasaporte.py`).
   - Eliminar `preocupacion` y `proposito` de la base en una migración posterior, cuando el frontend antiguo ya no los envíe.
   - Reclamo de comercios: hoy el documento de verificación no se valida ni se guarda.
 

@@ -94,15 +94,15 @@ CREATE TABLE business_entities (
     id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre         varchar(160) NOT NULL,
     categoria      varchar(30) NOT NULL
-                     CHECK (categoria IN ('gimnasio', 'clinica-dental', 'comercio', 'restaurante',
-                                          'automotriz', 'arriendo', 'evento', 'otro')),
+                     CHECK (categoria IN ('tecnologia', 'industria', 'construccion',
+                                          'servicios-profesionales', 'logistica')),
     latitud        double precision,
     longitud       double precision,
     direccion      varchar(200),
     descripcion    text,
     imagen_url     varchar(500),
     logo_url       varchar(500),
-    -- Nivel de Pasaporte requerido para la acción (1 básico, 2 verificado: arriendos y eventos VIP)
+    -- Nivel de Pasaporte requerido para la acción (1 = registrado)
     requiere_nivel smallint NOT NULL DEFAULT 1 CHECK (requiere_nivel IN (1, 2)),
     external_ref   varchar(200) UNIQUE,            -- p. ej. place_id de Google Maps (ingesta)
     is_claimed     boolean NOT NULL DEFAULT false, -- Derecho a Réplica: perfil reclamado por su dueño
@@ -141,17 +141,5 @@ CREATE TABLE reservas (
 CREATE INDEX reservas_usuario_idx ON reservas (usuario_id, creado_en DESC);
 CREATE INDEX reservas_negocio_idx ON reservas (business_id);
 
--- Resultado de la verificación de arriendo. Solo puntaje y fecha: nunca el PDF original ni sus datos crudos.
-CREATE TABLE pasaporte_arriendo (
-    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id     uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    estado         varchar(20) NOT NULL
-                     CHECK (estado IN ('pendiente', 'verificado', 'rechazado')),
-    score          smallint CHECK (score BETWEEN 0 AND 1000),
-    verificado_en  timestamptz,
-    creado_en      timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX pasaporte_arriendo_usuario_idx ON pasaporte_arriendo (usuario_id, creado_en DESC);
 
 COMMIT;

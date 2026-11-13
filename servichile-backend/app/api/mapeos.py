@@ -2,28 +2,17 @@
 
 Único lugar donde se decide qué datos sale hacia el cliente.
 """
-from app.api.schemas import InmobiliariaScoring, PerfilOut, UsuarioOut
-from app.domain.entidades import EstadoPasaporte, Usuario, VerificacionArriendo
-
-
-def _inmobiliaria(arriendo: VerificacionArriendo | None) -> InmobiliariaScoring | None:
-    if arriendo is None:
-        return None
-    return InmobiliariaScoring(
-        estado_verificacion=arriendo.estado,
-        score_financiero=arriendo.score,
-        actualizado_en=arriendo.verificado_en or arriendo.creado_en,
-    )
+from app.api.schemas import PerfilOut, UsuarioOut
+from app.domain.entidades import EstadoPasaporte, Usuario
 
 
 def to_perfil_out(estado: EstadoPasaporte) -> PerfilOut:
     return PerfilOut(
         rut_verificado=estado.rut_verificado,
         telefono=estado.telefono,
-        nivel_pasaporte=estado.nivel_pasaporte,
-        estado_pasaporte=estado.estado_pasaporte,
+        nivel_pasaporte=estado.nivel_pasaporte,  # type: ignore[arg-type]
+        estado_pasaporte=estado.estado_pasaporte,  # type: ignore[arg-type]
         score_confiabilidad=estado.score_confiabilidad,
-        inmobiliaria_scoring=_inmobiliaria(estado.arriendo),
         biometria_verificada=estado.biometria_verificada,
         biometria_verificada_en=estado.biometria_verificada_en,
         xp=estado.xp,

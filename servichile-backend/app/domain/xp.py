@@ -9,14 +9,12 @@ XP_REGISTRO = 10
 XP_PERFIL_BASICO = 20  # edad + teléfono
 XP_RUT = 50
 XP_BIOMETRIA = 80
-XP_DOCUMENTO_ARRIENDO = 100
 XP_ASISTENCIA = 25
 
 EVENTO_REGISTRO = "registro"
 EVENTO_PERFIL_BASICO = "perfil_basico"
 EVENTO_RUT = "rut_verificado"
 EVENTO_BIOMETRIA = "biometria"
-EVENTO_DOCUMENTO_ARRIENDO = "documento_arriendo"
 
 
 def evento_asistencia(reserva_id: str) -> str:
@@ -24,9 +22,7 @@ def evento_asistencia(reserva_id: str) -> str:
 
 
 def nivel_por_xp(xp: int) -> int:
-    """Nivel de progreso 1–4 derivado del XP acumulado (UI Subir Confianza)."""
-    if xp >= 450:
-        return 4
+    """Nivel de progreso 1–3 derivado del XP acumulado (UI Subir Confianza)."""
     if xp >= 250:
         return 3
     if xp >= 100:

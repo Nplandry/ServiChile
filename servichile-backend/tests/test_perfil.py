@@ -25,7 +25,7 @@ def test_perfil_nuevo_es_pasaporte_nivel_1_basico(client: TestClient):
     assert cuerpo["nivel_pasaporte"] == 1
     assert cuerpo["estado_pasaporte"] == "basico"
     assert cuerpo["score_confiabilidad"] is None
-    assert cuerpo["inmobiliaria_scoring"] is None
+    assert "inmobiliaria_scoring" not in cuerpo
 
 
 def test_campos_deprecados_se_aceptan_pero_no_se_devuelven(client: TestClient):

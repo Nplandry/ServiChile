@@ -1,23 +1,14 @@
-"""Reglas del Pasaporte de Confianza: RUT, score de confiabilidad, nivel y score de arriendo.
+"""Reglas del Pasaporte de Confianza: RUT, score de confiabilidad y nivel.
 
 Código puro, sin base de datos ni red. Las fórmulas se prueban aquí de forma aislada.
 """
 import re
-from dataclasses import dataclass
-
-SCORE_ARRIENDO_MAX = 1000
-# Tope aplicado si el usuario tiene morosidad en Dicom. Valor provisional, ver score_arriendo.
-TOPE_CON_MOROSIDAD = 300
 
 _RUT_PATRON = re.compile(r"^(\d{1,8})-?([0-9K])$")
 
 
 class RutInvalido(ValueError):
     pass
-
-
-class ExtraccionFallida(Exception):
-    """El extractor no pudo leer el documento (PDF dañado, escaneado sin texto, etc.)."""
 
 
 def dv_rut(cuerpo: str) -> str:
@@ -62,39 +53,11 @@ def score_confiabilidad(asistidos: int, no_show: int) -> float | None:
     return round(asistidos / cerradas * 100, 1)
 
 
-def nivel_pasaporte(arriendo_verificado: bool) -> int:
-    """Nivel 2 solo con verificación de arriendo aprobada. Todo usuario registrado es nivel 1."""
-    return 2 if arriendo_verificado else 1
+def nivel_pasaporte() -> int:
+    """Nivel de pasaporte. Sin solvencia/arriendo: todo usuario registrado es nivel 1."""
+    return 1
 
 
-def estado_pasaporte(estado_arriendo: str | None) -> str:
-    """Estado legible del Pasaporte. 'basico' significa que nunca subió documentos."""
-    if estado_arriendo is None:
-        return "basico"
-    return estado_arriendo
-
-
-@dataclass(frozen=True)
-class MetricasFinancieras:
-    """Datos extraídos del PDF por el extractor. No incluye el documento original."""
-
-    ingreso_liquido: int  # sueldo líquido mensual en pesos
-    deudas_mensuales: int  # cuotas y deudas mensuales en pesos
-    morosidad_dicom: bool
-
-
-def score_arriendo(metricas: MetricasFinancieras) -> int:
-    """Score de arriendo de 0 a 1000.
-
-    PROVISIONAL: la fórmula de negocio aún no está definida. Esta regla solo mide la
-    capacidad de pago (ingreso libre de deudas sobre ingreso) y aplica un tope si hay
-    morosidad. Reemplazar cuando se defina el modelo de scoring.
-    """
-    if metricas.ingreso_liquido <= 0:
-        return 0
-    libre = (metricas.ingreso_liquido - metricas.deudas_mensuales) / metricas.ingreso_liquido
-    capacidad = min(max(libre, 0.0), 1.0)
-    score = round(capacidad * SCORE_ARRIENDO_MAX)
-    if metricas.morosidad_dicom:
-        score = min(score, TOPE_CON_MOROSIDAD)
-    return score
+def estado_pasaporte(rut_verificado: bool) -> str:
+    """Estado legible del Pasaporte según verificación de identidad."""
+    return "verificado" if rut_verificado else "basico"

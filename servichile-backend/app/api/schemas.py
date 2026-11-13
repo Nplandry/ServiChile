@@ -39,14 +39,6 @@ class PerfilRegistroIn(BaseModel):
     proposito: Proposito | None = None
 
 
-class InmobiliariaScoring(BaseModel):
-    """Resultado del Nivel 2 (arriendo). Solo puntaje y fecha: el PDF nunca se guarda."""
-
-    estado_verificacion: Literal["pendiente", "verificado", "rechazado"]
-    score_financiero: int | None = Field(default=None, ge=0, le=1000)
-    actualizado_en: datetime
-
-
 class PerfilOut(BaseModel):
     """Estado del usuario dentro del Pasaporte de Confianza."""
 
@@ -54,18 +46,16 @@ class PerfilOut(BaseModel):
 
     rut_verificado: bool = False
     telefono: str | None = None
-    nivel_pasaporte: Literal[1, 2] = 1
+    nivel_pasaporte: Literal[1] = 1
     estado_pasaporte: Literal["basico", "pendiente", "verificado", "rechazado"] = "basico"
-    # Nivel 1: asistencias / reservas cerradas x 100. Null si aún no hay reservas cerradas.
+    # Asistencias / reservas cerradas x 100. Null si aún no hay reservas cerradas.
     score_confiabilidad: float | None = None
-    # Nivel 2: null si el usuario nunca subió documentos de arriendo.
-    inmobiliaria_scoring: InmobiliariaScoring | None = None
     # Biometría: solo bandera + fecha. La foto nunca se guarda.
     biometria_verificada: bool = False
     biometria_verificada_en: datetime | None = None
-    # Experiencia acumulada y nivel UI 1–4 derivado del XP.
+    # Experiencia acumulada y nivel UI 1–3 derivado del XP.
     xp: int = Field(default=0, ge=0)
-    nivel_xp: int = Field(default=1, ge=1, le=4)
+    nivel_xp: int = Field(default=1, ge=1, le=3)
     edad: int | None = None
     tipo_cuenta: TipoCuenta | None = None
     # DEPRECADOS: null durante la transición.
@@ -79,7 +69,7 @@ class BiometriaOut(BaseModel):
     biometria_verificada: bool
     biometria_verificada_en: datetime
     xp: int = Field(default=0, ge=0)
-    nivel_xp: int = Field(default=1, ge=1, le=4)
+    nivel_xp: int = Field(default=1, ge=1, le=3)
     mensaje: str = "Verificación biométrica completada. La foto no se almacenó."
 
 
@@ -160,7 +150,11 @@ class ConsultaResumen(BaseModel):
 
 # Categorías de comercio del directorio. Ampliar según convenios/zonas.
 CategoriaNegocio = Literal[
-    "gimnasio", "clinica-dental", "comercio", "restaurante", "automotriz", "arriendo", "evento", "otro"
+    "tecnologia",
+    "industria",
+    "construccion",
+    "servicios-profesionales",
+    "logistica",
 ]
 
 
@@ -186,8 +180,9 @@ class NegocioEnMapaOut(BaseModel):
     cta_texto: str
     indice_transparencia: float
     is_verified_profile: bool
-    # Nivel de pasaporte requerido para la acción (p. ej. arriendos o eventos VIP piden nivel 2).
+    # Nivel de pasaporte requerido para la acción (hoy todos son nivel 1).
     requiere_nivel: Literal[1, 2]
+    is_claimed: bool = False
 
 
 class ReputacionOut(BaseModel):
@@ -215,6 +210,35 @@ class ReputacionOut(BaseModel):
         "Índice algorítmico calculado sobre datos públicos y nivel de verificación. "
         "No constituye un juicio sobre la calidad del servicio."
     )
+
+
+class NegocioCrearIn(BaseModel):
+    """Alta de una empresa nueva en el marketplace (queda reclamada por el usuario)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: str = Field(min_length=2, max_length=160)
+    categoria: CategoriaNegocio
+    direccion: str = Field(min_length=3, max_length=200)
+    descripcion: str | None = Field(default=None, max_length=2000)
+    telefono: str | None = Field(default=None, max_length=30)
+    sitio_web: str | None = Field(default=None, max_length=200)
+    # Banner / fondo de la ficha en marketplace (URL pública http/https).
+    imagen_url: str | None = Field(default=None, max_length=500)
+    logo_url: str | None = Field(default=None, max_length=500)
+    documento_verificacion: str | None = Field(default=None, min_length=3, max_length=120)
+
+    @field_validator("imagen_url", "logo_url")
+    @classmethod
+    def url_http(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        url = v.strip()
+        if not url:
+            return None
+        if not (url.startswith("http://") or url.startswith("https://")):
+            raise ValueError("La URL debe comenzar con http:// o https://")
+        return url
 
 
 class ClaimIn(BaseModel):
@@ -281,12 +305,13 @@ class MiQrOut(BaseModel):
     expires_at: datetime
     nombre: str
     email: EmailStr
-    nivel_pasaporte: Literal[1, 2]
+    nivel_pasaporte: Literal[1] = 1
     estado_pasaporte: Literal["basico", "pendiente", "verificado", "rechazado"]
     score_confiabilidad: float | None = None
     rut_verificado: bool = False
     xp: int = 0
-    nivel_xp: int = Field(default=1, ge=1, le=4)
+    nivel_xp: int = Field(default=1, ge=1, le=3)
+    tipo_cuenta: TipoCuenta | None = None
 
 
 class MiQrValidarIn(BaseModel):
@@ -302,10 +327,11 @@ class MiQrValidacionOut(BaseModel):
 
     es_propio: bool
     nombre: str
-    nivel_pasaporte: Literal[1, 2]
+    nivel_pasaporte: Literal[1] = 1
     estado_pasaporte: Literal["basico", "pendiente", "verificado", "rechazado"]
     score_confiabilidad: float | None = None
     rut_verificado: bool = False
     expires_at: datetime
     xp: int = 0
-    nivel_xp: int = Field(default=1, ge=1, le=4)
+    nivel_xp: int = Field(default=1, ge=1, le=3)
+    tipo_cuenta: TipoCuenta | None = None

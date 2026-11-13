@@ -1,11 +1,13 @@
-"""Siembra / actualiza negocios de prueba del marketplace.
+"""Siembra negocios B2B del directorio de transparencia.
 
 Idempotente por external_ref con prefijo "seed:".
-Sirve para cargar una DB vacía o refrescar datos demo en una DB ya migrada.
+Con --purge-all borra TODOS los negocios (y reservas/métricas en cascada)
+y recrea 100 pymes del ecosistema demanda/oferta.
 
 Uso:
     python -m scripts.sembrar_negocios
     python -m scripts.sembrar_negocios --reset
+    python -m scripts.sembrar_negocios --purge-all
 """
 from __future__ import annotations
 
@@ -15,101 +17,151 @@ import sys
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import sessionmaker
 
+from app.domain.marketplace import IMAGEN_POR_CATEGORIA
 from app.domain.reputacion import EntradaScore, calcular_indice
 from app.infrastructure.db import BusinessEntity, BusinessReputationMetrics, get_engine
 
-NEGOCIOS = [
-    {
-        "external_ref": "seed:fithouse",
-        "nombre": "FitHouse Gym & Studio",
-        "categoria": "gimnasio",
-        "direccion": "Av. Providencia 1420, Providencia",
-        "descripcion": "Clases grupales, musculación de alto rendimiento y zona recovery.",
-        "imagen_url": "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&h=360&q=80",
-        "logo_url": None,
-        "latitud": -33.4265,
-        "longitud": -70.6190,
-        "requiere_nivel": 1,
-        "google_rating_avg": 4.6,
-        "google_reviews_count": 320,
-        "is_verified_profile": True,
-    },
-    {
-        "external_ref": "seed:dentalcare",
-        "nombre": "Clínica Odontológica DentalCare",
-        "categoria": "clinica-dental",
-        "direccion": "Pedro de Valdivia 304, Providencia",
-        "descripcion": "Especialistas en estética dental y evaluación integral.",
-        "imagen_url": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&h=500&q=80",
-        "logo_url": None,
-        "latitud": -33.4280,
-        "longitud": -70.6150,
-        "requiere_nivel": 1,
-        "google_rating_avg": 4.8,
-        "google_reviews_count": 540,
-        "is_verified_profile": True,
-    },
-    {
-        "external_ref": "seed:italia-890",
-        "nombre": "Dept. Moderno 2D/2B - Barrio Italia",
-        "categoria": "arriendo",
-        "direccion": "Av. Italia 890, Providencia",
-        "descripcion": "Vista despejada, estacionamiento, bodega y áreas verdes. Cerca de Metro.",
-        "imagen_url": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&h=500&q=80",
-        "logo_url": None,
-        "latitud": -33.4460,
-        "longitud": -70.6240,
-        "requiere_nivel": 2,
-        "google_rating_avg": None,
-        "google_reviews_count": 0,
-        "is_verified_profile": False,
-    },
-    {
-        "external_ref": "seed:bourgogne",
-        "nombre": "Bistró La Bourgogne",
-        "categoria": "restaurante",
-        "direccion": "Santa Isabel 512, Santiago",
-        "descripcion": "Cocina de autor y café de especialidad con terraza pet-friendly.",
-        "imagen_url": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&h=500&q=80",
-        "logo_url": None,
-        "latitud": -33.4530,
-        "longitud": -70.6350,
-        "requiere_nivel": 1,
-        "google_rating_avg": 4.4,
-        "google_reviews_count": 210,
-        "is_verified_profile": True,
-    },
-    {
-        "external_ref": "seed:sunset-vip",
-        "nombre": "Sunset Electronic Sessions - VIP",
-        "categoria": "evento",
-        "direccion": "Parque Bustamante - Sector Norte, Providencia",
-        "descripcion": "Evento de cupo exclusivo. Acceso solo a perfiles verificados.",
-        "imagen_url": "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=800&h=500&q=80",
-        "logo_url": None,
-        "latitud": -33.4420,
-        "longitud": -70.6330,
-        "requiere_nivel": 2,
-        "google_rating_avg": 4.9,
-        "google_reviews_count": 95,
-        "is_verified_profile": True,
-    },
-    {
-        "external_ref": "seed:umayor",
-        "nombre": "Universidad Mayor",
-        "categoria": "otro",
-        "direccion": "Av. Manuel Montt 367, Providencia",
-        "descripcion": "Universidad privada acreditada. Campus Manuel Montt con pregrado, postgrado y educación continua.",
-        "imagen_url": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=800&h=500&q=80",
-        "logo_url": None,
-        "latitud": -33.4318,
-        "longitud": -70.6182,
-        "requiere_nivel": 1,
-        "google_rating_avg": 4.3,
-        "google_reviews_count": 890,
-        "is_verified_profile": True,
-    },
+# Distribución beachhead: Tecnología 30, Industria 30, Construcción 25, Profesionales 15.
+_PLANTILLAS = {
+    "tecnologia": [
+        ("SaaS B2B", "Plataforma cloud B2B con controles de acceso y bitácora de auditoría."),
+        ("Agencia digital", "Marketing y performance para cuentas enterprise; manejo de datos de clientes."),
+        ("Consultora TI", "Implementación, soporte y gobierno de sistemas críticos."),
+        ("Desarrollo a medida", "Software a medida, integraciones API y mantenimiento continuo."),
+        ("Ciberseguridad MSP", "Monitoreo, hardening y respuesta a incidentes para pymes B2B."),
+        ("Soporte técnico", "Mesa de ayuda y operación de infraestructura para clientes corporativos."),
+    ],
+    "industria": [
+        ("Maestranza", "Fabricación y reparación industrial para faenas y plantas."),
+        ("Transporte de carga", "Logística de carga pesada y cumplimiento laboral de flota."),
+        ("Arriendo de equipos", "Arriendo de maquinaria con mantención y seguros vigentes."),
+        ("Aseo industrial", "Servicios de aseo y sanitización en faenas e industrias."),
+        ("Seguridad privada", "Vigilancia y control de acceso con personal acreditado."),
+        ("Mantención industrial", "Mantención predictiva y correctiva de activos críticos."),
+    ],
+    "construccion": [
+        ("Obras civiles", "Subcontrata de obras civiles con foco en seguridad laboral."),
+        ("Electricidad industrial", "Instalaciones eléctricas y certificaciones SEC."),
+        ("Climatización", "Montaje y mantención HVAC para edificios e industria."),
+        ("Montaje estructural", "Montaje metálico y estructuras para proyectos mineros."),
+        ("Arquitectura e ingeniería", "Diseño y dirección de obras con documentación contractual."),
+        ("Terminaciones", "Terminaciones y especialidades para contratistas principales."),
+    ],
+    "servicios-profesionales": [
+        ("Outsourcing RR.HH.", "Administración de nómina y reclutamiento para terceros."),
+        ("Contabilidad B2B", "Contabilidad, reportes SII y cierre financiero para pymes."),
+        ("Asesoría legal", "Contratos, compliance y acompañamiento en due diligence."),
+        ("Consultora laboral", "Prevención de riesgos y cumplimiento laboral/previsional."),
+        ("Auditoría interna", "Auditorías de procesos y controles para proveedores."),
+        ("Gestión de proveedores", "Homologación y monitoreo continuo de subcontratistas."),
+    ],
+    "logistica": [
+        (
+            "Flota de carga pesada",
+            "Transporte de carga B2B con alta rotación de flotas. Validar vigencia societaria, multas y demandas civiles antes de contratar.",
+        ),
+        (
+            "Courier B2B express",
+            "Última milla corporativa. Riesgo de empresas fachada y siniestros; due diligence en segundos.",
+        ),
+        (
+            "Bodegaje y fulfillment",
+            "Almacenamiento y picking para e-commerce B2B. Verificar operador, seguros y antecedentes laborales.",
+        ),
+        (
+            "Distribución fría",
+            "Cadena de frío para retail e industria. Validar patentes, multas y continuity operativa.",
+        ),
+        (
+            "Courier documental",
+            "Mensajería certificada entre sedes. Contrarrestar rotación de proveedores y fraude societario.",
+        ),
+        (
+            "Transporte interurbano",
+            "Carga entre regiones. Alto riesgo operativo: robos de carga y accidentes laborales.",
+        ),
+        (
+            "Operador 3PL",
+            "Logística integral tercerizada. Homologar vigencia societaria y litigios civiles vigentes.",
+        ),
+        (
+            "Última milla urbana",
+            "Entregas densas en ciudad. Clientes necesitan chequear multas y demandas al instante.",
+        ),
+        (
+            "Bodega bonded",
+            "Depósito y consolidación de carga. Blindaje ante operadores sin historial verificable.",
+        ),
+        (
+            "Flota liviana B2B",
+            "Furgones y utilitarios para cuentas enterprise. Validación rápida de riesgos societarios y laborales.",
+        ),
+    ],
+}
+
+_CIUDADES = [
+    ("Santiago", -33.4489, -70.6693),
+    ("Providencia", -33.4265, -70.6190),
+    ("Las Condes", -33.4150, -70.5800),
+    ("Rancagua", -34.1708, -70.7444),
+    ("Antofagasta", -23.6509, -70.3975),
+    ("Calama", -22.4544, -68.9294),
+    ("Valparaíso", -33.0472, -71.6127),
+    ("Concepción", -36.8201, -73.0444),
+    ("La Serena", -29.9027, -71.2519),
+    ("Temuco", -38.7359, -72.5904),
 ]
+
+_CUOTAS = {
+    "tecnologia": 30,
+    "industria": 30,
+    "construccion": 25,
+    "servicios-profesionales": 15,
+    "logistica": 10,
+}
+
+
+def _generar_negocios() -> list[dict]:
+    out: list[dict] = []
+    n = 0
+    for categoria, cuota in _CUOTAS.items():
+        plantillas = _PLANTILLAS[categoria]
+        for i in range(cuota):
+            n += 1
+            tipo, blurb = plantillas[i % len(plantillas)]
+            ciudad, lat0, lng0 = _CIUDADES[(n + i) % len(_CIUDADES)]
+            # Pequeña dispersión para el mapa.
+            lat = lat0 + ((n % 7) - 3) * 0.008
+            lng = lng0 + ((n % 5) - 2) * 0.008
+            verificado = (n % 3) != 0
+            rating = round(3.4 + (n % 17) * 0.09, 1)
+            if rating > 4.9:
+                rating = 4.9
+            reviews = 12 + (n * 11) % 480
+            out.append(
+                {
+                    "external_ref": f"seed:b2b-{n:03d}",
+                    "nombre": f"{tipo} {ciudad} {n:02d}",
+                    "categoria": categoria,
+                    "direccion": f"Av. Industrial {100 + n}, {ciudad}",
+                    "descripcion": (
+                        f"{blurb} Operación en {ciudad}. "
+                        "Ficha orientada a due diligence B2B (32 observables)."
+                    ),
+                    "imagen_url": IMAGEN_POR_CATEGORIA[categoria],
+                    "logo_url": None,
+                    "latitud": round(lat, 6),
+                    "longitud": round(lng, 6),
+                    "requiere_nivel": 1,
+                    "google_rating_avg": rating,
+                    "google_reviews_count": reviews,
+                    "is_verified_profile": verificado,
+                }
+            )
+    return out
+
+
+NEGOCIOS = _generar_negocios()
 
 COLUMNAS_REQUERIDAS = (
     "direccion",
@@ -173,13 +225,19 @@ def _verificar_esquema(engine) -> None:
         )
 
 
-def sembrar(reset: bool) -> None:
+def sembrar(reset: bool, purge_all: bool = False) -> None:
     engine = get_engine()
     _verificar_esquema(engine)
     session = sessionmaker(bind=engine, expire_on_commit=False)()
     try:
+        if purge_all:
+            # Cascada borra métricas y reservas asociadas.
+            borrados = session.execute(text("DELETE FROM business_entities")).rowcount
+            session.commit()
+            print(f"Negocios eliminados: {borrados}.")
+
         refs = [n["external_ref"] for n in NEGOCIOS]
-        if reset:
+        if reset and not purge_all:
             for negocio in session.scalars(select(BusinessEntity).where(BusinessEntity.external_ref.in_(refs))):
                 session.delete(negocio)
             session.commit()
@@ -208,20 +266,29 @@ def sembrar(reset: bool) -> None:
         total = session.scalar(
             text("SELECT count(*) FROM business_entities WHERE external_ref LIKE 'seed:%'")
         )
-        print(f"Negocios demo creados: {creados}. Actualizados: {actualizados}. Total seed: {total}.")
+        print(
+            f"Negocios demo creados: {creados}. Actualizados: {actualizados}. "
+            f"Total seed: {total}. Catálogo: {len(NEGOCIOS)}."
+        )
     finally:
         session.close()
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Siembra negocios de prueba del marketplace.")
+    parser = argparse.ArgumentParser(description="Siembra negocios B2B del marketplace.")
     parser.add_argument(
         "--reset",
         action="store_true",
         help="Borra los negocios seed:* y los recrea desde cero.",
     )
+    parser.add_argument(
+        "--purge-all",
+        action="store_true",
+        help="Borra TODOS los negocios de la base y siembra el catálogo B2B.",
+    )
+    args = parser.parse_args()
     try:
-        sembrar(parser.parse_args().reset)
+        sembrar(reset=args.reset, purge_all=args.purge_all)
     except RuntimeError as e:
         print(e, file=sys.stderr)
         raise SystemExit(1) from e

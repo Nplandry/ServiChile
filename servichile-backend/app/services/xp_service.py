@@ -28,11 +28,6 @@ class XpService:
     def por_biometria(self, usuario_id: uuid.UUID) -> int:
         return self.xp.otorgar(usuario_id, reglas.EVENTO_BIOMETRIA, reglas.XP_BIOMETRIA)
 
-    def por_documento_arriendo(self, usuario_id: uuid.UUID) -> int:
-        return self.xp.otorgar(
-            usuario_id, reglas.EVENTO_DOCUMENTO_ARRIENDO, reglas.XP_DOCUMENTO_ARRIENDO
-        )
-
     def por_asistencia(self, usuario_id: uuid.UUID, reserva_id: uuid.UUID) -> int:
         return self.xp.otorgar(
             usuario_id, reglas.evento_asistencia(str(reserva_id)), reglas.XP_ASISTENCIA

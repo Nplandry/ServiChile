@@ -51,6 +51,45 @@ def test_validar_qr_de_otro_usuario(client: TestClient, token: str):
     assert "email" not in body
     assert "rut" not in body
     assert body["nivel_pasaporte"] in (1, 2)
+    assert body["tipo_cuenta"] == "persona"
+
+
+def _cuenta_empresa(client: TestClient, email: str, nombre: str = "Empresa Prueba") -> dict[str, str]:
+    datos = {
+        "email": email,
+        "nombre": nombre,
+        "password": "clave-segura-123",
+        "perfil": {"tipo_cuenta": "empresa"},
+    }
+    assert client.post("/v1/auth/registro", json=datos).status_code == 201
+    t = client.post("/v1/auth/login", json={"email": email, "password": datos["password"]}).json()
+    return {"Authorization": f"Bearer {t['access_token']}"}
+
+
+def test_persona_valida_qr_de_empresa(client: TestClient, token: str):
+    empresa = _cuenta_empresa(client, "qr-empresa@servichile.cl", "Proveedor SPA")
+    emitido = client.get("/v1/mi-qr", headers=empresa).json()
+    assert emitido["tipo_cuenta"] == "empresa"
+
+    persona = {"Authorization": f"Bearer {token}"}
+    r = client.post("/v1/mi-qr/validar", json={"payload": emitido["payload"]}, headers=persona)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["es_propio"] is False
+    assert body["nombre"] == "Proveedor SPA"
+    assert body["tipo_cuenta"] == "empresa"
+
+
+def test_empresa_valida_qr_de_persona(client: TestClient, token: str):
+    persona = {"Authorization": f"Bearer {token}"}
+    emitido = client.get("/v1/mi-qr", headers=persona).json()
+    empresa = _cuenta_empresa(client, "lector-empresa@servichile.cl", "Lector SPA")
+    r = client.post("/v1/mi-qr/validar", json={"payload": emitido["payload"]}, headers=empresa)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["es_propio"] is False
+    assert body["tipo_cuenta"] == "persona"
+    assert body["nombre"] == "María González"
 
 
 def test_validar_acepta_jwt_crudo(client: TestClient, token: str):

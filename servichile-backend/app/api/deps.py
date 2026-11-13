@@ -15,15 +15,12 @@ from app.infrastructure.repositories import (
     ConsultaRepository,
     FragmentoRepository,
     NegocioRepository,
-    PasaporteRepository,
     ReservaRepository,
     UsuarioRepository,
     XpRepository,
 )
 from app.infrastructure.verificacion import (
-    ExtractorFinanciero,
     VerificadorRut,
-    build_extractor,
     build_verificador_rut,
 )
 from app.services.ai_assistant import AiAssistant
@@ -75,21 +72,14 @@ def get_verificador_rut() -> VerificadorRut:
     return build_verificador_rut(get_settings().rut_verifier)
 
 
-def get_extractor() -> ExtractorFinanciero:
-    return build_extractor(get_settings().pdf_extractor)
-
-
 def get_pasaporte_service(
     session: SessionDep,
     verificador: Annotated[VerificadorRut, Depends(get_verificador_rut)],
-    extractor: Annotated[ExtractorFinanciero, Depends(get_extractor)],
 ) -> PasaporteService:
     return PasaporteService(
         UsuarioRepository(session),
         ReservaRepository(session),
-        PasaporteRepository(session),
         verificador,
-        extractor,
         get_xp_service(session),
     )
 

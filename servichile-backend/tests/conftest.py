@@ -56,7 +56,6 @@ def session_factory():
                 "business_entities",
                 "business_reputation_metrics",
                 "reservas",
-                "pasaporte_arriendo",
             )
         ],
     )
@@ -81,6 +80,19 @@ def client(fragmentos: FakeFragmentos, session_factory):
 @pytest.fixture
 def token(client: TestClient) -> str:
     datos = {"email": "Maria@Servichile.cl", "nombre": "María González", "password": "clave-segura-123", "perfil": {"tipo_cuenta": "persona"}}
+    assert client.post("/v1/auth/registro", json=datos).status_code == 201
+    r = client.post("/v1/auth/login", json={"email": datos["email"], "password": datos["password"]})
+    return r.json()["access_token"]
+
+
+@pytest.fixture
+def token_empresa(client: TestClient) -> str:
+    datos = {
+        "email": "Empresa@Servichile.cl",
+        "nombre": "Proveedor Demo SpA",
+        "password": "clave-segura-123",
+        "perfil": {"tipo_cuenta": "empresa"},
+    }
     assert client.post("/v1/auth/registro", json=datos).status_code == 201
     r = client.post("/v1/auth/login", json={"email": datos["email"], "password": datos["password"]})
     return r.json()["access_token"]

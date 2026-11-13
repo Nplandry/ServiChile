@@ -29,6 +29,9 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "007_biometria.sql",
     ROOT / "db" / "migrations" / "008_xp.sql",
     ROOT / "db" / "migrations" / "009_tipo_cuenta.sql",
+    ROOT / "db" / "migrations" / "010_categorias_b2b.sql",
+    ROOT / "db" / "migrations" / "011_drop_pasaporte_arriendo.sql",
+    ROOT / "db" / "migrations" / "012_categoria_logistica.sql",
 ]
 
 

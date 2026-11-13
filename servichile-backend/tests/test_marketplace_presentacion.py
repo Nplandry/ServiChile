@@ -3,9 +3,10 @@ from app.domain.marketplace import cta_texto, imagen_efectiva, logo_texto
 
 
 def test_cta_por_categoria():
-    assert cta_texto("gimnasio") == "Agendar pase"
-    assert cta_texto("arriendo") == "Postular"
-    assert cta_texto("desconocida") == "Ver más"
+    assert cta_texto("tecnologia") == "Ver ficha de transparencia"
+    assert cta_texto("industria") == "Evaluar proveedor"
+    assert cta_texto("logistica") == "Validar operador logístico"
+    assert cta_texto("desconocida") == "Ver ficha"
 
 
 def test_logo_texto_desde_nombre():
@@ -16,5 +17,5 @@ def test_logo_texto_desde_nombre():
 
 def test_imagen_efectiva_usa_guardada_o_defecto():
     propia = "https://cdn.ejemplo.cl/foto.jpg"
-    assert imagen_efectiva(propia, "gimnasio") == propia
-    assert "unsplash" in imagen_efectiva(None, "gimnasio")
+    assert imagen_efectiva(propia, "tecnologia") == propia
+    assert "unsplash" in imagen_efectiva(None, "industria")

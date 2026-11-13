@@ -80,16 +80,6 @@ class Reserva:
 
 
 @dataclass
-class VerificacionArriendo:
-    id: uuid.UUID
-    usuario_id: uuid.UUID
-    estado: str
-    score: int | None
-    verificado_en: datetime | None
-    creado_en: datetime | None
-
-
-@dataclass
 class Fuente:
     n: int
     titulo: str
@@ -117,20 +107,12 @@ class EstadoPasaporte:
     nivel_pasaporte: int
     estado_pasaporte: str
     score_confiabilidad: float | None
-    arriendo: VerificacionArriendo | None
     edad: int | None
     tipo_cuenta: str | None = None
     biometria_verificada: bool = False
     biometria_verificada_en: datetime | None = None
     xp: int = 0
     nivel_xp: int = 1
-
-
-@dataclass
-class ResultadoDocumento:
-    estado_verificacion: str
-    score_financiero: int | None
-    actualizado_en: datetime
 
 
 @dataclass
@@ -172,6 +154,7 @@ class NegocioEnMapa:
     indice_transparencia: float
     is_verified_profile: bool
     requiere_nivel: int
+    is_claimed: bool = False
 
 
 @dataclass
@@ -205,6 +188,7 @@ class MiQrEmitido:
     rut_verificado: bool
     xp: int = 0
     nivel_xp: int = 1
+    tipo_cuenta: str | None = None
 
 
 @dataclass
@@ -220,3 +204,4 @@ class MiQrValidado:
     expires_at: datetime
     xp: int = 0
     nivel_xp: int = 1
+    tipo_cuenta: str | None = None
