@@ -1,13 +1,9 @@
 -- ServiChile: crea el esquema completo desde cero.
--- Requisitos: PostgreSQL 16 con la extensión pgvector (disponible en Cloud SQL).
 -- Uso:
 --   createdb servichile
 --   psql "postgresql://USUARIO@HOST:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
--- La dimensión vector(768) debe coincidir con EMBEDDING_DIM en .env.
 
 BEGIN;
-
-CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE usuarios (
     id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -51,43 +47,6 @@ CREATE TABLE perfiles (
     actualizado_en timestamptz NOT NULL DEFAULT now()
 );
 
--- Normativa oficial cargada para RAG (leyes, circulares CMF, guías SERNAC, etc.)
-CREATE TABLE documentos (
-    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    titulo         varchar(300) NOT NULL,
-    url_fuente     text,
-    categoria      varchar(40) CHECK (categoria IN ('embargo-falso', 'seguros', 'portabilidad')),
-    publicado_en   date,
-    hash_sha256    char(64) NOT NULL UNIQUE,   -- evita cargar el mismo PDF dos veces
-    cargado_en     timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE fragmentos (
-    id             serial PRIMARY KEY,
-    documento_id   uuid NOT NULL REFERENCES documentos(id) ON DELETE CASCADE,
-    pagina         integer,
-    orden          integer NOT NULL,
-    contenido      text NOT NULL,
-    embedding      vector(768) NOT NULL
-);
-
-CREATE INDEX fragmentos_documento_idx ON fragmentos (documento_id);
-CREATE INDEX fragmentos_embedding_idx ON fragmentos USING hnsw (embedding vector_cosine_ops);
-
--- Historial de consultas. Solo se guarda la pregunta ya redactada (sin RUT, correo ni teléfono).
-CREATE TABLE consultas (
-    id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id          uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    categoria           varchar(40),
-    pregunta_redactada  text NOT NULL,
-    respuesta           text NOT NULL,
-    fuentes             jsonb NOT NULL DEFAULT '[]'::jsonb,
-    requiere_humano     boolean NOT NULL DEFAULT false,
-    creado_en           timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX consultas_usuario_fecha_idx ON consultas (usuario_id, creado_en DESC);
-
 -- Directorio de transparencia de comercios. Ver también db/migrations/003_negocios.sql
 -- Datos estáticos del comercio. El índice se calcula en segundo plano, no aquí.
 CREATE TABLE business_entities (
@@ -122,6 +81,18 @@ CREATE TABLE business_reputation_metrics (
     -- Índice algorítmico de 1.0 a 10.0, no un juicio de valor sobre la calidad del servicio
     final_score              double precision NOT NULL DEFAULT 1.0 CHECK (final_score BETWEEN 1 AND 10),
     is_verified_profile      boolean NOT NULL DEFAULT false,
+    -- Observables ciber/operativa (0–100); null = aún no escaneados
+    score_ssl_tls            double precision CHECK (score_ssl_tls IS NULL OR score_ssl_tls BETWEEN 0 AND 100),
+    score_email_auth         double precision CHECK (score_email_auth IS NULL OR score_email_auth BETWEEN 0 AND 100),
+    score_puertos            double precision CHECK (score_puertos IS NULL OR score_puertos BETWEEN 0 AND 100),
+    score_headers_http       double precision CHECK (score_headers_http IS NULL OR score_headers_http BETWEEN 0 AND 100),
+    score_stack_vulnerable   double precision CHECK (score_stack_vulnerable IS NULL OR score_stack_vulnerable BETWEEN 0 AND 100),
+    score_blacklist          double precision CHECK (score_blacklist IS NULL OR score_blacklist BETWEEN 0 AND 100),
+    score_dnssec             double precision CHECK (score_dnssec IS NULL OR score_dnssec BETWEEN 0 AND 100),
+    score_subdominios        double precision CHECK (score_subdominios IS NULL OR score_subdominios BETWEEN 0 AND 100),
+    score_whois              double precision CHECK (score_whois IS NULL OR score_whois BETWEEN 0 AND 100),
+    score_uptime             double precision CHECK (score_uptime IS NULL OR score_uptime BETWEEN 0 AND 100),
+    ciber_escaneado_en       timestamptz,
     actualizado_en           timestamptz NOT NULL DEFAULT now()
 );
 

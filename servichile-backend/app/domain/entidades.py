@@ -1,24 +1,14 @@
-"""Entidades y resultados del dominio. Dataclasses puras: sin SQLAlchemy, Pydantic ni FastAPI.
-
-Los repositorios convierten los modelos ORM a estas entidades, y los servicios solo
-trabajan con ellas. La API convierte los resultados a schemas de respuesta.
-"""
 from __future__ import annotations
-
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 
-
 @dataclass
 class Perfil:
     edad: int | None = None
-    # persona | empresa (onboarding).
     tipo_cuenta: str | None = None
-    # DEPRECADOS: se guardan durante la transición y no se devuelven por la API.
     preocupacion: str | None = None
     proposito: str | None = None
-
 
 @dataclass
 class Usuario:
@@ -36,7 +26,6 @@ class Usuario:
     creado_en: datetime | None = None
     perfil: Perfil | None = None
 
-
 @dataclass
 class Metricas:
     business_id: uuid.UUID
@@ -46,8 +35,18 @@ class Metricas:
     response_time_score: float | None = None
     final_score: float = 0.0
     is_verified_profile: bool = False
+    score_ssl_tls: float | None = None
+    score_email_auth: float | None = None
+    score_puertos: float | None = None
+    score_headers_http: float | None = None
+    score_stack_vulnerable: float | None = None
+    score_blacklist: float | None = None
+    score_dnssec: float | None = None
+    score_subdominios: float | None = None
+    score_whois: float | None = None
+    score_uptime: float | None = None
+    ciber_escaneado_en: datetime | None = None
     actualizado_en: datetime | None = None
-
 
 @dataclass
 class Negocio:
@@ -67,7 +66,6 @@ class Negocio:
     sitio_web: str | None = None
     metricas: Metricas | None = None
 
-
 @dataclass
 class Reserva:
     id: uuid.UUID
@@ -77,28 +75,6 @@ class Reserva:
     qr_token: str
     creado_en: datetime | None = None
     actualizado_en: datetime | None = None
-
-
-@dataclass
-class Fuente:
-    n: int
-    titulo: str
-    url: str | None
-    pagina: int | None
-
-
-@dataclass
-class Consulta:
-    id: uuid.UUID
-    usuario_id: uuid.UUID
-    categoria: str | None
-    pregunta_redactada: str
-    respuesta: str
-    fuentes: list[dict] = field(default_factory=list)
-    requiere_humano: bool = False
-    creado_en: datetime | None = None
-
-
 
 @dataclass
 class EstadoPasaporte:
@@ -114,6 +90,14 @@ class EstadoPasaporte:
     xp: int = 0
     nivel_xp: int = 1
 
+@dataclass
+class ObservableCiber:
+    id: str
+    etiqueta: str
+    detalle: str
+    score: int
+    peso: str
+    grupo: str
 
 @dataclass
 class Reputacion:
@@ -128,7 +112,7 @@ class Reputacion:
     response_time_score: float | None
     indice_transparencia: float
     actualizado_en: datetime | None
-
+    observables_ciber: list[ObservableCiber] = field(default_factory=list)
 
 @dataclass
 class ResultadoReclamo:
@@ -136,7 +120,6 @@ class ResultadoReclamo:
     is_claimed: bool
     is_verified_profile: bool
     reclamado_por: uuid.UUID
-
 
 @dataclass
 class NegocioEnMapa:
@@ -156,26 +139,13 @@ class NegocioEnMapa:
     requiere_nivel: int
     is_claimed: bool = False
 
-
-@dataclass
-class ResultadoConsulta:
-    id: uuid.UUID
-    respuesta: str
-    fuentes: list[Fuente]
-    requiere_humano: bool
-    creado_en: datetime | None
-
-
 @dataclass
 class TokenEmitido:
     access_token: str
     expires_in: int
 
-
 @dataclass
-class MiQrEmitido:
-    """Carnet propio: payload para dibujar el QR y datos de confianza del titular."""
-
+class ReporteEmitido:
     payload: str
     token: str
     expires_in: int
@@ -190,11 +160,8 @@ class MiQrEmitido:
     nivel_xp: int = 1
     tipo_cuenta: str | None = None
 
-
 @dataclass
-class MiQrValidado:
-    """Resultado público al escanear el QR de otra persona (sin correo ni RUT)."""
-
+class ReporteValidado:
     es_propio: bool
     nombre: str
     nivel_pasaporte: int

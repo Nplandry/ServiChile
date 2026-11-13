@@ -14,10 +14,10 @@ ALTER TABLE perfiles
 -- Permisos para el rol de la app (si existe).
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'servicia') THEN
-        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE usuario_xp_eventos TO servicia;
-        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE perfiles TO servicia;
-        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE usuarios TO servicia;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'servichile') THEN
+        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE usuario_xp_eventos TO servichile;
+        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE perfiles TO servichile;
+        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE usuarios TO servichile;
     END IF;
 END $$;
 
