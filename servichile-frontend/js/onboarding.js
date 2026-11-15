@@ -1,6 +1,6 @@
 const Onboarding = {
-  VERSION: 54,
-  STORAGE_KEY: 'servichile.onboarding.v54',
+  VERSION: 55,
+  STORAGE_KEY: 'servichile.onboarding.v55',
 
   pasos: [
     {
@@ -8,10 +8,11 @@ const Onboarding = {
       type: 'choice',
       campo: 'tipo_cuenta',
       titulo: '¿Cómo vas a usar ServiChile?',
-      texto: 'Persona: evaluar proveedores. Empresa: mejorar su índice de transparencia.',
+      texto: 'Proveedor: publicar y mejorar su índice. Contratista y persona: verificar y evaluar con QR.',
       opciones: [
-        { value: 'persona', label: 'Persona' },
-        { value: 'empresa', label: 'Empresa' }
+        { value: 'proveedor', label: 'Proveedor' },
+        { value: 'contratista', label: 'Contratista' },
+        { value: 'persona', label: 'Persona' }
       ]
     },
     {
@@ -91,14 +92,14 @@ const Onboarding = {
     } catch (e) {
       Onboarding.datos = {};
     }
-    // Sin tipo elegido: siempre empieza en persona/empresa.
+
     if (!Onboarding.datos.tipo_cuenta) {
       Onboarding.index = 0;
     }
   },
 
   save() {
-    // La contrasena nunca se guarda en el dispositivo. Solo vive en memoria hasta crear la cuenta.
+
     const borrador = Object.assign({}, Onboarding.datos);
     delete borrador.password;
     try {
@@ -121,24 +122,26 @@ const Onboarding = {
     }
   },
 
-  // Estrategia tipada del borrador (persona/empresa).
   progreso() {
     return typeof ProgresoCuenta !== 'undefined'
       ? ProgresoCuenta.para({ tipo_cuenta: Onboarding.datos.tipo_cuenta })
       : null;
   },
 
-  esEmpresa() {
+  esProveedor() {
     const prog = Onboarding.progreso();
-    return prog ? prog.es('empresa') : Onboarding.datos.tipo_cuenta === 'empresa';
+    return prog ? prog.es('proveedor') : Onboarding.datos.tipo_cuenta === 'proveedor';
   },
 
-  // Oculta edad si la estrategia no soporta ese feature.
+  esEmpresa() {
+    return Onboarding.esProveedor();
+  },
+
   pasosVisibles() {
     const prog = Onboarding.progreso();
     return Onboarding.pasos.filter((p) => {
       if (p.id === 'edad') {
-        return prog ? prog.soporta('edad') : !Onboarding.esEmpresa();
+        return prog ? prog.soporta('edad') : !Onboarding.esProveedor();
       }
       return true;
     });
@@ -151,7 +154,7 @@ const Onboarding = {
   copyPaso(paso) {
     if (!paso) return { titulo: '', texto: '' };
     const prog = Onboarding.progreso();
-    if (paso.id === 'nombre' && prog && prog.es('empresa')) {
+    if (paso.id === 'nombre' && prog && prog.es('proveedor')) {
       return {
         titulo: prog.tituloNombreOnboarding(),
         texto: prog.textoNombreOnboarding()
@@ -253,7 +256,7 @@ const Onboarding = {
       return 'Por favor, completa este campo.';
     }
     if (paso.campo === 'email') {
-      // Exige dominio con TLD de letras (evita typos tipo .cl2).
+
       if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value)) {
         return 'Ingrese un correo válido, por ejemplo nombre@dominio.cl';
       }
@@ -292,12 +295,16 @@ const Onboarding = {
   },
 
   etiquetaTipoCuenta(valor) {
-    if (valor !== 'empresa' && valor !== 'persona') return valor || 'Sin responder';
+    const ok =
+      valor === 'proveedor' || valor === 'contratista' || valor === 'persona';
+    if (!ok) return valor || 'Sin responder';
     return typeof ProgresoCuenta !== 'undefined'
       ? ProgresoCuenta.de(valor).etiquetaCorta()
-      : valor === 'empresa'
-        ? 'Empresa'
-        : 'Persona';
+      : valor === 'proveedor'
+        ? 'Proveedor'
+        : valor === 'contratista'
+          ? 'Contratista'
+          : 'Persona';
   },
 
   renderSummaryStep(card, paso) {
@@ -351,10 +358,11 @@ const Onboarding = {
     if (!Onboarding.datos.tipo_cuenta) {
       Onboarding.index = Onboarding.pasosVisibles().findIndex((p) => p.campo === 'tipo_cuenta');
       Onboarding.renderCard();
-      Onboarding.elements.stepStatus.textContent = 'Elija si es persona o empresa.';
+      Onboarding.elements.stepStatus.textContent =
+        'Elija si es proveedor, contratista o persona.';
       return;
     }
-    // Si recargo la pagina, la contrasena ya no esta en memoria. No se guarda en el dispositivo.
+
     if (!Onboarding.datos.password) {
       Onboarding.index = Onboarding.pasosVisibles().findIndex((p) => p.campo === 'password');
       Onboarding.renderCard();
@@ -393,9 +401,9 @@ const Onboarding = {
     title.textContent = '¡Bienvenido, ' + (res.user.nombre || '') + '!';
     const text = document.createElement('p');
     text.className = 'onboarding__card-text';
-    text.textContent = Onboarding.esEmpresa()
-      ? 'Cuenta empresa lista. Puede publicar en el marketplace y validar con QR.'
-      : 'Cuenta lista. Puede explorar departamentos y validar a la otra parte con QR.';
+    text.textContent = Onboarding.esProveedor()
+      ? 'Cuenta proveedor lista. Puede publicar en el marketplace y validar con QR.'
+      : 'Cuenta lista. Puede explorar proveedores y validar a la otra parte con QR.';
     done.appendChild(title);
     done.appendChild(text);
     Onboarding.elements.deck.appendChild(done);

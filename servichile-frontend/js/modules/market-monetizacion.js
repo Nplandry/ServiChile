@@ -1,4 +1,4 @@
-// Demo: paywall de curiosidad, bifurcación de contacto y upsells (mock UI, sin cobro real).
+
 const MarketMonetizacion = {
   STORAGE_INFORMES: 'servichile.demo.informes_mes',
   STORAGE_REBOTE: 'servichile.demo.rebote_vistas',

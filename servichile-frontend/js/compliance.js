@@ -1,4 +1,4 @@
-// Aviso de cookies y registro local de incidentes de seguridad Ley 21.719.
+
 const Compliance = {
   COOKIE_KEY: 'servichile.cookies.consent',
   INCIDENT_KEY: 'servichile.security.incidents',

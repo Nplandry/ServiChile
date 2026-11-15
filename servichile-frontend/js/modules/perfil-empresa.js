@@ -1,4 +1,4 @@
-// Perfil: crear empresa en marketplace o reclamar una publicada (demo con valor).
+
 const PerfilEmpresa = {
   modo: null,
   seleccionId: null,
@@ -6,10 +6,14 @@ const PerfilEmpresa = {
   PRECIO_PUBLICAR: 29990,
   PRECIO_RECLAMAR: 14990,
 
-  esEmpresa() {
+  esProveedor() {
     return typeof ProgresoCuenta !== 'undefined'
-      ? ProgresoCuenta.actual().es('empresa')
+      ? ProgresoCuenta.esProveedor()
       : false;
+  },
+
+  esEmpresa() {
+    return PerfilEmpresa.esProveedor();
   },
 
   formatoClp(n) {
@@ -23,7 +27,7 @@ const PerfilEmpresa = {
     const host = document.getElementById('perfilEmpresaRaiz');
     if (!host) return;
     while (host.firstChild) host.removeChild(host.firstChild);
-    if (!PerfilEmpresa.esEmpresa()) {
+    if (!PerfilEmpresa.esProveedor()) {
       host.hidden = true;
       return;
     }
@@ -112,6 +116,18 @@ const PerfilEmpresa = {
     mias.id = 'perfilEmpresaMias';
     mias.className = 'perfil-empresa__mias';
     mias.setAttribute('aria-live', 'polite');
+
+    const box = document.createElement('div');
+    box.className = 'perfil-empresa__carga';
+    box.setAttribute('role', 'status');
+    const spin = document.createElement('span');
+    spin.className = 'perfil-empresa__spinner';
+    spin.setAttribute('aria-hidden', 'true');
+    const msg = document.createElement('p');
+    msg.className = 'perfil-empresa__carga-texto';
+    msg.textContent = 'Cargando sus empresas…';
+    box.append(spin, msg);
+    mias.appendChild(box);
 
     const status = document.createElement('p');
     status.id = 'perfilEmpresaStatus';
@@ -356,23 +372,65 @@ const PerfilEmpresa = {
     if (el) el.textContent = msg || '';
   },
 
+  pintarCargaMias(host, texto) {
+    while (host.firstChild) host.removeChild(host.firstChild);
+    const box = document.createElement('div');
+    box.className = 'perfil-empresa__carga';
+    box.setAttribute('role', 'status');
+    box.setAttribute('aria-live', 'polite');
+    const spin = document.createElement('span');
+    spin.className = 'perfil-empresa__spinner';
+    spin.setAttribute('aria-hidden', 'true');
+    const msg = document.createElement('p');
+    msg.className = 'perfil-empresa__carga-texto';
+    msg.textContent = texto || 'Cargando sus empresas…';
+    box.append(spin, msg);
+    host.appendChild(box);
+  },
+
   async cargarMias() {
     const host = document.getElementById('perfilEmpresaMias');
     if (!host || !Auth.isAuthenticated()) return;
-    while (host.firstChild) host.removeChild(host.firstChild);
+    PerfilEmpresa.pintarCargaMias(host, 'Cargando sus empresas…');
     const res = await Auth.request('/v1/businesses/mias', { token: Auth.sesion.token });
     if (!res.ok) {
-      host.textContent = res.error || 'No se pudieron cargar sus empresas.';
+      while (host.firstChild) host.removeChild(host.firstChild);
+      const err = document.createElement('p');
+      err.className = 'error-text';
+      err.textContent = res.error || 'No se pudieron cargar sus empresas.';
+      host.appendChild(err);
       return;
     }
     const lista = Array.isArray(res.data) ? res.data : [];
     if (!lista.length) {
+      while (host.firstChild) host.removeChild(host.firstChild);
       const vacio = document.createElement('p');
       vacio.className = 'field__hint';
       vacio.textContent = 'Aún no tiene empresas asociadas a esta cuenta.';
       host.appendChild(vacio);
       return;
     }
+
+    PerfilEmpresa.pintarCargaMias(
+      host,
+      lista.length === 1
+        ? 'Preparando índice de «' + lista[0].nombre + '»…'
+        : 'Preparando índices de ' + lista.length + ' empresas…'
+    );
+    await Promise.all(
+      lista.map((n) =>
+        Auth.request('/v1/businesses/' + encodeURIComponent(n.id) + '/reputation', {
+          token: Auth.sesion.token
+        }).then((r) => {
+          if (r && r.ok && r.data && r.data.indice_transparencia != null) {
+            n.indice_transparencia = r.data.indice_transparencia;
+            n.is_verified_profile = !!r.data.is_verified_profile;
+          }
+        }).catch(() => null)
+      )
+    );
+
+    while (host.firstChild) host.removeChild(host.firstChild);
     const ul = document.createElement('ul');
     ul.className = 'perfil-empresa__lista';
     lista.forEach((n) => {
@@ -475,8 +533,8 @@ const PerfilEmpresa = {
   },
 
   async enviarCrear() {
-    if (!PerfilEmpresa.esEmpresa()) {
-      PerfilEmpresa.setStatus('Solo una cuenta empresa puede crear fichas.');
+    if (!PerfilEmpresa.esProveedor()) {
+      PerfilEmpresa.setStatus('Solo una cuenta proveedor puede crear fichas.');
       return;
     }
     if (!Auth.isAuthenticated()) {
@@ -540,8 +598,8 @@ const PerfilEmpresa = {
   },
 
   async enviarReclamo() {
-    if (!PerfilEmpresa.esEmpresa()) {
-      PerfilEmpresa.setStatus('Solo una cuenta empresa puede reclamar fichas.');
+    if (!PerfilEmpresa.esProveedor()) {
+      PerfilEmpresa.setStatus('Solo una cuenta proveedor puede reclamar fichas.');
       return;
     }
     if (!Auth.isAuthenticated()) {

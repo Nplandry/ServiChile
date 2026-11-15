@@ -1,4 +1,4 @@
-// QR del reporte: emisión firmada + validación de veracidad del reporte.
+
 const ReporteQr = {
   _renovarTimer: null,
   _scanTimer: null,
@@ -11,14 +11,14 @@ const ReporteQr = {
     if (!raiz) return;
     ReporteQr.detener();
     ReporteQr.limpiar(raiz);
-    // Persona: reporte de niveles. Empresa: reporte de índice (30 observables).
-    const esEmpresa =
+
+    const esProveedor =
       typeof App !== 'undefined'
-        ? App.esEmpresa()
+        ? App.esProveedor()
         : typeof ProgresoCuenta !== 'undefined'
-          ? ProgresoCuenta.actual().es('empresa')
+          ? ProgresoCuenta.esProveedor()
           : false;
-    if (esEmpresa && typeof ReporteEmpresa !== 'undefined') {
+    if (esProveedor && typeof ReporteEmpresa !== 'undefined') {
       ReporteEmpresa.init();
       return;
     }
@@ -249,13 +249,13 @@ const ReporteQr = {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('fill', 'currentColor');
     if (activo) {
-      // Ícono stop: cuadrado dentro de círculo.
+
       path.setAttribute(
         'd',
         'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-3.2 6.8h6.4v6.4H8.8V8.8Z'
       );
     } else {
-      // Cámara clásica.
+
       path.setAttribute(
         'd',
         'M9 4 7.17 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.17L15 4H9Zm3 13.5A4.5 4.5 0 1 1 16.5 13 4.5 4.5 0 0 1 12 17.5Zm0-2a2.5 2.5 0 1 0-2.5-2.5A2.5 2.5 0 0 0 12 15.5Z'
@@ -343,7 +343,6 @@ const ReporteQr = {
       cuerpo.appendChild(qrCol);
     }
 
-    // Al validar a otro: solo datos del API (persona o empresa). No usar ficha local del escáner.
     const filas = !propio
       ? ReporteQr.filasCarnetValidado(d)
       : typeof ProgresoCuenta !== 'undefined'
@@ -397,7 +396,7 @@ const ReporteQr = {
       contenedor.appendChild(fallback);
       return;
     }
-    // qrcodejs escribe dentro del contenedor (canvas o tabla).
+
     new QRCode(contenedor, {
       text: payload,
       width: 180,
@@ -411,7 +410,7 @@ const ReporteQr = {
   programarRenovacion(expiresIn) {
     if (ReporteQr._renovarTimer) clearTimeout(ReporteQr._renovarTimer);
     const seg = Number(expiresIn) || 900;
-    // Renueva un minuto antes del vencimiento (mínimo 20 s).
+
     const espera = Math.max(20, seg - 60) * 1000;
     ReporteQr._renovarTimer = setTimeout(() => {
       const vista = document.getElementById('verifyView');
@@ -493,7 +492,7 @@ const ReporteQr = {
           }
         }
       } catch {
-        // Ignorar frames fallidos.
+
       } finally {
         ReporteQr._escaneando = false;
       }
@@ -553,7 +552,7 @@ const ReporteQr = {
   },
 
   filasCarnetValidado(d) {
-    const tipo = d.tipo_cuenta === 'empresa' ? 'empresa' : d.tipo_cuenta === 'persona' ? 'persona' : null;
+    const tipo = ReporteQr.resolverTipoCuenta(d, false);
     const tipoTxt = ReporteQr.etiquetaTipoCuenta(tipo) || 'Sin indicar';
     const filas = [
       ['Tipo de cuenta', tipoTxt],
@@ -561,8 +560,8 @@ const ReporteQr = {
       ['RUT', d.rut_verificado ? 'Verificado' : 'Sin verificar'],
       ['Estado', ReporteQr.etiquetaEstado(d.estado_pasaporte)]
     ];
-    if (tipo === 'empresa') {
-      filas.push(['Contexto', 'Empresa · reporte de transparencia']);
+    if (tipo === 'proveedor') {
+      filas.push(['Contexto', 'Proveedor · reporte de transparencia']);
       if (d.score_confiabilidad != null && d.score_confiabilidad !== '') {
         filas.push(['Confiabilidad', Number(d.score_confiabilidad).toFixed(1) + '%']);
       }
@@ -575,6 +574,20 @@ const ReporteQr = {
       if (d.nivel_xp != null) {
         filas.push(['Nivel XP', 'Nivel ' + d.nivel_xp]);
       }
+      filas.push([
+        'Antecedentes',
+        d.antecedentes_verificados ? 'Verificados' : 'Pendiente'
+      ]);
+      filas.push([
+        'Anotaciones',
+        !d.antecedentes_verificados
+          ? 'Sin certificado'
+          : d.antecedentes_anotaciones === true
+            ? 'Sí'
+            : d.antecedentes_anotaciones === false
+              ? 'No'
+              : '—'
+      ]);
     }
     filas.push(['Válido hasta', ReporteQr.formatoFecha(d.expires_at)]);
     return filas;
@@ -586,9 +599,10 @@ const ReporteQr = {
     box.setAttribute('aria-live', 'polite');
 
     const rutOk = !!d.rut_verificado;
-    const esEmpresa = d.tipo_cuenta === 'empresa';
-    const esPersona = d.tipo_cuenta === 'persona' || (!esEmpresa && d.tipo_cuenta !== 'empresa');
+    const tipo = ReporteQr.resolverTipoCuenta(d, false);
+    const esProveedor = tipo === 'proveedor';
     const propio = !!d.es_propio;
+    const etiqueta = ReporteQr.etiquetaTipoCuenta(tipo) || 'Cuenta';
 
     let tono = 'ok';
     let titulo = 'Carnet ServiChile válido';
@@ -597,19 +611,19 @@ const ReporteQr = {
     if (propio) {
       tono = 'warn';
       titulo = 'Es su propio reporte';
-      detalle = 'Escanee el reporte de otra persona o empresa.';
-    } else if (esEmpresa) {
-      titulo = 'Empresa validada';
+      detalle = 'Escanee el reporte de otra persona, contratista o proveedor.';
+    } else if (esProveedor) {
+      titulo = 'Proveedor validado';
       detalle = rutOk
-        ? 'Carnet de empresa válido · RUT verificado.'
-        : 'Carnet de empresa válido · RUT aún pendiente.';
+        ? 'Carnet de proveedor válido · RUT verificado.'
+        : 'Carnet de proveedor válido · RUT aún pendiente.';
       if (!rutOk) tono = 'warn';
-    } else if (esPersona && rutOk) {
-      titulo = 'Persona validada';
-      detalle = 'Carnet de persona válido · RUT verificado.';
+    } else if (rutOk) {
+      titulo = etiqueta + ' validada';
+      detalle = 'Carnet de ' + etiqueta.toLowerCase() + ' válido · RUT verificado.';
     } else {
       tono = 'warn';
-      titulo = 'Persona con RUT pendiente';
+      titulo = etiqueta + ' con RUT pendiente';
       detalle = 'El reporte es válido, pero esa cuenta aún no verifica RUT.';
     }
 
@@ -663,22 +677,48 @@ const ReporteQr = {
   },
 
   etiquetaTipoCuenta(tipo) {
-    if (tipo !== 'empresa' && tipo !== 'persona') return '';
+    if (tipo !== 'proveedor' && tipo !== 'contratista' && tipo !== 'persona') {
+      return '';
+    }
     return typeof ProgresoCuenta !== 'undefined'
       ? ProgresoCuenta.de(tipo).etiquetaCorta()
-      : tipo === 'empresa'
-        ? 'Empresa'
-        : 'Persona';
+      : tipo === 'proveedor'
+        ? 'Proveedor'
+        : tipo === 'contratista'
+          ? 'Contratista'
+          : 'Persona';
   },
 
   resolverTipoCuenta(d, propio) {
-    if (d && (d.tipo_cuenta === 'empresa' || d.tipo_cuenta === 'persona')) {
-      return d.tipo_cuenta;
+    if (
+      d &&
+      (d.tipo_cuenta === 'proveedor' ||
+        d.tipo_cuenta === 'contratista' ||
+        d.tipo_cuenta === 'persona' ||
+        d.tipo_cuenta === 'empresa')
+    ) {
+      return typeof ProgresoCuenta !== 'undefined'
+        ? ProgresoCuenta.normalizar(d.tipo_cuenta)
+        : d.tipo_cuenta === 'empresa'
+          ? 'proveedor'
+          : d.tipo_cuenta;
     }
     if (!propio || typeof Auth === 'undefined') return null;
     const user = Auth.getCurrentUser();
     const tipo = user && user.perfil ? user.perfil.tipo_cuenta : null;
-    return tipo === 'empresa' || tipo === 'persona' ? tipo : null;
+    if (
+      tipo === 'proveedor' ||
+      tipo === 'contratista' ||
+      tipo === 'persona' ||
+      tipo === 'empresa'
+    ) {
+      return typeof ProgresoCuenta !== 'undefined'
+        ? ProgresoCuenta.normalizar(tipo)
+        : tipo === 'empresa'
+          ? 'proveedor'
+          : tipo;
+    }
+    return null;
   },
 
   formatoFecha(iso) {

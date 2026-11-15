@@ -1,4 +1,4 @@
-// Iconos SVG usados por el marketplace B2B.
+
 const ICONOS_SVG = {
   'cpu': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/></svg>',
   'factory': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20M5 20V10l5 4V10l5 4V6l5 4v10"/></svg>',
@@ -8,7 +8,6 @@ const ICONOS_SVG = {
   'pin': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>'
 };
 
-// Icono del marketplace por categoría de proveedor B2B.
 const ICONO_NEGOCIO = {
   'tecnologia': 'cpu',
   'industria': 'factory',

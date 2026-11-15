@@ -1,7 +1,7 @@
-// Sesion contra la API v1 auth. El token JWT queda en localStorage, aceptable en desarrollo
-// en produccion conviene una cookie httpOnly.
+
+
 const Auth = {
-  // En produccion defina la variable SERVICHILE API BASE antes de cargar este archivo, por ejemplo en un config.js.
+
   API_BASE: (typeof window !== 'undefined' && window.SERVICHILE_API_BASE) || 'http://localhost:8000',
   STORAGE_KEY: 'servichile.session',
   sesion: null,
@@ -52,7 +52,6 @@ const Auth = {
     return 'Ocurrió un error. Intente de nuevo.';
   },
 
-  // Traduce errores 422 de Pydantic/FastAPI a un mensaje usable.
   mensajeValidacion(data) {
     const detalle = data && data.detail;
     if (!Array.isArray(detalle) || !detalle.length) return '';
@@ -73,7 +72,7 @@ const Auth = {
       return 'Ingrese una edad entre 14 y 120 años.';
     }
     if (campo === 'tipo_cuenta') {
-      return 'Elija si es persona o empresa.';
+      return 'Elija si es proveedor, contratista o persona.';
     }
     if (campo === 'telefono') {
       return 'Ingrese un teléfono válido.';
@@ -96,7 +95,10 @@ const Auth = {
   async register(data) {
     const perfil = Auth.limpiarPerfil(data.perfil);
     if (!perfil || !perfil.tipo_cuenta) {
-      return { ok: false, error: 'Elija si es persona o empresa.' };
+      return {
+        ok: false,
+        error: 'Elija si es proveedor, contratista o persona.'
+      };
     }
     const payload = {
       email: String(data.email || '').trim(),
@@ -109,7 +111,6 @@ const Auth = {
     return Auth.login(payload.email, payload.password);
   },
 
-  // Usado por el onboarding crea la cuenta con su perfil en una sola peticion.
   async onboardApi(data) {
     return Auth.register({
       nombre: data.nombre,
@@ -122,11 +123,14 @@ const Auth = {
     });
   },
 
-  // Quita campos vacíos y convierte la edad a número. tipo_cuenta es obligatorio.
   limpiarPerfil(perfil) {
     if (!perfil) return null;
     const limpio = {};
-    if (perfil.tipo_cuenta === 'persona' || perfil.tipo_cuenta === 'empresa') {
+    if (
+      perfil.tipo_cuenta === 'persona' ||
+      perfil.tipo_cuenta === 'contratista' ||
+      perfil.tipo_cuenta === 'proveedor'
+    ) {
       limpio.tipo_cuenta = perfil.tipo_cuenta;
     }
     if (perfil.edad !== undefined && perfil.edad !== null && perfil.edad !== '') {
@@ -135,7 +139,6 @@ const Auth = {
     return limpio.tipo_cuenta ? limpio : null;
   },
 
-  // Borra la cuenta en el servidor (confirmada con la contraseña) y cierra la sesión local.
   async eliminarCuenta(password) {
     if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
     const res = await Auth.request('/v1/auth/yo', { method: 'DELETE', body: { password: String(password || '') }, token: Auth.sesion.token });
@@ -147,7 +150,41 @@ const Auth = {
     return { ok: true };
   },
 
-  // Selfie biométrica: cualquier imagen válida. El servidor no almacena la foto.
+  async verificarAntecedentes(archivo) {
+    if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
+    if (!archivo) return { ok: false, error: 'Seleccione el PDF del certificado.' };
+    const nombre = String(archivo.name || '');
+    const esPdf =
+      String(archivo.type || '') === 'application/pdf' ||
+      /\.pdf$/i.test(nombre);
+    if (!esPdf) {
+      return { ok: false, error: 'Suba el PDF oficial del Registro Civil.' };
+    }
+    if (archivo.size > 8 * 1024 * 1024) {
+      return { ok: false, error: 'El PDF supera 8 MB.' };
+    }
+    const formulario = new FormData();
+    formulario.append('archivo', archivo, nombre || 'antecedentes.pdf');
+    formulario.append('nombre_archivo', nombre || 'antecedentes.pdf');
+    let res;
+    try {
+      res = await fetch(Auth.API_BASE + '/v1/perfil/antecedentes', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + Auth.sesion.token },
+        body: formulario
+      });
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor. Intente de nuevo.' };
+    }
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (!res.ok) return { ok: false, error: Auth.mensajeError(res.status, data) };
+    await Auth.verificarSesion();
+    return { ok: true, antecedentes: data };
+  },
+
   async verificarBiometria(archivo) {
     if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
     if (!archivo) return { ok: false, error: 'Seleccione o capture una foto.' };
@@ -178,7 +215,6 @@ const Auth = {
     return { ok: true, biometria: data };
   },
 
-  // Actualiza el perfil en el servidor. Envie solo los campos que cambian. Un valor null borra el campo.
   async actualizarPerfil(cambios) {
     if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
     const res = await Auth.request('/v1/perfil', { method: 'PATCH', body: cambios, token: Auth.sesion.token });
@@ -188,7 +224,6 @@ const Auth = {
     return { ok: true, perfil: res.data };
   },
 
-  // Pide al servidor los datos del usuario con el token y deja la sesion lista.
   async cargarSesion(token) {
     const me = await Auth.request('/v1/auth/yo', { token });
     if (!me.ok) return { ok: false, error: 'No se pudo iniciar sesión. Intente de nuevo.' };
@@ -197,12 +232,11 @@ const Auth = {
     return { ok: true, user: Auth.sesion };
   },
 
-  // Revisa al arrancar que el token guardado siga vigente y refresca los datos del servidor.
   async verificarSesion() {
     if (!Auth.sesion) return false;
     const token = Auth.sesion.token;
     const me = await Auth.request('/v1/auth/yo', { token });
-    // Si mientras esperaba cambio la sesion guardada logout o login en otra pestana, usa la guardada.
+
     if (Auth.tokenGuardado() !== token) {
       Auth.sesion = null;
       Auth.restoreSession();
@@ -214,7 +248,7 @@ const Auth = {
       Auth.persistSession();
       return true;
     }
-    if (me.status === 0) return true;  // sin conexion mantiene la sesion local PWA offline
+    if (me.status === 0) return true;
     Auth.logout();
     return false;
   },

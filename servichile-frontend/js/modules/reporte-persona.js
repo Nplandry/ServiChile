@@ -1,4 +1,4 @@
-// Reporte de confianza para cuenta persona: niveles aprobados + datos, imprimible a PDF.
+
 const ReportePersona = {
   init() {
     const raiz = document.getElementById('reporteRaiz');
@@ -169,7 +169,21 @@ const ReportePersona = {
         perfil.biometria_verificada ? 'Verificada' : 'Pendiente'
       ],
       [
-        'Estado pasaporte',
+        'Antecedentes',
+        perfil.antecedentes_verificados ? 'Verificados' : 'Pendiente'
+      ],
+      [
+        'Anotaciones',
+        !perfil.antecedentes_verificados
+          ? 'Sin certificado'
+          : perfil.antecedentes_anotaciones === true
+            ? 'Sí'
+            : perfil.antecedentes_anotaciones === false
+              ? 'No'
+              : '—'
+      ],
+      [
+        'Estado de verificación',
         perfil.estado_pasaporte === 'verificado' ? 'Verificado' : 'Básico'
       ],
       [
@@ -311,7 +325,7 @@ const ReportePersona = {
     };
     window.addEventListener('afterprint', limpiar);
     window.print();
-    // Fallback si afterprint no dispara (algunos móviles).
+
     setTimeout(limpiar, 1500);
   },
 

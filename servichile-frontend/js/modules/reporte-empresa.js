@@ -1,6 +1,6 @@
-// Reporte de transparencia para cuenta empresa: índice (30 observables) + QR, imprimible a PDF.
+
 const ReporteEmpresa = {
-  init() {
+  async init() {
     const raiz = document.getElementById('reporteRaiz');
     if (!raiz) return;
     if (typeof ReporteQr !== 'undefined') {
@@ -10,8 +10,45 @@ const ReporteEmpresa = {
     if (typeof SubirConfianza !== 'undefined' && SubirConfianza.cargar) {
       SubirConfianza.cargar();
     }
+    const estado = await ReporteEmpresa.cargarEstadoNegocio();
     while (raiz.firstChild) raiz.removeChild(raiz.firstChild);
-    raiz.appendChild(ReporteEmpresa.render());
+    raiz.appendChild(ReporteEmpresa.render(estado));
+  },
+
+  async cargarEstadoNegocio() {
+    if (typeof Auth === 'undefined' || !Auth.isAuthenticated() || !Auth.request) {
+      return { sinFicha: true, rep: null };
+    }
+    try {
+      const mias = await Auth.request('/v1/businesses/mias', { token: Auth.sesion.token });
+      const lista = mias && Array.isArray(mias.data) ? mias.data : [];
+      if (!lista.length) return { sinFicha: true, rep: null };
+      const negocio = lista[0];
+      const res = await Auth.request(
+        '/v1/businesses/' + encodeURIComponent(negocio.id) + '/reputation',
+        { token: Auth.sesion.token }
+      );
+      return {
+        sinFicha: false,
+        rep: res && res.data ? res.data : null,
+        negocio: negocio
+      };
+    } catch (_e) {
+      return { sinFicha: true, rep: null };
+    }
+  },
+
+  irAComprarFicha() {
+    if (typeof App !== 'undefined' && App.openSection) {
+      App.openSection('perfil');
+    } else if (typeof App !== 'undefined' && App.showView) {
+      if (typeof PerfilEmpresa !== 'undefined') PerfilEmpresa.init();
+      App.showView('perfilView');
+    }
+    setTimeout(() => {
+      const el = document.getElementById('perfilEmpresaRaiz');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
   },
 
   usuario() {
@@ -25,7 +62,7 @@ const ReporteEmpresa = {
 
   ficha() {
     if (typeof ProgresoCuenta !== 'undefined') {
-      return ProgresoCuenta.de('empresa').calcularFicha();
+      return ProgresoCuenta.de('proveedor').calcularFicha();
     }
     const user = ReporteEmpresa.usuario() || {};
     return {
@@ -38,14 +75,26 @@ const ReporteEmpresa = {
     };
   },
 
-  render() {
+  render(estado) {
+    const info = estado && typeof estado === 'object' ? estado : { sinFicha: !estado, rep: estado || null };
     const wrap = document.createElement('div');
     wrap.className = 'reporte';
+
+    if (info.sinFicha) {
+      wrap.append(
+        ReporteEmpresa.renderAvisoSinFicha(),
+        ReporteEmpresa.renderAccionesBasicas(),
+        typeof ReporteQr !== 'undefined'
+          ? ReporteQr.renderModalValidador()
+          : document.createComment('sin-modal-qr')
+      );
+      return wrap;
+    }
 
     const lead = document.createElement('p');
     lead.className = 'section-lead reporte__lead no-print';
     lead.textContent =
-      'Consulte el desglose de su índice de transparencia (30 observables), muestre su QR y valide el de otra parte. Puede imprimir o guardar el informe en PDF.';
+      'Consulte el desglose de su índice de transparencia (22 observables), muestre su QR y valide el de otra parte. Puede imprimir o guardar el informe en PDF.';
 
     const acciones = document.createElement('div');
     acciones.className = 'reporte__acciones no-print';
@@ -66,7 +115,7 @@ const ReporteEmpresa = {
 
     acciones.append(btnPdf, btnQr);
 
-    const doc = ReporteEmpresa.renderDocumento();
+    const doc = ReporteEmpresa.renderDocumento(info.rep || null);
 
     const pieAcciones = document.createElement('div');
     pieAcciones.className = 'reporte__acciones reporte__acciones--pie no-print';
@@ -87,12 +136,66 @@ const ReporteEmpresa = {
     return wrap;
   },
 
-  renderDocumento() {
+  renderAvisoSinFicha() {
+    const box = document.createElement('section');
+    box.className = 'reporte-sin-ficha no-print';
+    box.setAttribute('aria-label', 'Sin ficha de empresa');
+
+    const titulo = document.createElement('h2');
+    titulo.className = 'section-heading';
+    titulo.textContent = 'Aún no tiene una ficha de empresa';
+
+    const lead = document.createElement('p');
+    lead.className = 'section-lead';
+    lead.textContent =
+      'Para generar su reporte de transparencia debe crear o reclamar una empresa. En Perfil puede publicar una ficha nueva o reclamar una existente.';
+
+    const lista = document.createElement('ul');
+    lista.className = 'reporte-sin-ficha__lista';
+    [
+      'Crear y publicar ficha + Sello Verificado',
+      'Reclamar ficha existente (titularidad)',
+      'Sin ficha activa no aparece ante compradores en Explorar'
+    ].forEach((t) => {
+      const li = document.createElement('li');
+      li.textContent = t;
+      lista.appendChild(li);
+    });
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'submit-btn';
+    btn.textContent = 'Ir a Perfil a crear o reclamar';
+    btn.addEventListener('click', () => ReporteEmpresa.irAComprarFicha());
+
+    box.append(titulo, lead, lista, btn);
+    return box;
+  },
+
+  renderAccionesBasicas() {
+    const acciones = document.createElement('div');
+    acciones.className = 'reporte__acciones no-print';
+    const btnQr = document.createElement('button');
+    btnQr.type = 'button';
+    btnQr.className = 'submit-btn submit-btn--secondary';
+    btnQr.textContent = 'Validar QR de otra parte';
+    btnQr.addEventListener('click', () => {
+      if (typeof ReporteQr !== 'undefined') ReporteQr.abrirModalValidador();
+    });
+    acciones.appendChild(btnQr);
+    return acciones;
+  },
+
+  renderDocumento(rep) {
     const user = ReporteEmpresa.usuario() || {};
     const perfil = ReporteEmpresa.perfil();
     const ficha = ReporteEmpresa.ficha();
-    const indice = Number(ficha.indice_transparencia) || 0;
-    const verificado = !!ficha._verificado || !!ficha.is_verified_profile;
+    const indice =
+      rep && rep.indice_transparencia != null
+        ? Number(rep.indice_transparencia)
+        : Number(ficha.indice_transparencia) || 0;
+    const verificado =
+      (rep && !!rep.is_verified_profile) || !!ficha._verificado || !!ficha.is_verified_profile;
 
     const doc = document.createElement('article');
     doc.className = 'reporte-doc reporte-doc--empresa';
@@ -162,7 +265,7 @@ const ReporteEmpresa = {
 
     const docs =
       typeof ProgresoCuenta !== 'undefined'
-        ? ProgresoCuenta.de('empresa').idsDocumento().length
+        ? ProgresoCuenta.de('proveedor').idsDocumento().length
         : 4;
     const cargados = ficha._docsCargados != null ? ficha._docsCargados : 0;
 
@@ -195,13 +298,15 @@ const ReporteEmpresa = {
     desgloseWrap.className = 'reporte-doc__desglose';
     if (typeof Market !== 'undefined' && Market.bloqueDesgloseIndice) {
       const n = {
-        id: ficha.id,
-        nombre: ficha.nombre || user.nombre || 'Mi empresa'
+        id: (rep && rep.business_id) || ficha.id,
+        nombre: (rep && rep.nombre) || ficha.nombre || user.nombre || 'Mi empresa'
       };
-      const desglose = Market.bloqueDesgloseIndice(n, null, indice, verificado);
+      const desglose = Market.bloqueDesgloseIndice(n, rep || null, indice, verificado, {
+        mostrarRazones: true
+      });
       desglose.classList.add('reporte-doc__indice');
       desgloseWrap.appendChild(desglose);
-      // En el informe se muestran las 4 dimensiones por defecto.
+
       setTimeout(() => {
         const todos = desglose.querySelector('.indice-desglose__filtro--todos');
         if (todos) todos.click();
@@ -217,7 +322,7 @@ const ReporteEmpresa = {
     pie.className = 'reporte-doc__pie';
     const aviso = document.createElement('p');
     aviso.textContent =
-      'Documento informativo generado por ServiChile a solicitud de la empresa titular. El desglose es un mock de superficie pública (30 observables) y no sustituye auditorías oficiales.';
+      'Documento informativo generado por ServiChile a solicitud de la empresa titular. El desglose es un mock de superficie pública (22 observables) y no sustituye auditorías oficiales.';
     const ref = document.createElement('p');
     ref.className = 'reporte-doc__ref';
     ref.textContent =
@@ -268,7 +373,7 @@ const ReporteEmpresa = {
   },
 
   imprimir() {
-    // Asegura que el PDF lleve las 4 dimensiones visibles.
+
     const todos = document.querySelector(
       '#reporteDocumento .indice-desglose__filtro--todos'
     );

@@ -1,5 +1,5 @@
-// Directorio B2B: proveedores evaluables (32 observables / due diligence).
-// Consume GET /v1/businesses. Ordena por cercanía a la ubicación del usuario.
+
+
 const Market = {
   CATEGORIAS: [
     { id: 'tecnologia', label: 'Tecnología y datos' },
@@ -53,6 +53,9 @@ const Market = {
   ref: null,
   timer: null,
   seleccionado: null,
+  _reps: Object.create(null),
+  _detalleGen: 0,
+  _cargaTicket: 0,
 
   init() {
     Market.el = {
@@ -68,6 +71,8 @@ const Market = {
     if (!Market.el.grid) return;
     if (!Market.el.bound) {
       Market.el.search.addEventListener('input', Market.onBuscar);
+      Market.el.grid.addEventListener('click', Market.onGridClick);
+      Market.el.grid.addEventListener('keydown', Market.onGridKey);
       Market.el.bound = true;
     }
     Market.cerrarDetalle();
@@ -105,17 +110,20 @@ const Market = {
     Market.renderAccionEmpresa();
   },
 
-  esEmpresa() {
+  esProveedor() {
     return typeof ProgresoCuenta !== 'undefined'
-      ? ProgresoCuenta.actual().es('empresa')
+      ? ProgresoCuenta.esProveedor()
       : false;
   },
 
-  // Oferta: pymes afiliadas mejoran su nota / reclaman ficha.
+  esEmpresa() {
+    return Market.esProveedor();
+  },
+
   renderAccionEmpresa() {
     if (!Market.el.list) return;
     let barra = document.getElementById('marketEmpresaAccion');
-    const mostrar = Market.esEmpresa();
+    const mostrar = Market.esProveedor();
 
     if (!mostrar) {
       if (barra) barra.remove();
@@ -156,7 +164,6 @@ const Market = {
     }
   },
 
-  // El marketplace solo monta el widget; el motor tipado vive en ProgresoCuenta.
   renderProgreso() {
     if (!Market.el.progreso || typeof ProgresoCuenta === 'undefined') return;
     ProgresoCuenta.actual().montarIndicador(Market.el.progreso, {
@@ -198,41 +205,90 @@ const Market = {
     return lista.filter((n) => excluir.indexOf(n.categoria) === -1);
   },
 
+  onGridClick(e) {
+    const card = e.target.closest('[data-business-id]');
+    if (!card) return;
+    const n = Market.porId(card.dataset.businessId);
+    if (n) Market.abrirDetalle(n);
+  },
+
+  onGridKey(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const card = e.target.closest('[data-business-id]');
+    if (!card) return;
+    e.preventDefault();
+    const n = Market.porId(card.dataset.businessId);
+    if (n) Market.abrirDetalle(n);
+  },
+
+  porId(id) {
+    return Market._porId ? Market._porId[String(id)] || null : null;
+  },
+
   async cargar() {
-    Market.el.status.textContent = 'Cargando...';
     const params = new URLSearchParams();
     if (Market.categoria !== 'all') params.set('categoria', Market.categoria);
     if (Market.busqueda) params.set('q', Market.busqueda);
-    const qs = params.toString();
-    const res = await Auth.request('/v1/businesses' + (qs ? '?' + qs : ''));
+    const clave = params.toString();
+    const ticket = ++Market._cargaTicket;
+    const previa = Market._cache && Market._cache.clave === clave ? Market._cache.lista : null;
+    if (previa) {
+      Market.negocios = previa;
+      Market.el.status.textContent = '';
+      Market.render();
+    } else {
+      Market.el.status.textContent = 'Cargando...';
+    }
+    const res = await Auth.request('/v1/businesses' + (clave ? '?' + clave : ''));
+    if (ticket !== Market._cargaTicket) return;
     if (!res.ok) {
-      Market.el.status.textContent = 'No se pudieron cargar los lugares. Intente de nuevo.';
+      if (!previa) {
+        Market.el.status.textContent = 'No se pudieron cargar los lugares. Intente de nuevo.';
+      }
       return;
     }
     Market.el.status.textContent = '';
     Market.negocios = Market.filtrarPorJob(Array.isArray(res.data) ? res.data : []);
+    Market._cache = { clave: clave, lista: Market.negocios };
+    Market._firma = '';
     Market.render();
   },
 
   render() {
     const lista = Market.ordenarPorCercania(Market.negocios);
+    const ref = Market.ref || Market.REF_DEFECTO;
+    const firma =
+      lista.map((n) => n.id).join('|') +
+      '@' +
+      ref.lat.toFixed(3) +
+      ',' +
+      ref.lng.toFixed(3);
     Market.el.count.textContent =
       lista.length + ' proveedor' + (lista.length === 1 ? '' : 'es');
-    Market.limpiar(Market.el.grid);
+    if (firma === Market._firma && Market.el.grid.childElementCount) return;
+    Market._firma = firma;
+    Market._porId = Object.create(null);
+    const frag = document.createDocumentFragment();
     if (lista.length === 0) {
       const vacio = document.createElement('p');
       vacio.className = 'market__vacio';
       vacio.textContent = 'No se encontraron resultados para esta búsqueda.';
-      Market.el.grid.appendChild(vacio);
-      return;
+      frag.appendChild(vacio);
+    } else {
+      for (let i = 0; i < lista.length; i++) {
+        Market._porId[String(lista[i].id)] = lista[i];
+        frag.appendChild(Market.tarjeta(lista[i]));
+      }
     }
-    lista.forEach(n => Market.el.grid.appendChild(Market.tarjeta(n)));
+    Market.limpiar(Market.el.grid);
+    Market.el.grid.appendChild(frag);
   },
 
   tarjeta(n) {
     const bloqueado = Market.estaBloqueado(n);
     const card = document.createElement('article');
     card.className = 'market__card market__card--click' + (bloqueado ? ' market__card--nivel' : '');
+    card.dataset.businessId = String(n.id);
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
     card.setAttribute(
@@ -241,23 +297,20 @@ const Market = {
         ? n.nombre + '. Pide nivel ' + (n.requiere_nivel || 1)
         : 'Ver detalle de ' + n.nombre
     );
-    card.addEventListener('click', () => Market.abrirDetalle(n));
-    card.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        Market.abrirDetalle(n);
-      }
-    });
-
     const media = document.createElement('div');
     media.className = 'market__media';
 
     const foto = document.createElement('img');
     foto.className = 'market__foto';
-    foto.src = n.imagen_url || '';
+    if (n.imagen_url) {
+      foto.src = n.imagen_url;
+      foto.width = 480;
+      foto.height = 300;
+    }
     foto.alt = '';
     foto.loading = 'lazy';
     foto.decoding = 'async';
+    foto.fetchPriority = 'low';
 
     const top = document.createElement('div');
     top.className = 'market__card-top';
@@ -292,24 +345,30 @@ const Market = {
   },
 
   async abrirDetalle(n) {
+    const id = String(n.id);
+    const gen = ++Market._detalleGen;
+    const previa = Market._reps[id];
+    if (previa) Market.pintarDetalle(n, previa);
+    const res = await Auth.request('/v1/businesses/' + encodeURIComponent(n.id) + '/reputation');
+    if (gen !== Market._detalleGen) return;
+    if (!res.ok) return;
+    Market._reps[id] = res.data;
+    if (previa && JSON.stringify(previa) === JSON.stringify(res.data)) return;
+    Market.pintarDetalle(n, res.data);
+  },
+
+  pintarDetalle(n, reputacion) {
     Market.seleccionado = n;
     if (Market.el.list) Market.el.list.hidden = true;
     if (Market.el.detail) {
       Market.el.detail.hidden = false;
-      Market.renderDetalle(n, { cargando: true });
+      Market.renderDetalle(n, { reputacion: reputacion });
     }
     window.scrollTo(0, 0);
-
-    const res = await Auth.request('/v1/businesses/' + encodeURIComponent(n.id) + '/reputation');
-    if (!Market.seleccionado || Market.seleccionado.id !== n.id) return;
-    if (!res.ok) {
-      Market.renderDetalle(n, { error: res.error || 'No se pudo cargar la reputación.' });
-      return;
-    }
-    Market.renderDetalle(n, { reputacion: res.data });
   },
 
   cerrarDetalle() {
+    Market._detalleGen += 1;
     Market.seleccionado = null;
     if (Market.el.list) Market.el.list.hidden = false;
     if (Market.el.detail) {
@@ -371,14 +430,6 @@ const Market = {
       raiz.appendChild(aviso);
     }
 
-    if (extras && extras.cargando) {
-      const carga = document.createElement('p');
-      carga.className = 'status-text';
-      carga.textContent = 'Cargando datos del negocio...';
-      raiz.appendChild(carga);
-      return;
-    }
-
     if (extras && extras.error) {
       const err = document.createElement('p');
       err.className = 'error-text';
@@ -395,13 +446,6 @@ const Market = {
     colIzq.className = 'market-detalle__col';
     colIzq.appendChild(Market.bloqueIndice(negocioIndice, true));
     colIzq.appendChild(Market.bloqueDesgloseIndice(n, rep, indiceValor, verificado));
-
-    if (rep && rep.descargo) {
-      const descargo = document.createElement('p');
-      descargo.className = 'market-detalle__descargo';
-      descargo.textContent = rep.descargo;
-      colIzq.appendChild(descargo);
-    }
 
     const filas = [
       ['Descripción', n.descripcion || 'Sin descripción por ahora.'],
@@ -541,462 +585,6 @@ const Market = {
       sello.textContent = 'Sin verificar';
     }
     return sello;
-  },
-
-  // Mock: 30 observables — Ciber 30% + Legal 30% + Contractual 20% + Operativa 20%.
-  definicionObservablesIndice() {
-    return [
-      {
-        grupo: 'ciber',
-        id: 'ssl-tls',
-        etiqueta: 'Vigencia y calidad de certificados SSL/TLS',
-        detalle:
-          'HTTPS válido, TLS moderno y ausencia de certificados expirados o autofirmados.'
-      },
-      {
-        grupo: 'ciber',
-        id: 'email-auth',
-        etiqueta: 'Seguridad de correo (SPF, DKIM, DMARC)',
-        detalle:
-          'Registros DNS para prevenir spoofing y suplantación de identidad corporativa.'
-      },
-      {
-        grupo: 'ciber',
-        id: 'puertos',
-        etiqueta: 'Exposición de puertos y servicios críticos',
-        detalle:
-          'Detección pasiva de puertos/servicios administrativos abiertos (RDP, SSH, DB, SMB).'
-      },
-      {
-        grupo: 'ciber',
-        id: 'brechas',
-        etiqueta: 'Credenciales corporativas filtradas en dark web/breaches',
-        detalle:
-          'Correos @dominio en bases públicas de brechas o filtraciones recientes.'
-      },
-      {
-        grupo: 'ciber',
-        id: 'headers-http',
-        etiqueta: 'Cabeceras de seguridad HTTP',
-        detalle: 'HSTS, CSP, X-Frame-Options y X-Content-Type-Options.'
-      },
-      {
-        grupo: 'ciber',
-        id: 'stack-vulnerable',
-        etiqueta: 'Tecnologías web obsoletas o vulnerables (CVEs abiertos)',
-        detalle:
-          'CMS, servidores o librerías con CVEs críticos conocidos sin remediación.'
-      },
-      {
-        grupo: 'ciber',
-        id: 'blacklist',
-        etiqueta: 'Reputación de IP y dominio en listas negras globales',
-        detalle: 'Marcas por malware, phishing o spam en blocklists globales.'
-      },
-      {
-        grupo: 'ciber',
-        id: 'dnssec',
-        etiqueta: 'Protección de infraestructura DNS y secuestro de dominios',
-        detalle: 'DNSSEC, DNS resiliente y señales de riesgo de hijacking.'
-      },
-      {
-        grupo: 'ciber',
-        id: 'subdominios',
-        etiqueta: 'Seguridad en subdominios expuestos (Shadow IT)',
-        detalle:
-          'Entornos dev/staging/test u otros subdominios públicos sin autenticación.'
-      },
-      {
-        grupo: 'ciber',
-        id: 'whois',
-        etiqueta: 'Antigüedad, configuración y estabilidad del dominio',
-        detalle:
-          'Edad WHOIS, configuración DNS y vigencia de renovación.'
-      },
-      {
-        grupo: 'legal',
-        id: 'persona-juridica',
-        etiqueta: 'Vigencia y estado de la persona jurídica',
-        detalle:
-          'Constitución activa, sin disolución ni quiebra declarada.'
-      },
-      {
-        grupo: 'legal',
-        id: 'representantes',
-        etiqueta: 'Consistencia de representantes legales, directorio y poderes',
-        detalle:
-          'Coincidencia entre firmantes, directorio y representantes vigentes inscritos.'
-      },
-      {
-        grupo: 'legal',
-        id: 'litigios-civiles',
-        etiqueta: 'Litigiosidad civil y comercial (juicios pendientes)',
-        detalle:
-          'Demandas activas como demandado (incumplimientos, indemnizaciones).'
-      },
-      {
-        grupo: 'legal',
-        id: 'cobranza',
-        etiqueta: 'Demandas de cobranza y juicios ejecutivos',
-        detalle: 'Juicios por pagarés, facturas impagas o títulos ejecutivos.'
-      },
-      {
-        grupo: 'legal',
-        id: 'multas-laborales',
-        etiqueta: 'Multas laborales y previsionales vigentes',
-        detalle:
-          'Sanciones de la Dirección del Trabajo / no pago de cotizaciones.'
-      },
-      {
-        grupo: 'legal',
-        id: 'juicios-laborales',
-        etiqueta: 'Demandas laborales activas',
-        detalle:
-          'Despido injustificado, tutela de derechos o accidentes del trabajo.'
-      },
-      {
-        grupo: 'legal',
-        id: 'dicom',
-        etiqueta: 'Morosidad comercial y financiera (boletines / DICOM)',
-        detalle: 'Deudas morosas publicadas, protestos y endeudamiento impago.'
-      },
-      {
-        grupo: 'legal',
-        id: 'sii',
-        etiqueta: 'Situación tributaria, cumplimiento y facturación electrónica',
-        detalle:
-          'Inicio de actividades, facturación electrónica y ausencia de bloqueos SII.'
-      },
-      {
-        grupo: 'legal',
-        id: 'mercado-publico',
-        etiqueta: 'Historial y penalidades en compras públicas / Estado',
-        detalle:
-          'Adjudicaciones, multas contractuales o inhabilidades para contratar.'
-      },
-      {
-        grupo: 'legal',
-        id: 'sanciones-sectoriales',
-        etiqueta: 'Sanciones sectoriales o ambientales',
-        detalle:
-          'Multas en superintendencias según rubro (Salud, SEC, Medio Ambiente).'
-      },
-      {
-        grupo: 'contractual',
-        id: 'politica-privacidad',
-        etiqueta: 'Política de Privacidad accesible y actualizada',
-        detalle:
-          'Documento claro sobre tratamiento de datos (Ley 21.719 / estándares LATAM).'
-      },
-      {
-        grupo: 'contractual',
-        id: 'arco',
-        etiqueta: 'Responsable y canal de derechos ARCO',
-        detalle:
-          'Identificación del responsable y canal para acceso, rectificación, cancelación u oposición.'
-      },
-      {
-        grupo: 'contractual',
-        id: 'cookies',
-        etiqueta: 'Consentimiento de cookies y rastreadores',
-        detalle:
-          'Banner funcional que permite rechazar cookies/rastreadores no esenciales.'
-      },
-      {
-        grupo: 'contractual',
-        id: 'terminos',
-        etiqueta: 'Términos y Condiciones públicos de la oferta comercial',
-        detalle:
-          'Reglas de contratación, garantías, devoluciones y jurisdicción.'
-      },
-      {
-        grupo: 'contractual',
-        id: 'sla',
-        etiqueta: 'Cláusulas de servicio, SLA y DPA',
-        detalle:
-          'Transparencia en niveles de servicio y acuerdos de tratamiento de datos (DPA).'
-      },
-      {
-        grupo: 'operativa',
-        id: 'domicilio',
-        etiqueta: 'Verificación de domicilio operativo real y oficinas',
-        detalle:
-          'Cruce dirección tributaria vs evidencia física (fachada, oficinas reales).'
-      },
-      {
-        grupo: 'operativa',
-        id: 'huella-digital',
-        etiqueta: 'Coherencia y solidez de huella digital y reputación corporativa',
-        detalle:
-          'Correlación entre tamaño declarado, presencia digital y reputación pública.'
-      },
-      {
-        grupo: 'operativa',
-        id: 'incidentes',
-        etiqueta: 'Historial de incidentes físicos, brechas o escándalos públicos',
-        detalle:
-          'Noticias, emergencias, clausuras, brechas o escándalos con impacto reputacional.'
-      },
-      {
-        grupo: 'operativa',
-        id: 'uptime',
-        etiqueta: 'Continuidad operativa y estabilidad de infraestructura (uptime)',
-        detalle: 'Disponibilidad histórica de canales digitales e infraestructura.'
-      },
-      {
-        grupo: 'operativa',
-        id: 'resenas-reclamos',
-        etiqueta: 'Reseñas B2B verificadas, satisfacción y resolución de reclamos',
-        detalle:
-          'Calificaciones B2B validadas y tasa de respuesta/resolución de reclamos.'
-      }
-    ];
-  },
-
-  pesoObservable(grupo) {
-    // Ciber/Legal 30% (10×3%). Contractual/Operativa 20% (5×4%).
-    if (grupo === 'ciber' || grupo === 'legal') return '3.0%';
-    return '4.0%';
-  },
-
-  factoresIndiceMock(n, rep, indiceValor, verificado) {
-    const seed = Market.hashTexto(String(n.id || n.nombre || 'negocio'));
-    const pct = (base, spread, offset) => {
-      const t = ((seed + (offset || 0) * 9973) % 1000) / 1000;
-      return Math.max(8, Math.min(98, Math.round(base + t * spread)));
-    };
-    const google = rep && rep.google_rating_avg != null ? Number(rep.google_rating_avg) : 3.5 + (seed % 15) / 10;
-    const reviews = rep && rep.google_reviews_count != null ? Number(rep.google_reviews_count) : 40 + (seed % 260);
-    const boostLegal = verificado ? 18 : 0;
-    const boostContract = verificado ? 12 : 0;
-    const defs = Market.definicionObservablesIndice();
-    // Scores reales del backend (sonda DNS/TLS/HTTP + reseñas derivadas).
-    const ciberApi = Object.create(null);
-    const listaCiber = rep && Array.isArray(rep.observables_ciber) ? rep.observables_ciber : [];
-    for (let i = 0; i < listaCiber.length; i++) {
-      const o = listaCiber[i];
-      if (o && o.id != null && o.score != null) ciberApi[o.id] = Number(o.score);
-    }
-
-    const factores = defs.map((d, i) => {
-      let score;
-      let esReal = false;
-      if (ciberApi[d.id] != null && Number.isFinite(ciberApi[d.id])) {
-        score = Math.max(0, Math.min(100, Math.round(ciberApi[d.id])));
-        esReal = true;
-      } else {
-        let base = 48;
-        let spread = 36;
-        if (d.grupo === 'ciber') {
-          base = 52;
-          spread = 38;
-        } else if (d.grupo === 'legal') {
-          base = 40 + boostLegal;
-          spread = 30;
-        } else if (d.grupo === 'contractual') {
-          base = 42 + boostContract;
-          spread = 34;
-        } else if (d.grupo === 'operativa') {
-          base = 50;
-          spread = 32;
-          if (d.id === 'resenas-reclamos') {
-            const ratingPart = Math.round((Math.max(0, Math.min(5, google)) / 5) * 55) + 20;
-            const volumePart = Math.round(Math.min(25, (Math.log1p(reviews) / Math.log1p(500)) * 25));
-            base = Math.min(92, ratingPart + volumePart);
-            spread = 10;
-          }
-        }
-        score = pct(base, spread, i + 1);
-      }
-      return {
-        id: d.id,
-        grupo: d.grupo,
-        etiqueta: esReal ? d.etiqueta + ' (real)' : d.etiqueta,
-        valor: score + ' / 100',
-        pct: score,
-        peso: 'Observable · ' + Market.pesoObservable(d.grupo),
-        detalle: d.detalle,
-        real: esReal
-      };
-    });
-
-    factores.push({
-      id: 'indice',
-      grupo: 'resumen',
-      etiqueta: 'Índice resultante',
-      valor: Number(indiceValor).toFixed(1) + ' / 10',
-      pct: Math.round((Number(indiceValor) / 10) * 100),
-      peso: 'Final',
-      detalle:
-        'Ciber 30% + Legal 30% + Contractual 20% + Operativa 20% (30 observables; 11 desde API sin mapear rutas).'
-    });
-    return factores;
-  },
-
-  filtrosIndiceGrupos() {
-    return [
-      { id: 'ciber', etiqueta: 'Ciberseguridad (10 · 30%)' },
-      { id: 'legal', etiqueta: 'Legal y regulatoria (10 · 30%)' },
-      { id: 'contractual', etiqueta: 'Contractual y datos (5 · 20%)' },
-      { id: 'operativa', etiqueta: 'Física y reputacional (5 · 20%)' }
-    ];
-  },
-
-  hashTexto(texto) {
-    let h = 2166136261;
-    const s = String(texto || '');
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
-  },
-
-  bloqueDesgloseIndice(n, rep, indiceValor, verificado) {
-    const factores = Market.factoresIndiceMock(n, rep, indiceValor, verificado);
-    const resumen = factores.find((f) => f.grupo === 'resumen');
-    const detalleFactores = factores.filter((f) => f.grupo !== 'resumen');
-    // Por defecto: dimensión ciberseguridad.
-    const estado = {
-      todos: false,
-      activos: { ciber: true, legal: false, contractual: false, operativa: false }
-    };
-
-    const sec = document.createElement('section');
-    sec.className = 'indice-desglose';
-    sec.setAttribute('aria-label', 'Desglose del índice de transparencia');
-
-    const titulo = document.createElement('h3');
-    titulo.className = 'market-detalle__subtitulo';
-    titulo.textContent = 'Desglose del índice';
-
-    const cabecera = document.createElement('div');
-    cabecera.className = 'indice-desglose__cabecera';
-    if (resumen) {
-      const item = Market.itemFactorIndice(resumen);
-      item.classList.add('indice-desglose__item--cabecera');
-      cabecera.appendChild(item);
-    }
-
-    const lead = document.createElement('p');
-    lead.className = 'indice-desglose__lead';
-    lead.textContent =
-      '30 observables: Ciber 30% · Legal 30% · Contractual 20% · Operativa 20%. Un grupo a la vez, o Ver todos.';
-
-    const filtros = document.createElement('div');
-    filtros.className = 'indice-desglose__filtros';
-    filtros.setAttribute('role', 'group');
-    filtros.setAttribute('aria-label', 'Filtros del desglose');
-
-    const lista = document.createElement('ul');
-    lista.className = 'indice-desglose__lista';
-
-    const vacio = document.createElement('p');
-    vacio.className = 'indice-desglose__vacio';
-    vacio.hidden = true;
-    vacio.textContent = 'Ningún factor con los filtros actuales. Active un grupo o pulse Ver todos.';
-
-    const nota = document.createElement('p');
-    nota.className = 'indice-desglose__nota';
-
-    function gruposActivos() {
-      if (estado.todos) return null;
-      return Object.keys(estado.activos).filter((k) => estado.activos[k]);
-    }
-
-    function pintarFiltros() {
-      Market.limpiar(filtros);
-      Market.filtrosIndiceGrupos().forEach((g) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'indice-desglose__filtro';
-        btn.textContent = g.etiqueta;
-        const on = !estado.todos && !!estado.activos[g.id];
-        btn.classList.toggle('indice-desglose__filtro--on', on);
-        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-        btn.addEventListener('click', () => {
-          estado.todos = false;
-          Object.keys(estado.activos).forEach((k) => {
-            estado.activos[k] = false;
-          });
-          estado.activos[g.id] = true;
-          pintarFiltros();
-          pintarLista();
-        });
-        filtros.appendChild(btn);
-      });
-
-      const todos = document.createElement('button');
-      todos.type = 'button';
-      todos.className = 'indice-desglose__filtro indice-desglose__filtro--todos';
-      todos.textContent = 'Ver todos';
-      todos.classList.toggle('indice-desglose__filtro--on', estado.todos);
-      todos.setAttribute('aria-pressed', estado.todos ? 'true' : 'false');
-      todos.addEventListener('click', () => {
-        estado.todos = true;
-        Object.keys(estado.activos).forEach((k) => {
-          estado.activos[k] = false;
-        });
-        pintarFiltros();
-        pintarLista();
-      });
-      filtros.appendChild(todos);
-    }
-
-    function pintarLista() {
-      Market.limpiar(lista);
-      const activos = gruposActivos();
-      const visibles = detalleFactores.filter((f) => !activos || activos.indexOf(f.grupo) !== -1);
-      vacio.hidden = visibles.length > 0;
-      visibles.forEach((f) => lista.appendChild(Market.itemFactorIndice(f)));
-      nota.textContent = estado.todos
-        ? 'Mostrando las 4 dimensiones · 30 observables (mock de superficie pública).'
-        : 'Dimensión activa · mock sin agente interno ni scrapeo headless.';
-    }
-
-    pintarFiltros();
-    pintarLista();
-    sec.append(titulo, cabecera, lead, filtros, vacio, lista, nota);
-    return sec;
-  },
-
-  itemFactorIndice(f) {
-    const li = document.createElement('li');
-    li.className = 'indice-desglose__item';
-
-    const cabezal = document.createElement('div');
-    cabezal.className = 'indice-desglose__cabezal';
-    const nombre = document.createElement('span');
-    nombre.className = 'indice-desglose__nombre';
-    nombre.textContent = f.etiqueta;
-    const meta = document.createElement('span');
-    meta.className = 'indice-desglose__meta';
-    meta.textContent = f.valor + ' · ' + f.peso;
-    cabezal.append(nombre, meta);
-
-    const pista = document.createElement('div');
-    pista.className = 'indice-desglose__pista';
-    pista.setAttribute('role', 'meter');
-    pista.setAttribute('aria-valuemin', '0');
-    pista.setAttribute('aria-valuemax', '100');
-    pista.setAttribute('aria-valuenow', String(f.pct));
-    pista.setAttribute('aria-label', f.etiqueta + ': ' + f.pct + ' por ciento');
-    const barra = document.createElement('span');
-    barra.className = 'indice-desglose__barra';
-    if (f.grupo === 'ciber') barra.classList.add('indice-desglose__barra--ciber');
-    if (f.grupo === 'legal') barra.classList.add('indice-desglose__barra--legal');
-    if (f.grupo === 'contractual') barra.classList.add('indice-desglose__barra--contractual');
-    if (f.grupo === 'operativa') barra.classList.add('indice-desglose__barra--operativa');
-    if (f.grupo === 'resumen') barra.classList.add('indice-desglose__barra--nucleo');
-    barra.style.width = f.pct + '%';
-    pista.appendChild(barra);
-
-    const detalle = document.createElement('p');
-    detalle.className = 'indice-desglose__detalle';
-    detalle.textContent = f.detalle;
-
-    li.append(cabezal, pista, detalle);
-    return li;
   },
 
   bloqueIndice(n, grande) {

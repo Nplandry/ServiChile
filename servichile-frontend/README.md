@@ -7,13 +7,13 @@ Aplicación web progresiva de **due diligence B2B** e índice de transparencia d
 | Ruta | Archivo | Función |
 |---|---|---|
 | `/` | `index.html` | Acceso y app completa |
-| `/onboarding/` | `onboarding/index.html` | Alta persona/empresa |
+| `/onboarding/` | `onboarding/index.html` | Alta proveedor / contratista / persona |
 
 Vistas internas:
 
 - **Explorar**: proveedores B2B con índice de transparencia.
-- **Reportes**: informe imprimible (persona: niveles; empresa: 30 observables) + QR y validador.
-- **Verificación**: niveles 1–3 (persona) o documentación / índice (empresa).
+- **Reportes**: informe imprimible (persona/contratista: niveles; proveedor: 30 observables) + QR y validador.
+- **Verificación**: niveles 1–3 (persona/contratista) o documentación / índice (proveedor).
 - **Perfil**: datos de cuenta y estado de verificación.
 
 ## Estructura
@@ -32,7 +32,7 @@ Vistas internas:
 | `js/modules/subir-confianza.js` | Verificación |
 | `js/modules/reporte-persona.js` | Informe persona |
 | `js/modules/reporte-empresa.js` | Informe empresa |
-| `js/modules/progreso-cuenta.js` | Estrategia persona/empresa |
+| `js/modules/progreso-cuenta.js` | Estrategia proveedor / contratista / persona |
 | `js/onboarding.js` | Alta de cuenta |
 | `sw.js` | Service Worker |
 | `manifest.json` | PWA |
