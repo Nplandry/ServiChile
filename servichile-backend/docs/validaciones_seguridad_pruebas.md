@@ -45,7 +45,7 @@ Las excepciones de negocio viven en el dominio/servicios **sin conocer FastAPI**
 |---|---|---|
 | Auth | Credenciales inválidas; correo duplicado; contraseña de baja incorrecta | 401 / 409 / 403 |
 | Perfil / pasaporte | RUT inválido; RUT en uso; RUT ya verificado; biometría inválida o muy grande | 422 / 409 / 413 |
-| Autorización de cuenta | Solo empresa puede crear/reclamar | 403 (`authz.py`) |
+| Autorización de cuenta | Solo proveedor puede crear/reclamar | 403 (`authz.py`) |
 | Negocios / reservas | No encontrado; ya reclamado; no titular; nivel insuficiente; reserva cerrada | 404 / 409 / 403 |
 | Reporte (QR) | Payload inválido o expirado | 422 |
 

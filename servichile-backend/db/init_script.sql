@@ -18,6 +18,11 @@ CREATE TABLE usuarios (
     -- Biometría: solo bandera + fecha. La imagen se procesa en memoria y no se guarda.
     biometria_verificada boolean NOT NULL DEFAULT false,
     biometria_verificada_en timestamptz,
+    -- Antecedentes: PDF validado en memoria; se guarda solo el resultado.
+    antecedentes_verificados boolean NOT NULL DEFAULT false,
+    antecedentes_verificados_en timestamptz,
+    antecedentes_anotaciones boolean,
+    antecedentes_score integer,
     xp             integer NOT NULL DEFAULT 0 CHECK (xp >= 0),
     creado_en      timestamptz NOT NULL DEFAULT now()
 );
@@ -39,8 +44,8 @@ CREATE TABLE perfiles (
     usuario_id     uuid PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
     -- Ley 21.719: menores de 14 requieren consentimiento de sus padres, que la app no gestiona
     edad           smallint CHECK (edad BETWEEN 14 AND 120),
-    -- persona | empresa (onboarding). Nullable para cuentas anteriores.
-    tipo_cuenta    varchar(20) CHECK (tipo_cuenta IS NULL OR tipo_cuenta IN ('persona', 'empresa')),
+    -- persona | contratista | proveedor (onboarding). Nullable para cuentas anteriores.
+    tipo_cuenta    varchar(20) CHECK (tipo_cuenta IS NULL OR tipo_cuenta IN ('persona', 'contratista', 'proveedor')),
     -- DEPRECADOS: nullable durante la transición. Se eliminan en una migración posterior.
     preocupacion   varchar(20) CHECK (preocupacion IN ('embargo', 'seguros', 'telecom', 'otro')),
     proposito      varchar(20) CHECK (proposito IN ('autoinformarse', 'asesorar', 'investigar', 'trabajo')),
@@ -68,6 +73,7 @@ CREATE TABLE business_entities (
     reclamado_por  uuid REFERENCES usuarios(id) ON DELETE SET NULL,
     telefono       varchar(30),
     sitio_web      varchar(200),
+    rut_empresa    varchar(12),                    -- RUT para ChileCompra (claim/alta)
     creado_en      timestamptz NOT NULL DEFAULT now()
 );
 
@@ -76,6 +82,7 @@ CREATE TABLE business_reputation_metrics (
     business_id              uuid PRIMARY KEY REFERENCES business_entities(id) ON DELETE CASCADE,
     google_rating_avg        double precision CHECK (google_rating_avg BETWEEN 0 AND 5),
     google_reviews_count     integer NOT NULL DEFAULT 0 CHECK (google_reviews_count >= 0),
+    google_place_nombre      varchar(200),
     sentiment_positive_ratio double precision CHECK (sentiment_positive_ratio BETWEEN 0 AND 1),
     response_time_score      double precision CHECK (response_time_score BETWEEN 0 AND 1),
     -- Índice algorítmico de 1.0 a 10.0, no un juicio de valor sobre la calidad del servicio
@@ -92,6 +99,15 @@ CREATE TABLE business_reputation_metrics (
     score_subdominios        double precision CHECK (score_subdominios IS NULL OR score_subdominios BETWEEN 0 AND 100),
     score_whois              double precision CHECK (score_whois IS NULL OR score_whois BETWEEN 0 AND 100),
     score_uptime             double precision CHECK (score_uptime IS NULL OR score_uptime BETWEEN 0 AND 100),
+    score_cookies            double precision CHECK (score_cookies IS NULL OR score_cookies BETWEEN 0 AND 100),
+    score_politica_privacidad double precision CHECK (score_politica_privacidad IS NULL OR score_politica_privacidad BETWEEN 0 AND 100),
+    score_terminos           double precision CHECK (score_terminos IS NULL OR score_terminos BETWEEN 0 AND 100),
+    score_sla                double precision CHECK (score_sla IS NULL OR score_sla BETWEEN 0 AND 100),
+    docs_legales_razones     jsonb,
+    score_mercado_publico    double precision CHECK (score_mercado_publico IS NULL OR score_mercado_publico BETWEEN 0 AND 100),
+    score_sii                double precision CHECK (score_sii IS NULL OR score_sii BETWEEN 0 AND 100),
+    score_cmf                double precision CHECK (score_cmf IS NULL OR score_cmf BETWEEN 0 AND 100),
+    score_incidentes         double precision CHECK (score_incidentes IS NULL OR score_incidentes BETWEEN 0 AND 100),
     ciber_escaneado_en       timestamptz,
     actualizado_en           timestamptz NOT NULL DEFAULT now()
 );
@@ -111,6 +127,24 @@ CREATE TABLE reservas (
 
 CREATE INDEX reservas_usuario_idx ON reservas (usuario_id, creado_en DESC);
 CREATE INDEX reservas_negocio_idx ON reservas (business_id);
+
+-- Índice local CMF Bancos (API api.cmfchile.cl) para el observable cmf.
+CREATE TABLE cmf_instituciones (
+    rut         varchar(12) PRIMARY KEY,
+    codigo      varchar(8) NOT NULL,
+    nombre      varchar(200) NOT NULL DEFAULT '',
+    direccion   varchar(300),
+    web         varchar(200),
+    sucursales  integer,
+    empleados   integer
+);
+
+CREATE TABLE cmf_indice_meta (
+    id               integer PRIMARY KEY,
+    sincronizado_en  timestamptz,
+    filas            integer NOT NULL DEFAULT 0,
+    fuente           varchar(200)
+);
 
 
 COMMIT;

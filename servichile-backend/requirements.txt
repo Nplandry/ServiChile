@@ -9,3 +9,5 @@ argon2-cffi==25.1.0
 pyjwt==2.15.1
 redis==8.1.0
 python-multipart==0.0.20
+pypdf==6.9.1
+certifi==2026.10.23

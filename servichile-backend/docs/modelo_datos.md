@@ -37,6 +37,7 @@ erDiagram
         uuid business_id PK, FK
         float final_score
         float score_ssl_tls
+        float score_cookies
     }
     reservas {
         uuid id PK
@@ -58,3 +59,11 @@ Las bases nuevas se crean con `db/init_script.sql`, que ya incluye todas las tab
 | `002_perfiles.sql` | Crea la tabla `perfiles`. Se puede ejecutar más de una vez. |
 | `015_drop_consultas_rag.sql` | Elimina `consultas`, `fragmentos` y `documentos` (stack IA/RAG retirado). |
 | `016_drop_pgvector.sql` | Elimina la extensión `vector` (pgvector). |
+| `017_tipos_cuenta_proveedor.sql` | Tipos `persona` / `contratista` / `proveedor` (migra `empresa` → `proveedor`). |
+| `018_antecedentes.sql` | Flags de certificado de antecedentes verificado + anotaciones (sin guardar PDF). |
+| `019_score_cookies.sql` | Score de consentimiento de cookies (banner / CMP / opción rechazar). |
+| `020_score_mercado_publico.sql` | Score ChileCompra / Mercado Público (ticket + RUT titular). |
+| `021_rut_empresa.sql` | `business_entities.rut_empresa` para consulta ChileCompra. |
+| `022_score_sii.sql` | Score situación tributaria SII (ApiGateway). |
+| `023_cmf_indice.sql` | Score CMF Bancos + tablas índice local (`cmf_instituciones`, `cmf_indice_meta`). |
+| `024_score_incidentes.sql` | Score historial de incidentes públicos (búsqueda web + filtro heurístico, sin LLM). |
