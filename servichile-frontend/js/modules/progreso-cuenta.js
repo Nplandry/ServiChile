@@ -1,5 +1,5 @@
-// Motor polimórfico de tipo de cuenta.
-// Una Base (plantilla) + estrategias registradas. UI y onboarding solo preguntan a la estrategia.
+
+
 const ProgresoCuenta = {
   REGISTRO: Object.create(null),
 
@@ -27,7 +27,9 @@ const ProgresoCuenta = {
   },
 
   normalizar(tipo) {
-    return tipo === 'empresa' ? 'empresa' : 'persona';
+    if (tipo === 'proveedor' || tipo === 'empresa') return 'proveedor';
+    if (tipo === 'contratista') return 'contratista';
+    return 'persona';
   },
 
   tipoDe(src) {
@@ -50,10 +52,24 @@ const ProgresoCuenta = {
     return ProgresoCuenta.para(user);
   },
 
+  esProveedor(src) {
+    if (src == null) return ProgresoCuenta.actual().es('proveedor');
+    if (src && typeof src.es === 'function' && src.tipo) return src.es('proveedor');
+    return ProgresoCuenta.para(src).es('proveedor');
+  },
+
   esEmpresa(src) {
-    if (src == null) return ProgresoCuenta.actual().es('empresa');
-    if (src && typeof src.es === 'function' && src.tipo) return src.es('empresa');
-    return ProgresoCuenta.para(src).es('empresa');
+    return ProgresoCuenta.esProveedor(src);
+  },
+
+  esPersonaLike(src) {
+    const prog =
+      src == null
+        ? ProgresoCuenta.actual()
+        : src && typeof src.es === 'function' && src.tipo
+          ? src
+          : ProgresoCuenta.para(src);
+    return prog.es('persona') || prog.es('contratista');
   },
 
   etiquetaTipo(tipoOSrc) {
@@ -61,7 +77,6 @@ const ProgresoCuenta = {
     return ProgresoCuenta.para(tipoOSrc).etiquetaCorta();
   },
 
-  // ---------- Base: contrato + DOM compartido + plantilla de filas ----------
   Base: {
     tipo: 'persona',
     FEATURES: Object.freeze({}),
@@ -151,7 +166,6 @@ const ProgresoCuenta = {
       return nombres[n] || 'Identidad';
     },
 
-    // Plantilla: cabecera + cuerpo tipado (perfil | qr).
     filasEstado(ctx) {
       const c = this._ctx(ctx);
       const filas = this.filasCabecera(c);
@@ -205,7 +219,6 @@ const ProgresoCuenta = {
       );
       card.setAttribute('aria-label', snap.aria);
 
-      // Arriba: métricas · centro: barra · abajo: título + CTA.
       const arriba = this.el('div', 'confianza-indicador__fila confianza-indicador__fila--arriba');
       arriba.appendChild(
         this.el('p', 'confianza-indicador__izq', snap.detalleIzq || snap.meta || '')
@@ -257,7 +270,6 @@ const ProgresoCuenta = {
       return card;
     },
 
-    // --- helpers de filas ---
     filaTitular(c) {
       return ['Titular', (c.datos && c.datos.nombre) || '—'];
     },
@@ -282,7 +294,7 @@ const ProgresoCuenta = {
     },
 
     filaNivelPasaporte(src) {
-      return ['Nivel pasaporte', 'Nivel ' + ((src && src.nivel_pasaporte) || 1)];
+      return ['Nivel de verificación', 'Nivel ' + ((src && src.nivel_pasaporte) || 1)];
     },
 
     filaConfiabilidad(src) {
@@ -293,7 +305,6 @@ const ProgresoCuenta = {
       ];
     },
 
-    // --- util ---
     _ctx(ctx) {
       const c = ctx || {};
       const perfil = c.perfil || {};
@@ -340,7 +351,6 @@ const ProgresoCuenta = {
   }
 };
 
-// --- Persona: XP, niveles, requisitos, edad ---
 ProgresoCuenta.registrar('persona', {
   FEATURES: Object.freeze({
     edad: true,
@@ -435,8 +445,63 @@ ProgresoCuenta.registrar('persona', {
   }
 });
 
-// --- Empresa: índice y docs legales (sin niveles XP) ---
-ProgresoCuenta.registrar('empresa', {
+ProgresoCuenta.registrar('contratista', {
+  FEATURES: Object.freeze({
+    edad: true,
+    xp: true,
+    niveles: true,
+    biometria: true,
+    pasaporte: true
+  }),
+
+  DOCS: [
+    ['cedula', 'Cédula de identidad (Nivel 1)'],
+    ['antecedentes', 'Certificado de antecedentes (Nivel 3)'],
+    ['aval', 'Aval o garantía de respaldo (Nivel 3)']
+  ],
+
+  etiquetaCorta() {
+    return 'Contratista';
+  },
+
+  etiquetaMenu() {
+    return 'Verificación';
+  },
+
+  etiquetaVista() {
+    return 'Verificación';
+  },
+
+  textoLeadQr() {
+    return '';
+  },
+
+  tituloNombreOnboarding() {
+    return '¿Cómo te llamas?';
+  },
+
+  textoNombreOnboarding() {
+    return 'Aparecerá en su carnet QR al validar visitas o entregas.';
+  },
+
+  snapshot() {
+    return ProgresoCuenta.REGISTRO.persona.snapshot.call(this);
+  },
+
+  filasPerfil(c) {
+    return ProgresoCuenta.REGISTRO.persona.filasPerfil.call(this, c);
+  },
+
+  filasQr(c) {
+    return ProgresoCuenta.REGISTRO.persona.filasQr.call(this, c);
+  },
+
+  seccionesVista() {
+    return ProgresoCuenta.REGISTRO.persona.seccionesVista.call(this);
+  }
+});
+
+ProgresoCuenta.registrar('proveedor', {
   FEATURES: Object.freeze({
     indice: true,
     docsLegales: true
@@ -450,27 +515,27 @@ ProgresoCuenta.registrar('empresa', {
   ],
 
   etiquetaCorta() {
-    return 'Empresa';
+    return 'Proveedor';
   },
 
   etiquetaMenu() {
-    return 'Verificación empresa';
+    return 'Verificación proveedor';
   },
 
   etiquetaVista() {
-    return 'Verificación empresa';
+    return 'Verificación proveedor';
   },
 
   labelNombre() {
-    return 'Empresa';
+    return 'Proveedor';
   },
 
   placeholderNombre() {
-    return 'Nombre de la empresa';
+    return 'Nombre del proveedor';
   },
 
   tituloNombreOnboarding() {
-    return '¿Cuál es el nombre de la empresa?';
+    return '¿Cuál es el nombre del proveedor?';
   },
 
   textoNombreOnboarding() {
@@ -489,7 +554,6 @@ ProgresoCuenta.registrar('empresa', {
     return 'Zero-Retention (mock): constitución, patente e inicio de actividades alimentan el índice. El archivo no se guarda.';
   },
 
-  // Cálculo del índice local (mock) vive en la estrategia, no en callers.
   calcularFicha() {
     const user = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
     const sc = this._sc();
@@ -505,8 +569,8 @@ ProgresoCuenta.registrar('empresa', {
     const base = 4.2 + cargados * 1.1 + (perfil.rut_verificado ? 0.8 : 0);
     const indice = Math.max(1, Math.min(9.8, Math.round(base * 10) / 10));
     return {
-      id: 'empresa:' + ((user && user.email) || 'local'),
-      nombre: (user && user.nombre) || 'Mi empresa',
+      id: 'proveedor:' + ((user && user.email) || 'local'),
+      nombre: (user && user.nombre) || 'Mi proveedor',
       indice_transparencia: indice,
       is_verified_profile: verificado,
       _docsCargados: cargados,
@@ -528,7 +592,7 @@ ProgresoCuenta.registrar('empresa', {
     return {
       tipo: this.tipo,
       titulo: 'Transparencia para publicar',
-      aria: 'Índice de transparencia de la empresa',
+      aria: 'Índice de transparencia del proveedor',
       detalleIzq,
       detalleDer,
       meta: detalleIzq + ' · ' + titularidad,
@@ -542,8 +606,7 @@ ProgresoCuenta.registrar('empresa', {
   filasPerfil(c) {
     const indiceTxt = this.formatoIndice(this.calcularFicha().indice_transparencia);
     return [
-      ['Pasaporte', 'No aplica (empresa)'],
-      ['Índice', indiceTxt],
+      ['Índice de transparencia', indiceTxt],
       this.filaEstado(c.perfil),
       this.filaRut(c.perfil)
     ];
@@ -554,7 +617,7 @@ ProgresoCuenta.registrar('empresa', {
     return [
       this.filaTitular(c),
       this.filaCorreo(c),
-      ['Índice', indiceTxt],
+      ['Índice de transparencia', indiceTxt],
       this.filaEstado(c.datos),
       this.filaRut(c.datos)
     ];

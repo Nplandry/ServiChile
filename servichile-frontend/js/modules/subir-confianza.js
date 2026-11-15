@@ -1,4 +1,4 @@
-// Página mock "Subir Confianza": la lista no se marca a mano; se desbloquea al hacer la acción.
+
 const SubirConfianza = {
   STORAGE_KEY: 'servichile.subirConfianza.mock',
   carruselIdx: 0,
@@ -97,7 +97,6 @@ const SubirConfianza = {
     SubirConfianza.render(raiz);
   },
 
-  // Clave por usuario: evita que biometría/docs de otra cuenta queden “hechos”.
   storageKey() {
     const user = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
     const quien = user && user.email ? String(user.email).toLowerCase() : 'anon';
@@ -105,7 +104,7 @@ const SubirConfianza = {
   },
 
   cargar() {
-    // Limpia el mock global antiguo (sin email) que marcaba biometría a todos.
+
     try {
       localStorage.removeItem(SubirConfianza.STORAGE_KEY);
     } catch {}
@@ -124,7 +123,6 @@ const SubirConfianza = {
     SubirConfianza.sincronizarBiometria();
   },
 
-  // La API es la fuente de verdad: biometria_verificada en usuarios.
   sincronizarBiometria() {
     const serverOk = !!SubirConfianza.perfil().biometria_verificada;
     SubirConfianza.state.biometriaOk = serverOk;
@@ -137,7 +135,7 @@ const SubirConfianza = {
         SubirConfianza.storageKey(),
         JSON.stringify({
           docs: SubirConfianza.state.docs
-          // biometriaOk no se persiste: siempre se lee del servidor.
+
         })
       );
     } catch {}
@@ -148,27 +146,29 @@ const SubirConfianza = {
     return (user && user.perfil) || {};
   },
 
-  esEmpresa() {
+  esProveedor() {
     return typeof ProgresoCuenta !== 'undefined'
-      ? ProgresoCuenta.actual().es('empresa')
-      : SubirConfianza.perfil().tipo_cuenta === 'empresa';
+      ? ProgresoCuenta.esProveedor()
+      : SubirConfianza.perfil().tipo_cuenta === 'proveedor';
+  },
+
+  esEmpresa() {
+    return SubirConfianza.esProveedor();
   },
 
   biometriaHecha() {
     return !!SubirConfianza.perfil().biometria_verificada;
   },
 
-  // Documentos tipados: la estrategia persona/empresa es la fuente.
   tiposDocumento() {
     return typeof ProgresoCuenta !== 'undefined'
       ? ProgresoCuenta.actual().tiposDocumento()
       : [];
   },
 
-  // Ficha índice: delega a la estrategia empresa.
   fichaEmpresaMock() {
     return typeof ProgresoCuenta !== 'undefined'
-      ? ProgresoCuenta.de('empresa').calcularFicha()
+      ? ProgresoCuenta.de('proveedor').calcularFicha()
       : { indice_transparencia: 4.2, _docsCargados: 0, _verificado: false, nombre: 'Mi empresa' };
   },
 
@@ -183,7 +183,6 @@ const SubirConfianza = {
     return Number.isFinite(n) ? n : null;
   },
 
-  // Derivada del score: tasa_no_shows ≈ 100 − score_confiabilidad.
   tasaNoShows() {
     const score = SubirConfianza.scoreConfiabilidad();
     if (score == null) return null;
@@ -200,12 +199,10 @@ const SubirConfianza = {
     return !!(tel && String(tel).trim());
   },
 
-  // Solo acciones reales (o mock de esas acciones) desbloquean. Sin toggle manual.
   estaHecha(tareaId) {
     return SubirConfianza.estadoPunto(tareaId) === 'ok';
   },
 
-  // Verde = listo, naranjo = en progreso, gris = pendiente.
   estadoPunto(tareaId) {
     const perfil = SubirConfianza.perfil();
     const score = SubirConfianza.scoreConfiabilidad();
@@ -226,7 +223,7 @@ const SubirConfianza = {
         return 'pendiente';
       }
       case 'n2-asistencias':
-        // interactions_count >= 1: hay score solo si hay reservas cerradas.
+
         return score != null ? 'ok' : 'pendiente';
       case 'n2-puntualidad':
         if (score != null && score >= 85) return 'ok';
@@ -237,7 +234,8 @@ const SubirConfianza = {
         if (tasa != null) return 'progreso';
         return 'pendiente';
       case 'n3-antecedentes':
-        return SubirConfianza.tieneDoc('antecedentes') ? 'ok' : 'pendiente';
+
+        return SubirConfianza.perfil().antecedentes_verificados ? 'ok' : 'pendiente';
       case 'n3-biometria':
         return SubirConfianza.biometriaHecha() ? 'ok' : 'pendiente';
       case 'n3-aval':
@@ -253,7 +251,6 @@ const SubirConfianza = {
     return 'Pendiente';
   },
 
-  // Texto corto con el porqué del color (métrica o acción faltante).
   detallePunto(tareaId) {
     const perfil = SubirConfianza.perfil();
     const score = SubirConfianza.scoreConfiabilidad();
@@ -291,10 +288,20 @@ const SubirConfianza = {
         if (tasa == null) return 'Sin historial aún para medir inasistencias.';
         if (tasa < 15) return 'Tasa de inasistencias ' + tasa + '% (bajo el 15% exigido).';
         return 'Tasa de inasistencias ' + tasa + '%. Debe bajar del 15%.';
-      case 'n3-antecedentes':
+      case 'n3-antecedentes': {
+        if (perfil.antecedentes_verificados) {
+          const anot =
+            perfil.antecedentes_anotaciones === true
+              ? 'Anotaciones: Sí'
+              : perfil.antecedentes_anotaciones === false
+                ? 'Anotaciones: No'
+                : 'Anotaciones: —';
+          return 'Certificado verificado. ' + anot + ' (no afecta el puntaje).';
+        }
         return estado === 'ok'
           ? 'Certificado de antecedentes cargado.'
-          : 'Debe cargar el certificado de antecedentes.';
+          : 'Debe cargar el PDF oficial del Registro Civil.';
+      }
       case 'n3-biometria':
         return estado === 'ok'
           ? 'Verificación facial completada.'
@@ -347,7 +354,6 @@ const SubirConfianza = {
     return SubirConfianza.nivelSugerido();
   },
 
-  // Datos de progreso: delega al motor tipado (persona/empresa).
   resumenProgreso() {
     const snap = ProgresoCuenta.actual().snapshot();
     const x = snap.extras || {};
@@ -364,7 +370,6 @@ const SubirConfianza = {
     };
   },
 
-  // Monta el widget en un contenedor ajeno (Marketplace, etc.).
   montarIndicador(contenedor, opts) {
     return ProgresoCuenta.actual().montarIndicador(contenedor, opts || {});
   },
@@ -743,7 +748,7 @@ const SubirConfianza = {
     acciones.append(btn, status);
     form.append(fieldTipo, drop, acciones);
 
-    form.addEventListener('submit', e => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const archivo = input.files && input.files[0];
       if (!archivo) {
@@ -751,6 +756,40 @@ const SubirConfianza = {
         return;
       }
       const tipo = select.value;
+      if (tipo === 'antecedentes') {
+        if (SubirConfianza.perfil().antecedentes_verificados) {
+          status.textContent = 'El certificado de antecedentes ya está verificado.';
+          return;
+        }
+        btn.disabled = true;
+        status.textContent = 'Validando certificado…';
+        const res =
+          typeof Auth !== 'undefined' && Auth.verificarAntecedentes
+            ? await Auth.verificarAntecedentes(archivo)
+            : { ok: false, error: 'Sesión no disponible.' };
+        btn.disabled = false;
+        if (!res.ok) {
+          status.textContent = res.error || 'No se pudo validar el certificado.';
+          return;
+        }
+        const data = res.antecedentes || {};
+        SubirConfianza.state.docs = SubirConfianza.state.docs.filter(
+          (d) => d.tipo !== 'antecedentes'
+        );
+        SubirConfianza.state.docs.unshift({
+          id: String(Date.now()),
+          tipo: 'antecedentes',
+          nombre: archivo.name,
+          tamano: archivo.size,
+          fecha: new Date().toISOString(),
+          anotaciones: data.antecedentes_anotaciones,
+          score: data.antecedentes_score,
+          verificado: true
+        });
+        SubirConfianza.guardar();
+        SubirConfianza.init();
+        return;
+      }
       if (SubirConfianza.tieneDoc(tipo)) {
         status.textContent = 'Ese tipo de documento ya está registrado.';
         return;
@@ -797,11 +836,18 @@ const SubirConfianza = {
         nombre.textContent = doc.nombre;
 
         const meta = document.createElement('span');
-        meta.textContent =
+        let metaTxt =
           SubirConfianza.etiquetaTipo(doc.tipo) +
           ' · ' +
           SubirConfianza.formatoFecha(doc.fecha) +
           (doc.tamano != null ? ' · ' + SubirConfianza.formatoTamano(doc.tamano) : '');
+        if (doc.tipo === 'antecedentes' && doc.verificado) {
+          metaTxt +=
+            ' · Anotaciones: ' +
+            (doc.anotaciones === true ? 'Sí' : doc.anotaciones === false ? 'No' : '—');
+          if (doc.score != null) metaTxt += ' · Score ' + doc.score;
+        }
+        meta.textContent = metaTxt;
 
         cuerpo.append(nombre, meta);
         li.append(icono, cuerpo);
@@ -850,7 +896,6 @@ const SubirConfianza = {
     visor.className = 'confianza-bio__preview';
     visor.hidden = true;
 
-    // Video oculto: solo alimenta el canvas (evita preview negra al capturar).
     const video = document.createElement('video');
     video.className = 'confianza-bio__video-src';
     video.setAttribute('playsinline', '');
@@ -896,7 +941,7 @@ const SubirConfianza = {
           canvas.width = w;
           canvas.height = h;
         }
-        // Espejo selfie en el canvas en vivo.
+
         ctx.save();
         ctx.translate(w, 0);
         ctx.scale(-1, 1);
@@ -1008,7 +1053,7 @@ const SubirConfianza = {
         status.textContent = 'La cámara aún no está lista.';
         return;
       }
-      // Congela el último frame ya pintado en el canvas (no vuelve a drawImage).
+
       congelado = true;
       detenerLoop();
 
@@ -1021,7 +1066,7 @@ const SubirConfianza = {
       }
 
       archivoElegido = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
-      // Apaga la cámara; el canvas sigue mostrando el frame congelado.
+
       if (stream) {
         stream.getTracks().forEach((t) => t.stop());
         stream = null;

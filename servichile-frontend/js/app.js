@@ -1,3 +1,35 @@
+const Carga = {
+  _jobs: Object.create(null),
+
+  script(src) {
+    if (!Carga._jobs[src]) {
+      Carga._jobs[src] = new Promise(function (resolve, reject) {
+        const el = document.createElement('script');
+        el.src = src;
+        el.onload = function () { resolve(); };
+        el.onerror = function () { reject(new Error(src)); };
+        document.body.appendChild(el);
+      });
+    }
+    return Carga._jobs[src];
+  },
+
+  async serie(srcs) {
+    for (let i = 0; i < srcs.length; i++) await Carga.script(srcs[i]);
+  },
+
+  vistas() {
+    return Carga.serie([
+      'js/vendor/qrcode.min.js?v=69',
+      'js/modules/reporte-persona.js?v=108',
+      'js/modules/reporte-empresa.js?v=119',
+      'js/modules/reporte-qr.js?v=107',
+      'js/modules/subir-confianza.js?v=76',
+      'js/modules/perfil-empresa.js?v=111'
+    ]);
+  }
+};
+
 const App = {
   state: { rutVerificado: false, perfilGuardado: null },
   elements: {},
@@ -6,7 +38,6 @@ const App = {
     Auth.init();
     App.cacheElements();
     App.bindAuthEvents();
-    ReporteQr.init();
     App.applyAuthState();
     if (typeof Compliance !== 'undefined') Compliance.initCookieBanner();
     App.verifySession();
@@ -59,26 +90,41 @@ const App = {
     App.openSection(btn.dataset.view);
   },
 
-  openSection(name) {
+  async openSection(name) {
     App.closeHistory();
     if (name === 'mapa') { App.showView('mapView'); return Market.init(); }
     if (name === 'perfil') {
+      await Carga.script('js/modules/perfil-empresa.js?v=111');
       App.renderPerfil();
       if (typeof PerfilEmpresa !== 'undefined') PerfilEmpresa.init();
       return App.showView('perfilView');
     }
-    if (name === 'reportes') { ReporteQr.init(); return App.showView('verifyView'); }
+    if (name === 'reportes') {
+      await Carga.serie([
+        'js/vendor/qrcode.min.js?v=69',
+        'js/modules/reporte-persona.js?v=108',
+        'js/modules/reporte-empresa.js?v=119',
+        'js/modules/reporte-qr.js?v=107'
+      ]);
+      ReporteQr.init();
+      return App.showView('verifyView');
+    }
     if (name === 'subir-confianza') {
+      await Carga.script('js/modules/subir-confianza.js?v=76');
       App.actualizarEtiquetasConfianza();
       SubirConfianza.init();
       return App.showView('subirConfianzaView');
     }
   },
 
-  esEmpresa() {
+  esProveedor() {
     return typeof ProgresoCuenta !== 'undefined'
-      ? ProgresoCuenta.actual().es('empresa')
+      ? ProgresoCuenta.esProveedor()
       : false;
+  },
+
+  esEmpresa() {
+    return App.esProveedor();
   },
 
   actualizarEtiquetasConfianza() {
@@ -349,6 +395,9 @@ const App = {
     if (authed) {
       App.actualizarEtiquetasConfianza();
       App.openSection('mapa');
+      const precargar = function () { Carga.vistas().catch(function () {}); };
+      if (window.requestIdleCallback) requestIdleCallback(precargar, { timeout: 1200 });
+      else setTimeout(precargar, 300);
     } else {
       App.closeHistory();
     }
