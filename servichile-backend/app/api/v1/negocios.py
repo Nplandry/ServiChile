@@ -115,24 +115,6 @@ def reputacion(business_id: uuid.UUID, servicio: NegocioServiceDep):
         raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
 
 
-@router.post("/{business_id}/ciber-scan", response_model=ReputacionOut)
-def escanear_ciber(
-    business_id: uuid.UUID, usuario: CurrentUserDep, servicio: NegocioServiceDep
-):
-
-    try:
-
-        return servicio.escanear_ciber(business_id, usuario.id)
-
-    except NegocioNoEncontrado:
-
-        raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
-
-    except NoEsTitularDelNegocio:
-
-        raise HTTPException(status.HTTP_403_FORBIDDEN, NO_TITULAR_LIBERAR) from None
-
-
 @router.post(
     "/{business_id}/claim", response_model=ClaimOut, status_code=status.HTTP_201_CREATED
 )

@@ -1,171 +1,47 @@
-from __future__ import annotations
+"""Desglose del índice. Siempre el mismo ejemplo, sin leer la base ni buscar afuera."""
 
-from datetime import datetime
+from app.dominio.entidades import ObservableCiber
+from app.dominio.transparencia.indicadores import armar_observables
 
-from app.dominio.entidades import Metricas, ObservableCiber
-from app.dominio.transparencia.datalux import OIDS_DATALUX, SCORE_BASE
-from app.dominio.transparencia.indicadores import (
-    armar_observables,
-    razones_resenas,
-    score_resenas,
+# Lo que muestra el desglose de cualquier ficha.
+SCORES_MOCK: dict[str, int] = {
+    "ssl-tls": 100,
+    "email-auth": 100,
+    "puertos": 100,
+    "headers-http": 0,
+    "stack-vulnerable": 85,
+    "blacklist": 100,
+    "dnssec": 60,
+    "subdominios": 80,
+    "whois": 70,
+    "persona-juridica": 85,
+    "sii": 0,
+    "mercado-publico": 0,
+    "cmf": 0,
+    "politica-privacidad": 18,
+    "cookies": 85,
+    "terminos": 18,
+    "sla": 22,
+    "domicilio": 50,
+    "huella-digital": 50,
+    "incidentes": 100,
+    "uptime": 100,
+    "resenas-reclamos": 20,
+}
+
+
+_OBSERVABLES_MOCK: tuple[ObservableCiber, ...] = tuple(
+    ObservableCiber(
+        id=item.id,
+        etiqueta=item.etiqueta,
+        detalle=item.detalle,
+        score=item.score,
+        peso=item.peso,
+        grupo=item.grupo,
+    )
+    for item in armar_observables(SCORES_MOCK)
 )
 
-CAMPOS_SCORE_SONDA: tuple[tuple[str, str], ...] = (
-    ("ssl-tls", "score_ssl_tls"),
-    ("email-auth", "score_email_auth"),
-    ("puertos", "score_puertos"),
-    ("headers-http", "score_headers_http"),
-    ("stack-vulnerable", "score_stack_vulnerable"),
-    ("blacklist", "score_blacklist"),
-    ("dnssec", "score_dnssec"),
-    ("subdominios", "score_subdominios"),
-    ("whois", "score_whois"),
-    ("uptime", "score_uptime"),
-    ("cookies", "score_cookies"),
-    ("politica-privacidad", "score_politica_privacidad"),
-    ("terminos", "score_terminos"),
-    ("sla", "score_sla"),
-    ("mercado-publico", "score_mercado_publico"),
-    ("sii", "score_sii"),
-    ("cmf", "score_cmf"),
-    ("incidentes", "score_incidentes"),
-    ("persona-juridica", "score_persona_juridica"),
-    ("domicilio", "score_domicilio"),
-    ("huella-digital", "score_huella_digital"),
-)
 
-_CAMPOS_CIBER_NUCLEO: tuple[str, ...] = (
-    "score_email_auth",
-    "score_cookies",
-    "score_politica_privacidad",
-    "score_terminos",
-    "score_sla",
-)
-_IDS_DOCS = ("politica-privacidad", "terminos", "sla")
-_IDS_DATALUX = frozenset(OIDS_DATALUX)
-
-
-def necesita_sonda_ciber(m: Metricas) -> bool:
-    return m.ciber_escaneado_en is None or any(
-        getattr(m, a) is None for a in _CAMPOS_CIBER_NUCLEO
-    )
-
-
-def necesita_extensiones(m: Metricas) -> bool:
-    return (
-        m.score_mercado_publico is None
-        or m.score_sii is None
-        or m.score_cmf is None
-        or m.score_incidentes is None
-        or m.incidentes_razones is None
-    )
-
-
-def necesita_datalux(m: Metricas) -> bool:
-    return (
-        m.score_domicilio is None
-        or m.score_huella_digital is None
-        or m.score_persona_juridica is None
-    )
-
-
-def necesita_places(m: Metricas) -> bool:
-    return m.google_rating_avg is None
-
-
-def metricas_necesitan_escaneo(m: Metricas) -> bool:
-    return (
-        necesita_sonda_ciber(m)
-        or necesita_extensiones(m)
-        or necesita_places(m)
-        or necesita_datalux(m)
-    )
-
-
-def scores_desde_metricas(m: Metricas) -> dict[str, int]:
-    out: dict[str, int] = {}
-    for oid, attr in CAMPOS_SCORE_SONDA:
-        v = getattr(m, attr)
-        if v is not None:
-            out[oid] = int(v)
-    return out
-
-
-def volcar_scores_en_metricas(
-    metricas: Metricas,
-    scores: dict[str, int],
-    ahora: datetime,
-    *,
-    marcar_ciber: bool = True,
-) -> None:
-    for oid, attr in CAMPOS_SCORE_SONDA:
-        if oid in scores:
-            setattr(metricas, attr, float(scores[oid]))
-    if marcar_ciber:
-        metricas.ciber_escaneado_en = ahora
-
-
-def valores_desde_metricas(m: Metricas) -> dict[str, int]:
-    if m.ciber_escaneado_en is None and m.score_ssl_tls is None:
-        return {}
-
-    valores = {
-        oid: int(getattr(m, attr) if getattr(m, attr) is not None else 0)
-        for oid, attr in CAMPOS_SCORE_SONDA
-    }
-    valores["resenas-reclamos"] = score_resenas(
-        m.google_rating_avg, m.google_reviews_count or 0
-    )
-    valores["domicilio"] = int(
-        m.score_domicilio if m.score_domicilio is not None else SCORE_BASE
-    )
-    valores["huella-digital"] = int(
-        m.score_huella_digital if m.score_huella_digital is not None else SCORE_BASE
-    )
-    return valores
-
-
-def observables_desde_metricas(m: Metricas) -> list[ObservableCiber]:
-    valores = valores_desde_metricas(m)
-    if not valores:
-        return []
-
-    razones_inc = [str(x) for x in m.incidentes_razones or [] if str(x).strip()]
-    score_res = int(valores.get("resenas-reclamos", 0))
-    razones_res = razones_resenas(
-        ficha=getattr(m, "google_place_nombre", None),
-        google_rating_avg=m.google_rating_avg,
-        google_reviews_count=m.google_reviews_count or 0,
-        score=score_res,
-    )
-    docs_raz = (
-        m.docs_legales_razones if isinstance(m.docs_legales_razones, dict) else {}
-    )
-    datalux_raz = m.datalux_razones if isinstance(m.datalux_razones, dict) else {}
-
-    out: list[ObservableCiber] = []
-    for s in armar_observables(valores):
-        if s.id == "incidentes":
-            razones = razones_inc
-        elif s.id == "resenas-reclamos":
-            razones = razones_res
-        elif s.id in _IDS_DOCS:
-            raw = docs_raz.get(s.id)
-            razones = [str(x) for x in raw] if isinstance(raw, list) else []
-        elif s.id in _IDS_DATALUX:
-            raw = datalux_raz.get(s.id)
-            razones = [str(x) for x in raw] if isinstance(raw, list) else []
-        else:
-            razones = []
-        out.append(
-            ObservableCiber(
-                id=s.id,
-                etiqueta=s.etiqueta,
-                detalle=s.detalle,
-                score=s.score,
-                peso=s.peso,
-                grupo=s.grupo,
-                razones=razones,
-            )
-        )
-    return out
+def observables_mock() -> list[ObservableCiber]:
+    return list(_OBSERVABLES_MOCK)

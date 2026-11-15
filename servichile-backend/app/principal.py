@@ -4,6 +4,8 @@ from fastapi import FastAPI
 
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.middleware.gzip import GZipMiddleware
+
 from app.api.v1 import autenticacion, negocios, perfil, reporte, reservas
 
 from app.configuracion import get_settings
@@ -24,6 +26,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=800)
 
 app.include_router(autenticacion.router)
 

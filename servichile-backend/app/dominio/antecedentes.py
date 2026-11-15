@@ -211,12 +211,10 @@ def _nombre_coherente(nombre: str | None, folio: str | None, run: str | None) ->
 
 
 def validar_certificado_antecedentes(
-    pdf_bytes: bytes,
     *,
     nombre_archivo: str | None = None,
     meta_creation: datetime | None = None,
     producer: str | None = None,
-    encrypted: bool = False,
     num_paginas: int = 0,
     texto: str = "",
 ) -> ResultadoAntecedentes:
@@ -226,40 +224,6 @@ def validar_certificado_antecedentes(
     score = 0
 
     faltantes: list[str] = []
-
-    if not pdf_bytes.startswith(b"%PDF"):
-
-        return ResultadoAntecedentes(
-            False,
-            0,
-            None,
-            None,
-            None,
-            None,
-            ("no-pdf",),
-            "El archivo no es un PDF válido.",
-        )
-
-    score += 5
-
-    senales.append("pdf-header")
-
-    if encrypted:
-
-        return ResultadoAntecedentes(
-            False,
-            score,
-            None,
-            None,
-            None,
-            None,
-            tuple(senales + ["cifrado"]),
-            "El PDF está cifrado y no se puede validar.",
-        )
-
-    score += 5
-
-    senales.append("sin-cifrado")
 
     if num_paginas != 1:
 

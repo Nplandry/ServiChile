@@ -317,12 +317,23 @@ class Reserva(Base):
 @lru_cache
 def get_engine() -> Engine:
 
-    return create_engine(get_settings().database_url, pool_pre_ping=True)
+    return create_engine(
+        get_settings().database_url,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
+
+
+@lru_cache
+def get_sessionmaker() -> sessionmaker[Session]:
+
+    return sessionmaker(bind=get_engine(), expire_on_commit=False)
 
 
 def get_session() -> Iterator[Session]:
 
-    session = sessionmaker(bind=get_engine(), expire_on_commit=False)()
+    session = get_sessionmaker()()
 
     try:
 

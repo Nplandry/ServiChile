@@ -24,7 +24,6 @@ from app.dominio.pasaporte import (
 
 from app.dominio.puertos import (
     AnalizadorAntecedentes,
-    NuloAnalizadorAntecedentes,
     RepositorioReservas,
     RepositorioUsuarios,
     VerificadorIdentidad,
@@ -66,7 +65,7 @@ class PasaporteService:
 
         self.xp = xp
 
-        self.analizador = analizador or NuloAnalizadorAntecedentes()
+        self.analizador = analizador
 
     def estado(self, usuario: Usuario) -> EstadoPasaporte:
 
@@ -183,6 +182,10 @@ class PasaporteService:
     def procesar_antecedentes(
         self, usuario: Usuario, contenido: bytes, nombre_archivo: str | None = None
     ) -> tuple[Usuario, ResultadoAntecedentes]:
+
+        if self.analizador is None:
+
+            raise AntecedentesInvalido("Analizador de antecedentes no disponible.")
 
         if len(contenido) > ANTECEDENTES_MAX_BYTES:
 

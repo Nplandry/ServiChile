@@ -54,19 +54,13 @@ def listar_reservas(usuario: CurrentUserDep, servicio: ReservaServiceDep):
 def cancelar_reserva(
     reserva_id: uuid.UUID, usuario: CurrentUserDep, servicio: ReservaServiceDep
 ):
-
     try:
-
         return servicio.cancelar(usuario.id, reserva_id)
-
     except ReservaNoEncontrada:
-
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, "Reserva no encontrada."
         ) from None
-
     except ReservaYaCerrada:
-
         raise HTTPException(
             status.HTTP_409_CONFLICT, "La reserva ya no está activa."
         ) from None

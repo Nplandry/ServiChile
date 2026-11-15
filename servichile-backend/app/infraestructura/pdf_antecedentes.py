@@ -37,9 +37,27 @@ def _parse_pdf_date(raw: str | None) -> datetime | None:
         return None
 
 
+def _rechazo(motivo: str, *senales: str) -> ResultadoAntecedentes:
+
+    return ResultadoAntecedentes(
+        aceptado=False,
+        score=0,
+        anotaciones=None,
+        folio=None,
+        codigo=None,
+        run=None,
+        senales=senales,
+        motivo=motivo,
+    )
+
+
 def analizar_pdf_antecedentes(
     pdf_bytes: bytes, nombre_archivo: str | None = None
 ) -> ResultadoAntecedentes:
+
+    if not pdf_bytes.startswith(b"%PDF"):
+
+        return _rechazo("El archivo no es un PDF válido.", "no-pdf")
 
     try:
 
@@ -49,31 +67,21 @@ def analizar_pdf_antecedentes(
 
     except (PdfReadError, Exception):
 
-        return validar_certificado_antecedentes(
-            pdf_bytes,
-            nombre_archivo=nombre_archivo,
-            encrypted=False,
-            num_paginas=0,
-            texto="",
-        )
+        return _rechazo("El PDF no se pudo leer.", "no-pdf")
 
-    encrypted = bool(reader.is_encrypted)
-
-    if encrypted:
+    if reader.is_encrypted:
 
         try:
 
-            reader.decrypt("")
+            abierto = reader.decrypt("")
 
         except Exception:
 
-            return validar_certificado_antecedentes(
-                pdf_bytes,
-                nombre_archivo=nombre_archivo,
-                encrypted=True,
-                num_paginas=0,
-                texto="",
-            )
+            abierto = 0
+
+        if not abierto:
+
+            return _rechazo("El PDF está cifrado y no se puede validar.", "cifrado")
 
     meta = reader.metadata
 
@@ -112,11 +120,9 @@ def analizar_pdf_antecedentes(
             continue
 
     return validar_certificado_antecedentes(
-        pdf_bytes,
         nombre_archivo=nombre_archivo,
         meta_creation=creation,
         producer=str(producer) if producer else None,
-        encrypted=False,
         num_paginas=len(reader.pages),
         texto="\n".join(textos),
     )
