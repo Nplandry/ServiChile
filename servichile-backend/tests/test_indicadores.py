@@ -1,6 +1,6 @@
 import uuid
 
-from app.domain.transparencia.indicadores import (
+from app.dominio.transparencia.indicadores import (
     HallazgosBlacklist,
     HallazgosCookies,
     HallazgosDnssec,
@@ -27,7 +27,7 @@ from app.domain.transparencia.indicadores import (
     score_whois,
 )
 
-from app.infrastructure.ciber_sonda import FakeCiberSonda
+from app.infraestructura.ciber.sonda import MuestraCiberSonda
 
 IDS_SONDA = {
     "ssl-tls",
@@ -168,9 +168,9 @@ def test_score_cookies_sin_senales_ni_404_no_castiga():
     )
 
 
-def test_fake_sonda_sin_url_usa_perfil_demo():
+def test_muestra_sonda_sin_url_usa_perfil():
 
-    res = FakeCiberSonda().escanear(None)
+    res = MuestraCiberSonda().escanear(None)
 
     por_id = {o.id: o.score for o in res.observables}
 
@@ -312,27 +312,27 @@ def test_mercado_sii_y_cmf_reales_con_rut(client, token_empresa):
         get_sii_contribuyentes,
     )
 
-    from app.infrastructure.chilecompra import FakeChileCompra
+    from app.infraestructura.chilecompra import MuestraChileCompra
 
-    from app.infrastructure.cmf.indice import FakeCmfIndice
+    from app.infraestructura.cmf.indice import MuestraCmfIndice
 
-    from app.infrastructure.escaner_incidentes import FakeIncidentesScanner
+    from app.infraestructura.busqueda.escaner import MuestraIncidentesScanner
 
-    from app.infrastructure.lugares_google import FakePlacesGoogle
+    from app.infraestructura.lugares_google import MuestraPlacesGoogle
 
-    from app.infrastructure.sii import FakeSiiContribuyentes
+    from app.infraestructura.sii import MuestraSiiContribuyentes
 
     from app.principal import app
 
-    app.dependency_overrides[get_chilecompra] = lambda: FakeChileCompra()
+    app.dependency_overrides[get_chilecompra] = lambda: MuestraChileCompra()
 
-    app.dependency_overrides[get_sii_contribuyentes] = lambda: FakeSiiContribuyentes()
+    app.dependency_overrides[get_sii_contribuyentes] = lambda: MuestraSiiContribuyentes()
 
-    app.dependency_overrides[get_cmf_indice] = lambda: FakeCmfIndice()
+    app.dependency_overrides[get_cmf_indice] = lambda: MuestraCmfIndice()
 
-    app.dependency_overrides[get_incidentes_scanner] = lambda: FakeIncidentesScanner()
+    app.dependency_overrides[get_incidentes_scanner] = lambda: MuestraIncidentesScanner()
 
-    app.dependency_overrides[get_places_google] = lambda: FakePlacesGoogle()
+    app.dependency_overrides[get_places_google] = lambda: MuestraPlacesGoogle()
 
     try:
 

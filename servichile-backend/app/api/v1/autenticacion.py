@@ -14,7 +14,7 @@ from app.api.mapeos import to_usuario_out
 
 from app.api.esquemas import EliminarCuentaIn, LoginIn, RegistroIn, TokenOut, UsuarioOut
 
-from app.domain.errores import (
+from app.dominio.errores import (
     ContrasenaIncorrecta,
     CredencialesInvalidas,
     EmailYaRegistrado,

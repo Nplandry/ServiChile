@@ -27,29 +27,29 @@ class Settings(BaseSettings):
 
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5500"]
 
-    ciber_sonda: Literal["fake", "live"] = "fake"
+    ciber_sonda: Literal["muestra", "produccion"] = "muestra"
 
     chilecompra_ticket: SecretStr | None = None
 
-    chilecompra_mode: Literal["auto", "fake", "live", "off"] = "auto"
+    chilecompra_mode: Literal["automatico", "muestra", "produccion", "apagado"] = "automatico"
 
     apigateway_token: SecretStr | None = None
 
-    sii_mode: Literal["auto", "fake", "live", "off"] = "auto"
+    sii_mode: Literal["automatico", "muestra", "produccion", "apagado"] = "automatico"
 
     cmf_api_key: SecretStr | None = None
 
-    cmf_mode: Literal["auto", "fake", "live", "off"] = "auto"
+    cmf_mode: Literal["automatico", "muestra", "produccion", "apagado"] = "automatico"
 
-    incidentes_mode: Literal["auto", "fake", "live", "off"] = "auto"
+    incidentes_mode: Literal["automatico", "muestra", "produccion", "apagado"] = "automatico"
 
     tavily_api_key: SecretStr | None = None
 
     google_places_api_key: SecretStr | None = None
 
-    places_mode: Literal["auto", "fake", "live", "off"] = "auto"
+    places_mode: Literal["automatico", "muestra", "produccion", "apagado"] = "automatico"
 
-    rut_verifier: Literal["fake"] = "fake"
+    rut_verifier: Literal["muestra"] = "muestra"
 
     redis_url: str | None = None
 

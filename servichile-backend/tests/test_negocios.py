@@ -2,9 +2,9 @@ import uuid
 
 from fastapi.testclient import TestClient
 
-from app.domain.transparencia.reputacion import EntradaScore, calcular_indice
+from app.dominio.transparencia.reputacion import EntradaScore, calcular_indice
 
-from app.infrastructure.persistencia.modelos import BusinessEntity, BusinessReputationMetrics
+from app.infraestructura.persistencia.modelos import BusinessEntity, BusinessReputationMetrics
 
 
 def test_indice_en_rango_1_a_10():

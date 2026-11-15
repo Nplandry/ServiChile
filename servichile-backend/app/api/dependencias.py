@@ -17,11 +17,14 @@ from sqlalchemy.orm import Session
 
 from app.configuracion import Settings, get_settings
 
-from app.domain.entidades import Usuario
+from app.dominio.entidades import Usuario
 
-from app.domain.errores import CredencialesInvalidas
+from app.dominio.errores import CredencialesInvalidas
 
-from app.domain.puertos import (
+from app.dominio.puertos import (
+    EmisorReporte,
+    EmisorSesion,
+    HasherContrasena,
     ProveedorCmf,
     ProveedorIncidentes,
     ProveedorMercadoPublico,
@@ -31,48 +34,54 @@ from app.domain.puertos import (
     VerificadorIdentidad,
 )
 
-from app.infrastructure.pdf_antecedentes import AnalizadorPdfAntecedentes
+from app.infraestructura.pdf_antecedentes import AnalizadorPdfAntecedentes
 
-from app.infrastructure.chilecompra import build_chilecompra
+from app.infraestructura.chilecompra import build_chilecompra
 
-from app.infrastructure.ciber_sonda import build_ciber_sonda
+from app.infraestructura.ciber.sonda import build_ciber_sonda
 
-from app.infrastructure.cmf.indice import build_cmf_indice
+from app.infraestructura.cmf.indice import build_cmf_indice
 
-from app.infrastructure.cmf.repositorio import CmfInstitucionRepository
+from app.infraestructura.cmf.repositorio import CmfInstitucionRepository
 
-from app.infrastructure.escaner_incidentes import build_incidentes_scanner
+from app.infraestructura.busqueda.escaner import build_incidentes_scanner
 
-from app.infrastructure.lugares_google import build_places_google
+from app.infraestructura.lugares_google import build_places_google
 
-from app.infrastructure.sii import build_sii_contribuyentes
+from app.infraestructura.sii import build_sii_contribuyentes
 
-from app.infrastructure.persistencia.modelos import get_session
+from app.infraestructura.persistencia.modelos import get_session
 
-from app.infrastructure.limite_solicitudes import RateLimiter, build_rate_limiter
+from app.infraestructura.limite_solicitudes import RateLimiter, build_rate_limiter
 
-from app.infrastructure.persistencia.repositorios import (
+from app.infraestructura.persistencia.repositorios import (
     NegocioRepository,
     ReservaRepository,
     UsuarioRepository,
     XpRepository,
 )
 
-from app.infrastructure.verificacion import build_verificador_rut
+from app.infraestructura.seguridad.hasher import HasherArgon2
 
-from app.services.autenticacion import AuthService
+from app.infraestructura.seguridad.jwt_reporte import JwtReporte
 
-from app.services.cuenta import CuentaService
+from app.infraestructura.seguridad.jwt_sesion import JwtSesion
 
-from app.services.negocio import NegocioService
+from app.infraestructura.verificacion import build_verificador_rut
 
-from app.services.pasaporte import PasaporteService
+from app.servicios.autenticacion import AuthService
 
-from app.services.reporte import ReporteService
+from app.servicios.cuenta import CuentaService
 
-from app.services.reserva import ReservaService
+from app.servicios.negocio import NegocioService
 
-from app.services.progreso_cliente import XpService
+from app.servicios.pasaporte import PasaporteService
+
+from app.servicios.reporte import ReporteService
+
+from app.servicios.reserva import ReservaService
+
+from app.servicios.progreso_cliente import XpService
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -90,9 +99,41 @@ def get_xp_service(session: SessionDep) -> XpService:
     return XpService(XpRepository(session))
 
 
-def get_auth_service(session: SessionDep, settings: SettingsDep) -> AuthService:
+@lru_cache
+def get_hasher() -> HasherContrasena:
 
-    return AuthService(UsuarioRepository(session), settings, get_xp_service(session))
+    return HasherArgon2()
+
+
+@lru_cache
+def get_emisor_sesion() -> EmisorSesion:
+
+    settings = get_settings()
+
+    return JwtSesion(
+        settings.jwt_secret.get_secret_value(), settings.jwt_expires_minutes
+    )
+
+
+@lru_cache
+def get_emisor_reporte() -> EmisorReporte:
+
+    settings = get_settings()
+
+    return JwtReporte(
+        settings.jwt_secret.get_secret_value(), settings.reporte_expires_minutes
+    )
+
+
+def get_auth_service(
+    session: SessionDep,
+    hasher: Annotated[HasherContrasena, Depends(get_hasher)],
+    sesion: Annotated[EmisorSesion, Depends(get_emisor_sesion)],
+) -> AuthService:
+
+    return AuthService(
+        UsuarioRepository(session), hasher, sesion, get_xp_service(session)
+    )
 
 
 def get_verificador_rut() -> VerificadorIdentidad:
@@ -123,17 +164,17 @@ def get_reserva_service(session: SessionDep) -> ReservaService:
 
 def get_reporte_service(
     session: SessionDep,
-    settings: SettingsDep,
     pasaporte: Annotated[PasaporteService, Depends(get_pasaporte_service)],
+    emisor: Annotated[EmisorReporte, Depends(get_emisor_reporte)],
 ) -> ReporteService:
 
-    return ReporteService(UsuarioRepository(session), pasaporte, settings)
+    return ReporteService(UsuarioRepository(session), pasaporte, emisor)
 
 
 @lru_cache
 def get_ciber_sonda() -> SondaCiber:
 
-    from app.infrastructure.busqueda_web import build_buscador
+    from app.infraestructura.busqueda.web import build_buscador
 
     settings = get_settings()
 
@@ -160,19 +201,19 @@ def get_chilecompra() -> ProveedorMercadoPublico:
         else None
     )
 
-    if mode == "off":
+    if mode == "apagado":
 
         return build_chilecompra(None)
 
-    if mode == "fake":
+    if mode == "muestra":
 
-        return build_chilecompra(ticket, fake=True)
+        return build_chilecompra(ticket, muestra=True)
 
-    if mode == "live":
+    if mode == "produccion":
 
         return build_chilecompra(ticket)
 
-    return build_chilecompra(ticket, fake=False)
+    return build_chilecompra(ticket, muestra=False)
 
 
 def get_sii_contribuyentes() -> ProveedorSii:
@@ -187,19 +228,19 @@ def get_sii_contribuyentes() -> ProveedorSii:
         else None
     )
 
-    if mode == "off":
+    if mode == "apagado":
 
         return build_sii_contribuyentes(None)
 
-    if mode == "fake":
+    if mode == "muestra":
 
-        return build_sii_contribuyentes(token, fake=True)
+        return build_sii_contribuyentes(token, muestra=True)
 
-    if mode == "live":
+    if mode == "produccion":
 
         return build_sii_contribuyentes(token)
 
-    return build_sii_contribuyentes(token, fake=False)
+    return build_sii_contribuyentes(token, muestra=False)
 
 
 def get_cmf_indice(session: SessionDep) -> ProveedorCmf:
@@ -212,15 +253,15 @@ def get_cmf_indice(session: SessionDep) -> ProveedorCmf:
         settings.cmf_api_key.get_secret_value().strip() if settings.cmf_api_key else ""
     )
 
-    if mode == "auto":
+    if mode == "automatico":
 
-        mode = "live" if key else "off"
+        mode = "produccion" if key else "apagado"
 
-    if mode in ("off", "fake"):
+    if mode in ("apagado", "muestra"):
 
         return build_cmf_indice(None, mode=mode)
 
-    return build_cmf_indice(CmfInstitucionRepository(session), mode="live")
+    return build_cmf_indice(CmfInstitucionRepository(session), mode="produccion")
 
 
 def get_incidentes_scanner() -> ProveedorIncidentes:
@@ -235,9 +276,9 @@ def get_incidentes_scanner() -> ProveedorIncidentes:
         else ""
     )
 
-    if mode == "auto":
+    if mode == "automatico":
 
-        mode = "live" if tavily else "off"
+        mode = "produccion" if tavily else "apagado"
 
     return build_incidentes_scanner(mode=mode, tavily_key=tavily or None)
 
@@ -254,19 +295,19 @@ def get_places_google() -> ProveedorPlaces:
         else ""
     )
 
-    if mode == "off":
+    if mode == "apagado":
 
         return build_places_google(None)
 
-    if mode == "fake":
+    if mode == "muestra":
 
-        return build_places_google(key, fake=True)
+        return build_places_google(key, muestra=True)
 
-    if mode == "live":
+    if mode == "produccion":
 
         return build_places_google(key)
 
-    return build_places_google(key, fake=False)
+    return build_places_google(key, muestra=False)
 
 
 def get_negocio_service(
@@ -294,9 +335,10 @@ def get_negocio_service(
 def get_cuenta_service(
     session: SessionDep,
     negocios: Annotated[NegocioService, Depends(get_negocio_service)],
+    hasher: Annotated[HasherContrasena, Depends(get_hasher)],
 ) -> CuentaService:
 
-    return CuentaService(UsuarioRepository(session), negocios)
+    return CuentaService(UsuarioRepository(session), negocios, hasher)
 
 
 PasaporteServiceDep = Annotated[PasaporteService, Depends(get_pasaporte_service)]

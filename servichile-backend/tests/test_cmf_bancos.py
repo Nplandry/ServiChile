@@ -1,11 +1,11 @@
-from app.domain.transparencia.cmf import (
+from app.dominio.transparencia.cmf import (
     HallazgosCmf,
     InstitucionCmf,
     hallazgos_desde_institucion,
     score_cmf,
 )
 
-from app.infrastructure.cmf.indice import FakeCmfIndice, NullCmfIndice
+from app.infraestructura.cmf.indice import MuestraCmfIndice, NullCmfIndice
 
 
 def test_score_sin_rut_o_indice_cero():
@@ -65,10 +65,10 @@ def test_score_ficha_incompleta_80():
     assert score_cmf(h) == 80
 
 
-def test_null_y_fake():
+def test_nulo_y_muestra():
 
     assert NullCmfIndice().score_para_rut("97.004.000-5") == 0
 
-    assert FakeCmfIndice().score_para_rut(None) == 0
+    assert MuestraCmfIndice().score_para_rut(None) == 0
 
-    assert FakeCmfIndice().score_para_rut("97004000-5") == 100
+    assert MuestraCmfIndice().score_para_rut("97004000-5") == 100

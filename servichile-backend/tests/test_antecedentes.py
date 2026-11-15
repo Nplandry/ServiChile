@@ -2,11 +2,11 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app.domain import progreso_cliente as reglas
+from app.dominio import progreso_cliente as reglas
 
-from app.domain.antecedentes import detectar_anotaciones, run_valido
+from app.dominio.antecedentes import detectar_anotaciones, run_valido
 
-from app.infrastructure.pdf_antecedentes import analizar_pdf_antecedentes
+from app.infraestructura.pdf_antecedentes import analizar_pdf_antecedentes
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ANT_500727268737_21082350.pdf"
 
@@ -76,7 +76,7 @@ def test_pdf_de_clase_o_apuntes_se_rechaza():
 
     basura = buf.getvalue()
 
-    from app.domain.antecedentes import validar_certificado_antecedentes
+    from app.dominio.antecedentes import validar_certificado_antecedentes
 
     r = validar_certificado_antecedentes(
         b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF",

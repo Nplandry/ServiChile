@@ -6,7 +6,7 @@ from app.api.dependencias import CurrentUserDep, PasaporteServiceDep, ReservaSer
 
 from app.api.esquemas import ReservaIn, ReservaOut
 
-from app.domain.errores import (
+from app.dominio.errores import (
     NegocioNoEncontrado,
     NivelInsuficiente,
     ReservaNoEncontrada,

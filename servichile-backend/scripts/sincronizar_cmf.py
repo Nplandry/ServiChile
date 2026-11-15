@@ -12,13 +12,13 @@ if str(ROOT) not in sys.path:
 
 from app.configuracion import get_settings
 
-from app.infrastructure.cmf.cliente import CmfApiCliente
+from app.infraestructura.cmf.cliente import CmfApiCliente
 
-from app.infrastructure.cmf.repositorio import CmfInstitucionRepository
+from app.infraestructura.cmf.repositorio import CmfInstitucionRepository
 
-from app.infrastructure.persistencia.modelos import get_engine
+from app.infraestructura.persistencia.modelos import get_engine
 
-from app.services.sincronizacion_cmf import CmfSyncService
+from app.servicios.sincronizacion_cmf import CmfSyncService
 
 from sqlalchemy.orm import sessionmaker
 

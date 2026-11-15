@@ -1,10 +1,10 @@
-from app.domain.transparencia.mercado_publico import (
+from app.dominio.transparencia.mercado_publico import (
     HallazgosMercadoPublico,
     formato_rut_chilecompra,
     score_mercado_publico,
 )
 
-from app.infrastructure.chilecompra import FakeChileCompra, NullChileCompra
+from app.infraestructura.chilecompra import MuestraChileCompra, NullChileCompra
 
 
 def test_formato_rut_con_puntos():
@@ -36,10 +36,10 @@ def test_score_proveedor_con_oc():
     )
 
 
-def test_null_y_fake_clientes():
+def test_nulo_y_muestra_clientes():
 
     assert NullChileCompra().score_para_rut("76.543.210-K") == 0
 
-    assert FakeChileCompra().score_para_rut("76.543.210-K") == 100
+    assert MuestraChileCompra().score_para_rut("76.543.210-K") == 100
 
-    assert FakeChileCompra().score_para_rut(None) == 0
+    assert MuestraChileCompra().score_para_rut(None) == 0

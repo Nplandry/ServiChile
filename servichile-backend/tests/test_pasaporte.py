@@ -1,6 +1,6 @@
 import pytest
 
-from app.domain.pasaporte import (
+from app.dominio.pasaporte import (
     RutInvalido,
     dv_rut,
     estado_pasaporte,

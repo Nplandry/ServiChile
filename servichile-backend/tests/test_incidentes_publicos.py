@@ -1,4 +1,4 @@
-from app.domain.transparencia.incidentes import (
+from app.dominio.transparencia.incidentes import (
     HallazgosIncidentes,
     SnippetBusqueda,
     armar_consultas,
@@ -6,13 +6,13 @@ from app.domain.transparencia.incidentes import (
     score_incidentes,
 )
 
-from app.infrastructure.escaner_incidentes import (
-    FakeIncidentesScanner,
-    LiveIncidentesScanner,
+from app.infraestructura.busqueda.escaner import (
+    MuestraIncidentesScanner,
+    ProduccionIncidentesScanner,
     NullIncidentesScanner,
 )
 
-from app.infrastructure.filtro_incidentes import HeuristicoFiltroIncidentes
+from app.infraestructura.busqueda.filtro import HeuristicoFiltroIncidentes
 
 
 def test_score_sin_nombre_o_busqueda_cero():
@@ -71,7 +71,7 @@ def test_score_con_confirmados():
 
 def test_razones_breves_lista_titulos():
 
-    from app.domain.transparencia.incidentes import razones_breves
+    from app.dominio.transparencia.incidentes import razones_breves
 
     h = HallazgosIncidentes(
         nombre_consultable=True, busqueda_ok=True, confirmados=1, severos=1
@@ -165,13 +165,13 @@ def test_filtrar_rechaza_basura_y_energy_sector():
     assert "Conadecus" in ok[0].titulo
 
 
-def test_null_y_fake():
+def test_nulo_y_muestra():
 
     assert NullIncidentesScanner().score_para_nombre("Acme") == 0
 
-    assert FakeIncidentesScanner().score_para_nombre("") == 0
+    assert MuestraIncidentesScanner().score_para_nombre("") == 0
 
-    assert FakeIncidentesScanner().score_para_nombre("Acme SpA") == 100
+    assert MuestraIncidentesScanner().score_para_nombre("Acme SpA") == 100
 
 
 class _BuscadorFijo:
@@ -187,16 +187,16 @@ class _BuscadorFijo:
         return self.hits[:max_resultados]
 
 
-def test_live_scanner_sin_hits_da_100():
+def test_produccion_scanner_sin_hits_da_100():
 
-    scanner = LiveIncidentesScanner(
+    scanner = ProduccionIncidentesScanner(
         _BuscadorFijo([]), HeuristicoFiltroIncidentes(), max_queries=2
     )
 
     assert scanner.score_para_nombre("Demo SpA") == 100
 
 
-def test_live_scanner_con_hit_confirmado():
+def test_produccion_scanner_con_hit_confirmado():
 
     hits = [
         SnippetBusqueda(
@@ -206,7 +206,7 @@ def test_live_scanner_con_hit_confirmado():
         )
     ]
 
-    scanner = LiveIncidentesScanner(
+    scanner = ProduccionIncidentesScanner(
         _BuscadorFijo(hits), HeuristicoFiltroIncidentes(), max_queries=1
     )
 

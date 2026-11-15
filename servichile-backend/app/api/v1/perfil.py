@@ -15,9 +15,9 @@ from app.api.mapeos import to_perfil_out
 
 from app.api.esquemas import AntecedentesOut, BiometriaOut, PerfilIn, PerfilOut
 
-from app.domain.antecedentes import ANTECEDENTES_MAX_BYTES
+from app.dominio.antecedentes import ANTECEDENTES_MAX_BYTES
 
-from app.domain.errores import (
+from app.dominio.errores import (
     AntecedentesInvalido,
     AntecedentesMuyGrande,
     BiometriaInvalida,
@@ -27,7 +27,7 @@ from app.domain.errores import (
     RutYaVerificado,
 )
 
-from app.services.pasaporte import BIOMETRIA_MAX_BYTES
+from app.servicios.pasaporte import BIOMETRIA_MAX_BYTES
 
 router = APIRouter(prefix="/v1/perfil", tags=["Perfil"])
 
