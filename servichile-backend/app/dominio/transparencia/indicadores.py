@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import math
 
-import re
-
 from dataclasses import dataclass
 
 PESO_CIBER = "3.0%"
@@ -11,6 +9,8 @@ PESO_CIBER = "3.0%"
 PESO_OPERATIVA = "4.0%"
 
 PESO_CONTRACTUAL = "4.0%"
+
+PESO_DATALUX = "2.0%"
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,7 @@ OBSERVABLES_SONDA = (
     ),
     DefinicionObservable(
         id="stack-vulnerable",
-        etiqueta="Tecnologías web obsoletas o vulnerables (CVEs abiertos)",
+        etiqueta="Tecnologías web obsoletas o vulnerables",
         detalle="",
         grupo="ciber",
         peso=PESO_CIBER,
@@ -79,7 +79,7 @@ OBSERVABLES_SONDA = (
     ),
     DefinicionObservable(
         id="subdominios",
-        etiqueta="Seguridad en subdominios expuestos (Shadow IT)",
+        etiqueta="Seguridad en subdominios expuestos",
         detalle="",
         grupo="ciber",
         peso=PESO_CIBER,
@@ -93,7 +93,7 @@ OBSERVABLES_SONDA = (
     ),
     DefinicionObservable(
         id="uptime",
-        etiqueta="Continuidad operativa y estabilidad de infraestructura (uptime)",
+        etiqueta="Continuidad operativa y estabilidad de infraestructura",
         detalle="",
         grupo="operativa",
         peso=PESO_OPERATIVA,
@@ -115,109 +115,98 @@ OBSERVABLE_RESENAS = DefinicionObservable(
     peso=PESO_OPERATIVA,
 )
 
+OBSERVABLE_MERCADO_PUBLICO = DefinicionObservable(
+    id="mercado-publico",
+    etiqueta="Historial y penalidades en compras públicas / Estado",
+    detalle="",
+    grupo="legal",
+    peso=PESO_CIBER,
+)
 
-@dataclass(frozen=True)
-class HallazgosSsl:
+OBSERVABLE_SII = DefinicionObservable(
+    id="sii",
+    etiqueta="Situación tributaria, cumplimiento y facturación electrónica",
+    detalle="",
+    grupo="legal",
+    peso=PESO_CIBER,
+)
 
-    https_ok: bool = False
+OBSERVABLE_CMF = DefinicionObservable(
+    id="cmf",
+    etiqueta="Supervisión CMF Bancos",
+    detalle="",
+    grupo="legal",
+    peso=PESO_CIBER,
+)
 
-    cert_vigente: bool = False
+OBSERVABLE_INCIDENTES = DefinicionObservable(
+    id="incidentes",
+    etiqueta="Historial de incidentes físicos, brechas o escándalos públicos",
+    detalle="",
+    grupo="operativa",
+    peso=PESO_OPERATIVA,
+)
 
-    no_autofirmado: bool = False
+OBSERVABLE_PRIVACIDAD = DefinicionObservable(
+    id="politica-privacidad",
+    etiqueta="Política de Privacidad accesible e información acerca de la Ley 21.719",
+    detalle="",
+    grupo="contractual",
+    peso=PESO_CONTRACTUAL,
+)
 
-    tls_moderno: bool = False
+OBSERVABLE_TERMINOS = DefinicionObservable(
+    id="terminos",
+    etiqueta="Términos y Condiciones públicos de la oferta comercial",
+    detalle="",
+    grupo="contractual",
+    peso=PESO_CONTRACTUAL,
+)
 
+OBSERVABLE_SLA = DefinicionObservable(
+    id="sla",
+    etiqueta="Cláusulas de servicio, SLA y DPA",
+    detalle="",
+    grupo="contractual",
+    peso=PESO_CONTRACTUAL,
+)
 
-@dataclass(frozen=True)
-class HallazgosHeaders:
+OBSERVABLES_DATALUX = (
+    DefinicionObservable(
+        id="persona-juridica",
+        etiqueta="Vigencia y estado de la persona jurídica",
+        detalle="",
+        grupo="legal",
+        peso=PESO_CIBER,
+    ),
+    DefinicionObservable(
+        id="domicilio",
+        etiqueta="Verificación de domicilio operativo real y oficinas",
+        detalle="",
+        grupo="operativa",
+        peso=PESO_DATALUX,
+    ),
+    DefinicionObservable(
+        id="huella-digital",
+        etiqueta="Coherencia y solidez de huella digital y reputación corporativa",
+        detalle="",
+        grupo="operativa",
+        peso=PESO_DATALUX,
+    ),
+)
 
-    hsts: bool = False
-
-    csp: bool = False
-
-    x_frame_options: bool = False
-
-    x_content_type_options: bool = False
-
-
-@dataclass(frozen=True)
-class HallazgosEmailAuth:
-
-    spf: bool = False
-
-    dkim: bool = False
-
-    dmarc: bool = False
-
-
-@dataclass(frozen=True)
-class HallazgosPuertos:
-
-    abiertos: tuple[int, ...] = ()
-
-
-@dataclass(frozen=True)
-class HallazgosStack:
-
-    server_header: str | None = None
-
-    powered_by: str | None = None
-
-
-@dataclass(frozen=True)
-class HallazgosBlacklist:
-
-    marcado_malware: bool = False
-
-    marcado_phishing: bool = False
-
-    marcado_spam: bool = False
-
-
-@dataclass(frozen=True)
-class HallazgosDnssec:
-
-    tiene_ns: bool = False
-
-    tiene_ds_o_dnskey: bool = False
-
-    ns_count: int = 0
-
-
-@dataclass(frozen=True)
-class HallazgosSubdominios:
-
-    expuestos: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class HallazgosWhois:
-
-    edad_anios: float | None = None
-
-    dns_configurado: bool = False
-
-    renovacion_vigente: bool = False
-
-
-@dataclass(frozen=True)
-class HallazgosUptime:
-
-    responde: bool = False
-
-    status_ok: bool = False
-
-
-@dataclass(frozen=True)
-class HallazgosCookies:
-
-    banner_detectado: bool = False
-
-    script_cmp: bool = False
-
-    opcion_rechazar: bool = False
-
-    html_obtenido: bool = False
+_CATALOGO_OBSERVABLES = (
+    *OBSERVABLES_SONDA,
+    OBSERVABLE_MERCADO_PUBLICO,
+    OBSERVABLE_SII,
+    OBSERVABLE_CMF,
+    OBSERVABLE_INCIDENTES,
+    OBSERVABLE_RESENAS,
+    OBSERVABLE_PRIVACIDAD,
+    OBSERVABLE_TERMINOS,
+    OBSERVABLE_SLA,
+    *OBSERVABLES_DATALUX,
+)
 
 
 @dataclass(frozen=True)
@@ -239,351 +228,6 @@ class ObservableScore:
 def _clamp_score(valor: float) -> int:
 
     return int(max(0, min(100, round(valor))))
-
-
-def score_ssl_tls(h: HallazgosSsl) -> int:
-
-    total = 0.0
-
-    if h.https_ok:
-
-        total += 40
-
-    if h.cert_vigente:
-
-        total += 25
-
-    if h.no_autofirmado:
-
-        total += 20
-
-    if h.tls_moderno:
-
-        total += 15
-
-    return _clamp_score(total)
-
-
-def score_headers_http(h: HallazgosHeaders) -> int:
-
-    total = 0.0
-
-    if h.hsts:
-
-        total += 25
-
-    if h.csp:
-
-        total += 25
-
-    if h.x_frame_options:
-
-        total += 25
-
-    if h.x_content_type_options:
-
-        total += 25
-
-    return _clamp_score(total)
-
-
-def score_email_auth(h: HallazgosEmailAuth) -> int:
-
-    total = 0.0
-
-    if h.spf:
-
-        total += 40
-
-    if h.dmarc:
-
-        total += 40
-
-    if h.dkim:
-
-        total += 20
-
-    return _clamp_score(total)
-
-
-PUERTOS_CRITICOS = (22, 23, 445, 3389, 3306, 5432, 27017, 6379, 9200)
-
-
-def score_puertos(h: HallazgosPuertos) -> int:
-
-    total = 100.0 - 18.0 * len(set(h.abiertos))
-
-    return _clamp_score(max(10.0, total))
-
-
-def score_stack_vulnerable(h: HallazgosStack) -> int:
-
-    total = 85.0
-
-    blob = f"{h.server_header or ''} {h.powered_by or ''}".lower()
-
-    if not blob.strip():
-
-        return 70
-
-    riesgos = (
-        ("php/5", 35),
-        ("php/7.0", 25),
-        ("php/7.1", 20),
-        ("apache/2.2", 30),
-        ("iis/7", 25),
-        ("iis/8.0", 15),
-        ("openssl/1.0", 30),
-        ("asp.net", 5),
-        ("wordpress", 10),
-        ("nginx/1.1", 15),
-    )
-
-    for marca, resta in riesgos:
-
-        if marca in blob:
-
-            total -= resta
-
-    if "nginx" in blob or "cloudflare" in blob:
-
-        total += 5
-
-    return _clamp_score(total)
-
-
-def score_blacklist(h: HallazgosBlacklist) -> int:
-
-    total = 100.0
-
-    if h.marcado_malware:
-
-        total -= 45
-
-    if h.marcado_phishing:
-
-        total -= 40
-
-    if h.marcado_spam:
-
-        total -= 20
-
-    return _clamp_score(total)
-
-
-def score_dnssec(h: HallazgosDnssec) -> int:
-
-    total = 0.0
-
-    if h.tiene_ns:
-
-        total += 40
-
-    if h.ns_count >= 2:
-
-        total += 20
-
-    elif h.ns_count == 1:
-
-        total += 8
-
-    if h.tiene_ds_o_dnskey:
-
-        total += 40
-
-    return _clamp_score(total)
-
-
-def score_subdominios(h: HallazgosSubdominios) -> int:
-
-    total = 100.0 - 20.0 * len(set(h.expuestos))
-
-    return _clamp_score(max(15.0, total))
-
-
-def score_whois(h: HallazgosWhois) -> int:
-
-    total = 0.0
-
-    if h.edad_anios is None:
-
-        total += 20
-
-    elif h.edad_anios >= 10:
-
-        total += 50
-
-    elif h.edad_anios >= 5:
-
-        total += 40
-
-    elif h.edad_anios >= 2:
-
-        total += 30
-
-    elif h.edad_anios >= 1:
-
-        total += 20
-
-    else:
-
-        total += 10
-
-    if h.dns_configurado:
-
-        total += 25
-
-    if h.renovacion_vigente:
-
-        total += 25
-
-    return _clamp_score(total)
-
-
-def score_uptime(h: HallazgosUptime) -> int:
-
-    if h.responde and h.status_ok:
-
-        return 100
-
-    if h.responde:
-
-        return 55
-
-    return 15
-
-
-_BANNER_PATRONES = (
-    "cookie-banner",
-    "cookie_banner",
-    "cookiebanner",
-    "cookie-consent",
-    "cookie_consent",
-    "cookieconsent",
-    "cookies-banner",
-    "consent-banner",
-    "consent_banner",
-    "cookie-notice",
-    "cookie_notice",
-    "cookie-popup",
-    "cookie-modal",
-    "cc-banner",
-    "cc-window",
-    "ot-sdk",
-    "onetrust",
-    "cky-consent",
-    "utilizamos cookies",
-    "usamos cookies",
-    "we use cookies",
-    "this site uses cookies",
-    "este sitio utiliza cookies",
-    "aceptar cookies",
-    "accept cookies",
-    "acepto las cookies",
-    "gestionar cookies",
-    "manage cookies",
-    "preferencias de cookies",
-    "cookie preferences",
-)
-
-_CMP_PATRONES = (
-    "onetrust",
-    "cookiebot",
-    "cookielaw.org",
-    "cdn.cookielaw",
-    "trustarc",
-    "quantcast.mgr",
-    "iubenda",
-    "didomi",
-    "usercentrics",
-    "osano.com",
-    "cookieyes",
-    "termly.io",
-    "complianz",
-    "cookieconsent",
-    "cookie-consent",
-    "gdpr-cookie",
-    "civicuk.com/cookie",
-    "axeptio",
-    "sirdata",
-)
-
-_RECHAZAR_PATRONES = (
-    "rechazar",
-    "rechazar todas",
-    "rechazar cookies",
-    "solo esenciales",
-    "solo necesarias",
-    "cookies necesarias",
-    "reject all",
-    "reject cookies",
-    "decline cookies",
-    "deny cookies",
-    "necessary only",
-    "essential only",
-    "only necessary",
-    "opt-out",
-    "opt out",
-    "no aceptar",
-)
-
-
-def detectar_cookies_html(html: str) -> HallazgosCookies:
-
-    if not html or not html.strip():
-
-        return HallazgosCookies(html_obtenido=False)
-
-    texto = html.lower()
-
-    banner = any((p in texto for p in _BANNER_PATRONES))
-
-    if not banner and re.search(
-        "(id|class)=[\"\\'][^\"\\']*cookie[^\"\\']*(banner|consent|notice|popup|modal)",
-        texto,
-    ):
-
-        banner = True
-
-    cmp = any((p in texto for p in _CMP_PATRONES))
-
-    rechazar = any((p in texto for p in _RECHAZAR_PATRONES))
-
-    return HallazgosCookies(
-        banner_detectado=banner,
-        script_cmp=cmp,
-        opcion_rechazar=rechazar,
-        html_obtenido=True,
-    )
-
-
-def score_cookies(h: HallazgosCookies) -> int:
-
-    neutro = 85
-
-    if not h.html_obtenido:
-
-        return neutro
-
-    if not (h.banner_detectado or h.script_cmp or h.opcion_rechazar):
-
-        return neutro
-
-    total = float(neutro)
-
-    if h.banner_detectado:
-
-        total += 5
-
-    if h.script_cmp:
-
-        total += 5
-
-    if h.opcion_rechazar:
-
-        total += 5
-
-    return _clamp_score(total)
 
 
 _RESENAS_PRIOR = 3.2
@@ -657,134 +301,9 @@ def razones_resenas(
 
 def armar_observables(valores: dict[str, int]) -> list[ObservableScore]:
 
-    from app.dominio.transparencia.cmf import OBSERVABLE_CMF
-
-    from app.dominio.transparencia.mercado_publico import OBSERVABLE_MERCADO_PUBLICO
-
-    from app.dominio.transparencia.sii import OBSERVABLE_SII
-
     out: list[ObservableScore] = []
 
-    for d in OBSERVABLES_SONDA:
-
-        if d.id not in valores:
-
-            continue
-
-        out.append(
-            ObservableScore(
-                id=d.id,
-                etiqueta=d.etiqueta,
-                detalle=d.detalle,
-                score=_clamp_score(valores[d.id]),
-                peso=d.peso,
-                grupo=d.grupo,
-            )
-        )
-
-    if "mercado-publico" in valores:
-
-        d = OBSERVABLE_MERCADO_PUBLICO
-
-        out.append(
-            ObservableScore(
-                id=d.id,
-                etiqueta=d.etiqueta,
-                detalle=d.detalle,
-                score=_clamp_score(valores[d.id]),
-                peso=d.peso,
-                grupo=d.grupo,
-            )
-        )
-
-    if "sii" in valores:
-
-        d = OBSERVABLE_SII
-
-        out.append(
-            ObservableScore(
-                id=d.id,
-                etiqueta=d.etiqueta,
-                detalle=d.detalle,
-                score=_clamp_score(valores[d.id]),
-                peso=d.peso,
-                grupo=d.grupo,
-            )
-        )
-
-    if "cmf" in valores:
-
-        d = OBSERVABLE_CMF
-
-        out.append(
-            ObservableScore(
-                id=d.id,
-                etiqueta=d.etiqueta,
-                detalle=d.detalle,
-                score=_clamp_score(valores[d.id]),
-                peso=d.peso,
-                grupo=d.grupo,
-            )
-        )
-
-    if "incidentes" in valores:
-
-        from app.dominio.transparencia.incidentes import OBSERVABLE_INCIDENTES
-
-        d = OBSERVABLE_INCIDENTES
-
-        out.append(
-            ObservableScore(
-                id=d.id,
-                etiqueta=d.etiqueta,
-                detalle=d.detalle,
-                score=_clamp_score(valores[d.id]),
-                peso=d.peso,
-                grupo=d.grupo,
-            )
-        )
-
-    if "resenas-reclamos" in valores:
-
-        d = OBSERVABLE_RESENAS
-
-        out.append(
-            ObservableScore(
-                id=d.id,
-                etiqueta=d.etiqueta,
-                detalle=d.detalle,
-                score=_clamp_score(valores[d.id]),
-                peso=d.peso,
-                grupo=d.grupo,
-            )
-        )
-
-    if any(k in valores for k in ("politica-privacidad", "terminos", "sla")):
-
-        from app.dominio.transparencia.docs_legales import (
-            OBSERVABLE_PRIVACIDAD,
-            OBSERVABLE_SLA,
-            OBSERVABLE_TERMINOS,
-        )
-
-        for d in (OBSERVABLE_PRIVACIDAD, OBSERVABLE_TERMINOS, OBSERVABLE_SLA):
-
-            if d.id in valores:
-
-                out.append(
-                    ObservableScore(
-                        id=d.id,
-                        etiqueta=d.etiqueta,
-                        detalle=d.detalle,
-                        score=_clamp_score(valores[d.id]),
-                        peso=d.peso,
-                        grupo=d.grupo,
-                    )
-                )
-
-    from app.dominio.transparencia.datalux import OBSERVABLES_DATALUX
-
-    for d in OBSERVABLES_DATALUX:
+    for d in _CATALOGO_OBSERVABLES:
 
         if d.id not in valores:
 

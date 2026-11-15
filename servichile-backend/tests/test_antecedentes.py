@@ -62,27 +62,11 @@ def test_analizar_fixture_acepta_sin_anotaciones():
 
 def test_pdf_de_clase_o_apuntes_se_rechaza():
 
-    from pypdf import PdfWriter
-
-    from io import BytesIO
-
-    w = PdfWriter()
-
-    w.add_blank_page(width=400, height=400)
-
-    buf = BytesIO()
-
-    w.write(buf)
-
-    basura = buf.getvalue()
-
     from app.dominio.antecedentes import validar_certificado_antecedentes
 
     r = validar_certificado_antecedentes(
-        b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF",
         nombre_archivo="apuntes-clase.pdf",
         producer="Word",
-        encrypted=False,
         num_paginas=3,
         texto="Apuntes de clase: el Registro Civil emite certificados. Hablar de certificado de antecedentes en general. Codigo 513bd82d89e7 folio 500727268737",
     )

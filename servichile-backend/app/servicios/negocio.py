@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from app.dominio.transparencia.metricas import (
-    metricas_necesitan_escaneo,
-    observables_desde_metricas,
-)
+from app.dominio.transparencia.metricas import observables_mock
 
 from app.dominio.entidades import (
     Metricas,
@@ -23,29 +20,10 @@ from app.dominio.errores import (
 
 from app.dominio.ficha_negocio import cta_texto, imagen_efectiva, logo_texto
 
-from app.dominio.puertos import (
-    NuloCmf,
-    NuloDatalux,
-    NuloIncidentes,
-    NuloMercadoPublico,
-    NuloPlaces,
-    NuloSii,
-    NuloSondaCiber,
-    ProveedorCmf,
-    ProveedorDatalux,
-    ProveedorIncidentes,
-    ProveedorMercadoPublico,
-    ProveedorPlaces,
-    ProveedorSii,
-    RepositorioNegocios,
-    RepositorioUsuarios,
-    SondaCiber,
-)
-from app.dominio.transparencia.mercado_publico import rut_desde_documento
+from app.dominio.puertos import RepositorioNegocios
+from app.dominio.pasaporte import RutInvalido, normalizar_rut
 
 from app.dominio.transparencia.reputacion import EntradaScore, calcular_indice
-
-from app.servicios.completar_metricas import completar_metricas
 
 from app.tiempo import ahora_utc
 
@@ -86,6 +64,15 @@ def _metricas_de(negocio: Negocio) -> Metricas:
         )
 
     return negocio.metricas
+
+
+def rut_desde_documento(texto: str | None) -> str | None:
+    if not texto or not str(texto).strip():
+        return None
+    try:
+        return normalizar_rut(str(texto).strip())
+    except RutInvalido:
+        return None
 
 
 def _indice_de(negocio: Negocio) -> float:
@@ -153,16 +140,6 @@ def _quitar_titularidad(negocio: Negocio) -> None:
 
     metricas.final_score = recalcular_score(metricas)
 
-    metricas.score_mercado_publico = None
-
-    metricas.score_sii = None
-
-    metricas.score_cmf = None
-
-    metricas.score_incidentes = None
-
-    metricas.incidentes_razones = None
-
 
 def _reputacion_de(negocio: Negocio) -> Reputacion:
 
@@ -182,43 +159,14 @@ def _reputacion_de(negocio: Negocio) -> Reputacion:
         response_time_score=metricas.response_time_score,
         indice_transparencia=_indice_de(negocio),
         actualizado_en=metricas.actualizado_en,
-        observables_ciber=observables_desde_metricas(metricas),
+        observables_ciber=observables_mock(),
     )
 
 
 class NegocioService:
 
-    def __init__(
-        self,
-        negocios: RepositorioNegocios,
-        ciber_sonda: SondaCiber | None = None,
-        *,
-        usuarios: RepositorioUsuarios | None = None,
-        chilecompra: ProveedorMercadoPublico | None = None,
-        sii: ProveedorSii | None = None,
-        cmf: ProveedorCmf | None = None,
-        incidentes: ProveedorIncidentes | None = None,
-        places: ProveedorPlaces | None = None,
-        datalux: ProveedorDatalux | None = None,
-    ) -> None:
-
+    def __init__(self, negocios: RepositorioNegocios) -> None:
         self.negocios = negocios
-
-        self.ciber_sonda = ciber_sonda or NuloSondaCiber()
-
-        self.usuarios = usuarios
-
-        self.chilecompra = chilecompra or NuloMercadoPublico()
-
-        self.sii = sii or NuloSii()
-
-        self.cmf = cmf or NuloCmf()
-
-        self.incidentes = incidentes or NuloIncidentes()
-
-        self.places = places or NuloPlaces()
-
-        self.datalux = datalux or NuloDatalux()
 
     def _buscar(self, business_id: uuid.UUID) -> Negocio:
 
@@ -229,40 +177,6 @@ class NegocioService:
             raise NegocioNoEncontrado()
 
         return negocio
-
-    def _rut_para_mercado_publico(self, negocio: Negocio) -> str | None:
-
-        if negocio.rut_empresa:
-
-            return negocio.rut_empresa
-
-        if self.usuarios is None or negocio.reclamado_por is None:
-
-            return None
-
-        u = self.usuarios.get(negocio.reclamado_por)
-
-        return u.rut if u and u.rut else None
-
-    def _correr_sonda(
-        self, negocio: Negocio, metricas: Metricas, *, forzar: bool = False
-    ) -> None:
-
-        completar_metricas(
-            metricas,
-            self.ciber_sonda,
-            negocio.sitio_web,
-            chilecompra=self.chilecompra,
-            sii=self.sii,
-            cmf=self.cmf,
-            incidentes=self.incidentes,
-            places=self.places,
-            datalux=self.datalux,
-            rut=self._rut_para_mercado_publico(negocio),
-            nombre=negocio.nombre,
-            direccion=negocio.direccion,
-            forzar=forzar,
-        )
 
     def listar_para_mapa(
         self, categoria: str | None = None, q: str | None = None
@@ -280,32 +194,6 @@ class NegocioService:
     def obtener_reputacion(self, business_id: uuid.UUID) -> Reputacion:
 
         negocio = self._buscar(business_id)
-
-        metricas = _metricas_de(negocio)
-
-        if metricas_necesitan_escaneo(metricas):
-
-            self._correr_sonda(negocio, metricas)
-
-            self.negocios.guardar(negocio)
-
-        return _reputacion_de(negocio)
-
-    def escanear_ciber(
-        self, business_id: uuid.UUID, usuario_id: uuid.UUID
-    ) -> Reputacion:
-
-        negocio = self._buscar(business_id)
-
-        if not negocio.is_claimed or negocio.reclamado_por != usuario_id:
-
-            raise NoEsTitularDelNegocio()
-
-        metricas = _metricas_de(negocio)
-
-        self._correr_sonda(negocio, metricas, forzar=True)
-
-        self.negocios.guardar(negocio)
 
         return _reputacion_de(negocio)
 
@@ -393,26 +281,6 @@ class NegocioService:
         metricas.is_verified_profile = True
 
         metricas.final_score = recalcular_score(metricas)
-
-        metricas.ciber_escaneado_en = None
-
-        metricas.score_mercado_publico = None
-
-        metricas.score_sii = None
-
-        metricas.score_cmf = None
-
-        metricas.score_domicilio = None
-
-        metricas.score_huella_digital = None
-
-        metricas.score_persona_juridica = None
-
-        metricas.datalux_razones = None
-
-        metricas.score_incidentes = None
-
-        metricas.incidentes_razones = None
 
         guardado = self.negocios.guardar(negocio)
 

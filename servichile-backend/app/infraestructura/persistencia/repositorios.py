@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import func, select
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, load_only
 
 from app.dominio.entidades import Metricas, Negocio, Perfil, Reserva, Usuario
 
@@ -113,6 +113,66 @@ def _metricas(m: orm.BusinessReputationMetrics | None) -> Metricas | None:
         ),
         ciber_escaneado_en=m.ciber_escaneado_en,
         actualizado_en=m.actualizado_en,
+    )
+
+
+def _negocio_lista(n: orm.BusinessEntity) -> Negocio:
+
+    m = n.metricas
+
+    metricas = None
+
+    if m is not None:
+
+        metricas = Metricas(
+            business_id=m.business_id,
+            google_rating_avg=m.google_rating_avg,
+            google_reviews_count=m.google_reviews_count or 0,
+            final_score=m.final_score,
+            is_verified_profile=m.is_verified_profile,
+            actualizado_en=m.actualizado_en,
+        )
+
+    return Negocio(
+        id=n.id,
+        nombre=n.nombre,
+        categoria=n.categoria,
+        latitud=n.latitud,
+        longitud=n.longitud,
+        direccion=n.direccion,
+        descripcion=n.descripcion,
+        imagen_url=n.imagen_url,
+        logo_url=n.logo_url,
+        requiere_nivel=n.requiere_nivel,
+        is_claimed=n.is_claimed,
+        metricas=metricas,
+    )
+
+
+def _opciones_lista():
+
+    return (
+        load_only(
+            orm.BusinessEntity.id,
+            orm.BusinessEntity.nombre,
+            orm.BusinessEntity.categoria,
+            orm.BusinessEntity.latitud,
+            orm.BusinessEntity.longitud,
+            orm.BusinessEntity.direccion,
+            orm.BusinessEntity.descripcion,
+            orm.BusinessEntity.imagen_url,
+            orm.BusinessEntity.logo_url,
+            orm.BusinessEntity.requiere_nivel,
+            orm.BusinessEntity.is_claimed,
+        ),
+        joinedload(orm.BusinessEntity.metricas).load_only(
+            orm.BusinessReputationMetrics.business_id,
+            orm.BusinessReputationMetrics.google_rating_avg,
+            orm.BusinessReputationMetrics.google_reviews_count,
+            orm.BusinessReputationMetrics.final_score,
+            orm.BusinessReputationMetrics.is_verified_profile,
+            orm.BusinessReputationMetrics.actualizado_en,
+        ),
     )
 
 
@@ -312,7 +372,11 @@ class NegocioRepository:
         self, categoria: str | None = None, q: str | None = None, limite: int = 100
     ) -> list[Negocio]:
 
-        stmt = select(orm.BusinessEntity).order_by(orm.BusinessEntity.nombre)
+        stmt = (
+            select(orm.BusinessEntity)
+            .options(*_opciones_lista())
+            .order_by(orm.BusinessEntity.nombre)
+        )
 
         if categoria:
 
@@ -327,15 +391,19 @@ class NegocioRepository:
                 | orm.BusinessEntity.direccion.ilike(patron)
             )
 
-        return [_negocio(n) for n in self.session.scalars(stmt.limit(limite))]
+        return [
+            _negocio_lista(n) for n in self.session.scalars(stmt.limit(limite)).unique()
+        ]
 
     def listar_reclamados_por(self, usuario_id: uuid.UUID) -> list[Negocio]:
 
-        stmt = select(orm.BusinessEntity).where(
-            orm.BusinessEntity.reclamado_por == usuario_id
+        stmt = (
+            select(orm.BusinessEntity)
+            .options(*_opciones_lista())
+            .where(orm.BusinessEntity.reclamado_por == usuario_id)
         )
 
-        return [_negocio(n) for n in self.session.scalars(stmt)]
+        return [_negocio_lista(n) for n in self.session.scalars(stmt).unique()]
 
     def guardar(self, negocio: Negocio) -> Negocio:
 
