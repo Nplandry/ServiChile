@@ -1,163 +1,286 @@
-"""Verificación de la lista de seguridad de la capa de autenticación."""
 import statistics
+
 import time
 
 from fastapi.testclient import TestClient
+
 from sqlalchemy import select
 
 from app.api import deps
+
 from app.infrastructure.db import Usuario
+
 from app.main import app
 
 
 class SinLimite:
+
     def allow(self, key, limit, window_s=60):
+
         return True
 
 
 def _hash_de(session_factory, email: str) -> str:
+
     with session_factory() as s:
+
         return s.scalar(select(Usuario.password_hash).where(Usuario.email == email))
 
 
-# 1. Sal aleatorio por contraseña
-
 def test_sal_distinto_para_la_misma_contrasena(client: TestClient, session_factory):
+
     for email in ("uno@servichile.cl", "dos@servichile.cl"):
-        client.post("/v1/auth/registro", json={"email": email, "nombre": "Ana", "password": "misma-clave-123", "perfil": {"tipo_cuenta": "persona"}})
+
+        client.post(
+            "/v1/auth/registro",
+            json={
+                "email": email,
+                "nombre": "Ana",
+                "password": "misma-clave-123",
+                "perfil": {"tipo_cuenta": "persona"},
+            },
+        )
+
     h1 = _hash_de(session_factory, "uno@servichile.cl")
+
     h2 = _hash_de(session_factory, "dos@servichile.cl")
+
     assert h1 != h2
-    # El formato Argon2 incluye la sal en base64: "$argon2id$v=19$m=...,t=...,p=...$SALT$HASH"
-    sal1, sal2 = h1.split("$")[4], h2.split("$")[4]
+
+    sal1, sal2 = (h1.split("$")[4], h2.split("$")[4])
+
     assert sal1 != sal2
-    assert len(sal1) >= 22  # 16 bytes en base64 sin relleno
+
+    assert len(sal1) >= 22
 
 
 def test_no_hay_sal_fijo_en_el_codigo():
+
     import pathlib
 
     raiz = pathlib.Path(__file__).resolve().parents[1] / "app"
+
     for archivo in raiz.rglob("*.py"):
+
         texto = archivo.read_text(encoding="utf-8").lower()
-        assert "salt=" not in texto and "salt =" not in texto, f"posible sal fija en {archivo}"
+
+        assert (
+            "salt=" not in texto and "salt =" not in texto
+        ), f"posible sal fija en {archivo}"
 
 
 def test_hash_no_contiene_la_contrasena(client: TestClient, session_factory):
-    client.post("/v1/auth/registro", json={"email": "h@servichile.cl", "nombre": "Ana", "password": "clave-visible-99", "perfil": {"tipo_cuenta": "persona"}})
+
+    client.post(
+        "/v1/auth/registro",
+        json={
+            "email": "h@servichile.cl",
+            "nombre": "Ana",
+            "password": "clave-visible-99",
+            "perfil": {"tipo_cuenta": "persona"},
+        },
+    )
+
     assert "clave-visible-99" not in _hash_de(session_factory, "h@servichile.cl")
 
 
-# 2. Mensajes genéricos y 401
-
 def test_mismo_mensaje_correo_inexistente_y_clave_incorrecta(client: TestClient):
-    client.post("/v1/auth/registro", json={"email": "real@servichile.cl", "nombre": "Ana", "password": "clave-real-123", "perfil": {"tipo_cuenta": "persona"}})
-    a = client.post("/v1/auth/login", json={"email": "real@servichile.cl", "password": "otra-clave-999"})
-    b = client.post("/v1/auth/login", json={"email": "fantasma@servichile.cl", "password": "otra-clave-999"})
+
+    client.post(
+        "/v1/auth/registro",
+        json={
+            "email": "real@servichile.cl",
+            "nombre": "Ana",
+            "password": "clave-real-123",
+            "perfil": {"tipo_cuenta": "persona"},
+        },
+    )
+
+    a = client.post(
+        "/v1/auth/login",
+        json={"email": "real@servichile.cl", "password": "otra-clave-999"},
+    )
+
+    b = client.post(
+        "/v1/auth/login",
+        json={"email": "fantasma@servichile.cl", "password": "otra-clave-999"},
+    )
+
     assert a.status_code == b.status_code == 401
+
     assert a.json() == b.json() == {"detail": "Correo o contraseña incorrectos."}
 
 
 def test_usuario_inactivo_recibe_el_mismo_error(client: TestClient, session_factory):
-    client.post("/v1/auth/registro", json={"email": "baja@servichile.cl", "nombre": "Ana", "password": "clave-baja-123", "perfil": {"tipo_cuenta": "persona"}})
+
+    client.post(
+        "/v1/auth/registro",
+        json={
+            "email": "baja@servichile.cl",
+            "nombre": "Ana",
+            "password": "clave-baja-123",
+            "perfil": {"tipo_cuenta": "persona"},
+        },
+    )
+
     with session_factory() as s:
-        s.query(Usuario).filter(Usuario.email == "baja@servichile.cl").update({"activo": False})
+
+        s.query(Usuario).filter(Usuario.email == "baja@servichile.cl").update(
+            {"activo": False}
+        )
+
         s.commit()
-    r = client.post("/v1/auth/login", json={"email": "baja@servichile.cl", "password": "clave-baja-123"})
+
+    r = client.post(
+        "/v1/auth/login",
+        json={"email": "baja@servichile.cl", "password": "clave-baja-123"},
+    )
+
     assert r.status_code == 401
+
     assert r.json() == {"detail": "Correo o contraseña incorrectos."}
 
 
-# 3. Tiempo constante
-
 def _mediana_login(client: TestClient, email: str, repeticiones: int) -> float:
+
     tiempos = []
+
     for _ in range(repeticiones):
+
         inicio = time.perf_counter()
-        client.post("/v1/auth/login", json={"email": email, "password": "clave-equivocada"})
+
+        client.post(
+            "/v1/auth/login", json={"email": email, "password": "clave-equivocada"}
+        )
+
         tiempos.append(time.perf_counter() - inicio)
+
     return statistics.median(tiempos)
 
 
 def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
+
     datos = {
         "email": "tiempo@servichile.cl",
         "nombre": "Ana",
         "password": "clave-tiempo-1",
         "perfil": {"tipo_cuenta": "persona"},
     }
+
     client.post("/v1/auth/registro", json=datos)
+
     app.dependency_overrides[deps.get_rate_limiter] = lambda: SinLimite()
+
     try:
-        _mediana_login(client, "tiempo@servichile.cl", 2)  # calentamiento
+
+        _mediana_login(client, "tiempo@servichile.cl", 2)
+
         con_cuenta = _mediana_login(client, "tiempo@servichile.cl", 7)
+
         sin_cuenta = _mediana_login(client, "nadie@servichile.cl", 7)
+
     finally:
+
         app.dependency_overrides.pop(deps.get_rate_limiter, None)
+
     cociente = max(con_cuenta, sin_cuenta) / min(con_cuenta, sin_cuenta)
-    # Argon2 domina el tiempo; ambos caminos ejecutan una verificación completa
-    assert cociente < 1.5, f"con cuenta {con_cuenta:.3f}s vs sin cuenta {sin_cuenta:.3f}s"
 
+    assert (
+        cociente < 1.5
+    ), f"con cuenta {con_cuenta:.3f}s vs sin cuenta {sin_cuenta:.3f}s"
 
-# 4. Rate limiting
 
 def test_limite_por_correo(client: TestClient):
+
     codigos = [
-        client.post("/v1/auth/login", json={"email": "x@servichile.cl", "password": "x"}).status_code for _ in range(6)
+        client.post(
+            "/v1/auth/login", json={"email": "x@servichile.cl", "password": "x"}
+        ).status_code
+        for _ in range(6)
     ]
+
     assert codigos[:5] == [401] * 5
+
     assert codigos[5] == 429
 
 
 def test_limite_por_ip_aunque_cambie_el_correo(client: TestClient):
+
     codigos = [
-        client.post("/v1/auth/login", json={"email": f"n{i}@servichile.cl", "password": "x"}).status_code
+        client.post(
+            "/v1/auth/login", json={"email": f"n{i}@servichile.cl", "password": "x"}
+        ).status_code
         for i in range(21)
     ]
+
     assert codigos[:20] == [401] * 20
+
     assert codigos[20] == 429
 
 
 def test_limite_registro_por_ip(client: TestClient, monkeypatch):
-    # Fija el reloj del limitador: con ventanas de 1 minuto, una prueba que cruza el cambio de minuto fallaría.
+
     from app.infrastructure import rate_limit
 
     class RelojFijo:
+
         @staticmethod
         def time() -> float:
-            return 1_000_000.0
+
+            return 1000000.0
 
     monkeypatch.setattr(rate_limit, "time", RelojFijo)
+
     codigos = [
         client.post(
             "/v1/auth/registro",
-            json={"email": f"r{i}@servichile.cl", "nombre": "Ana", "password": "clave-registro-1", "perfil": {"tipo_cuenta": "persona"}},
+            json={
+                "email": f"r{i}@servichile.cl",
+                "nombre": "Ana",
+                "password": "clave-registro-1",
+                "perfil": {"tipo_cuenta": "persona"},
+            },
         ).status_code
         for i in range(21)
     ]
+
     assert codigos[20] == 429
+
     assert codigos[0] == 201
 
 
 def test_respuesta_429_incluye_retry_after(client: TestClient):
+
     for _ in range(5):
-        client.post("/v1/auth/login", json={"email": "rl@servichile.cl", "password": "x"})
-    r = client.post("/v1/auth/login", json={"email": "rl@servichile.cl", "password": "x"})
+
+        client.post(
+            "/v1/auth/login", json={"email": "rl@servichile.cl", "password": "x"}
+        )
+
+    r = client.post(
+        "/v1/auth/login", json={"email": "rl@servichile.cl", "password": "x"}
+    )
+
     assert r.status_code == 429
+
     assert r.headers["retry-after"] == "60"
 
 
 def _settings_con_proxy(valor: bool):
+
     from app.config import get_settings
 
     return get_settings().model_copy(update={"trust_proxy": valor})
 
 
 def test_sin_proxy_de_confianza_se_ignora_x_forwarded_for(client: TestClient):
+
     from app.config import get_settings
 
     app.dependency_overrides[get_settings] = lambda: _settings_con_proxy(False)
+
     try:
+
         codigos = [
             client.post(
                 "/v1/auth/login",
@@ -166,18 +289,24 @@ def test_sin_proxy_de_confianza_se_ignora_x_forwarded_for(client: TestClient):
             ).status_code
             for i in range(21)
         ]
+
     finally:
+
         app.dependency_overrides.pop(get_settings, None)
-    # Todas vienen del mismo socket: el 21.º intento debe ser 429 pese a cambiar el encabezado
+
     assert codigos[20] == 429
 
 
-def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(client: TestClient):
+def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(
+    client: TestClient,
+):
+
     from app.config import get_settings
 
     app.dependency_overrides[get_settings] = lambda: _settings_con_proxy(True)
+
     try:
-        # El cliente real siempre llega como última entrada (la pone el proxy). La primera la falsifica.
+
         codigos = [
             client.post(
                 "/v1/auth/login",
@@ -186,7 +315,7 @@ def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(client: Tes
             ).status_code
             for i in range(21)
         ]
-        # Clientes distintos detrás de proxy tienen cubos distintos
+
         otros = [
             client.post(
                 "/v1/auth/login",
@@ -195,7 +324,11 @@ def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(client: Tes
             ).status_code
             for i in range(3)
         ]
+
     finally:
+
         app.dependency_overrides.pop(get_settings, None)
-    assert codigos[20] == 429  # misma IP real 203.0.113.7 agotó su cupo
-    assert otros == [401, 401, 401]  # otras IPs reales siguen permitidas
+
+    assert codigos[20] == 429
+
+    assert otros == [401, 401, 401]

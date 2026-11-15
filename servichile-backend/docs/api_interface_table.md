@@ -13,15 +13,16 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 | GET | `/v1/perfil` | Sí | n/a | 200 `PerfilOut` (Pasaporte de Confianza) | 401 |
 | PATCH | `/v1/perfil` | Sí | `PerfilIn` parcial (`edad`, `rut`, `telefono`) | 200 `PerfilOut` | 401, 422 RUT inválido o no verificable, 409 RUT en uso o ya verificado |
 | POST | `/v1/perfil/biometria` | Sí | multipart, campo `foto` (JPEG/PNG/WebP/GIF, máximo 5 MB) | 201 `BiometriaOut` | 401, 413 foto muy grande, 422 no es imagen, 429 límite |
+| POST | `/v1/perfil/antecedentes` | Sí | multipart `archivo` (PDF) + `nombre_archivo` | 201 `AntecedentesOut` (score, anotaciones sí/no, XP +60 una vez; PDF no se guarda) | 401, 413, 422, 429 |
 | GET | `/v1/reservas` | Sí | n/a | 200 lista de `ReservaOut` | 401 |
 | POST | `/v1/reservas` | Sí | `business_id` | 201 `ReservaOut` (incluye `qr_token`) | 401, 404 negocio, 422 |
 | POST | `/v1/businesses/{id}/checkin` | Sí (titular) | `qr_token` (10 a 64) | 200 `ReservaOut` con `estado: asistido` | 401, 403 no es titular del negocio, 404 QR no encontrado, 409 reserva ya cerrada, 422 |
 | POST | `/v1/businesses/{id}/reservas/{reserva_id}/no-show` | Sí (titular) | n/a | 200 `ReservaOut` con `estado: no_show` | 401, 403, 404, 409 |
-| POST | `/v1/businesses` | Sí (empresa) | `nombre`, `categoria`, `direccion` (oficina); opcionales `descripcion`/`telefono`/`sitio_web`/`imagen_url`/`logo_url` | 201 `NegocioEnMapaOut` | 401, 403 si es persona, 422 |
+| POST | `/v1/businesses` | Sí (proveedor) | `nombre`, `categoria`, `direccion` (oficina); opcionales `descripcion`/`telefono`/`sitio_web`/`imagen_url`/`logo_url` | 201 `NegocioEnMapaOut` | 401, 403 si no es proveedor, 422 |
 | GET | `/v1/businesses/mias` | Sí | n/a | 200 lista de `NegocioEnMapaOut` | 401 |
 | GET | `/v1/businesses/{id}/reputation` | No | n/a | 200 `ReputacionOut` (incluye `observables_ciber`) | 404 negocio no encontrado |
 | POST | `/v1/businesses/{id}/ciber-scan` | Sí (titular) | n/a | 200 `ReputacionOut` re-escaneada | 401, 403 no titular, 404 |
-| POST | `/v1/businesses/{id}/claim` | Sí (empresa) | `documento_verificacion` (3 a 120), `nombre`/`telefono`/`sitio_web` opcionales | 201 `ClaimOut` | 401, 403 si es persona, 404, 409 ya reclamado, 422 |
+| POST | `/v1/businesses/{id}/claim` | Sí (proveedor) | `documento_verificacion` (3 a 120), `nombre`/`telefono`/`sitio_web` opcionales | 201 `ClaimOut` | 401, 403 si no es proveedor, 404, 409 ya reclamado, 422 |
 | DELETE | `/v1/businesses/{id}/claim` | Sí (titular) | n/a | 204 sin cuerpo | 401, 403 no es titular, 404 |
 | DELETE | `/v1/auth/yo` | Sí | `password` (confirmación de la contraseña actual) | 204 sin cuerpo | 401 sesión inválida, 403 contraseña incorrecta, 422 |
 | DELETE | `/v1/reservas/{id}` | Sí | n/a | 200 `ReservaOut` con `estado: cancelada` | 401, 404 reserva ajena o inexistente, 409 ya no está activa |
@@ -54,7 +55,7 @@ Los endpoints marcados con "Sí" en la columna Sesión requieren la cabecera `Au
 
 **NegocioEnMapaOut** (listado marketplace): `id`, `nombre`, `categoria`, `latitud`, `longitud`, `direccion`, `descripcion`, `imagen_url`, `logo_url` (null o URL), `logo_texto` (iniciales si no hay logo), `cta_texto` (acción por categoría), `indice_transparencia`, `is_verified_profile`, `requiere_nivel` (1 o 2).
 
-**ReputacionOut** (Índice de Transparencia): `business_id` (uuid), `nombre`, `categoria`, `is_verified_profile` (bool), `estado_perfil`, `google_rating_avg`, `google_reviews_count`, `sentiment_positive_ratio`, `response_time_score`, `indice_transparencia` (1.0 a 10.0), `actualizado_en`, `observables_ciber` (lista de `{id, etiqueta, detalle, score 0–100, peso, grupo}` para `ssl-tls`, `email-auth`, `puertos`, `headers-http`, `stack-vulnerable`, `blacklist`, `dnssec`, `subdominios`, `whois`, `uptime`, `resenas-reclamos`), `descargo`. Nunca incluye textos de reseñas ni comentarios. El primer GET sin scores dispara un escaneo (`CIBER_SONDA=fake|live`) y lo persiste.
+**ReputacionOut** (Índice de Transparencia): `business_id` (uuid), `nombre`, `categoria`, `is_verified_profile` (bool), `estado_perfil`, `google_rating_avg`, `google_reviews_count`, `sentiment_positive_ratio`, `response_time_score`, `indice_transparencia` (1.0 a 10.0), `actualizado_en`, `observables_ciber` (lista de `{id, etiqueta, detalle, score 0–100, peso, grupo}` para `ssl-tls`, `email-auth`, `puertos`, `headers-http`, `stack-vulnerable`, `blacklist`, `dnssec`, `subdominios`, `whois`, `uptime`, `cookies`, `mercado-publico`, `sii`, `resenas-reclamos`), `descargo`. Nunca incluye textos de reseñas ni comentarios. El primer GET sin scores dispara un escaneo (`CIBER_SONDA=fake|live`) y lo persiste.
 
 **ClaimIn**: `documento_verificacion` (3 a 120, obligatorio), `nombre` (2 a 160), `telefono` (≤30), `sitio_web` (≤200), todos opcionales salvo el documento. Campos desconocidos dan 422.
 

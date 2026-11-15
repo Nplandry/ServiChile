@@ -1,26 +1,21 @@
-"""Carga o actualiza la base con el esquema marketplace y los negocios de prueba.
-
-No borra usuarios ni reservas ajenas. Solo asegura columnas demo y siembra seed:*.
-
-Uso típico (DB ya creada):
-    python -m scripts.cargar_db_demo
-
-Opciones:
-    python -m scripts.cargar_db_demo --reset-seed
-"""
 from __future__ import annotations
 
 import argparse
+
 import subprocess
+
 import sys
+
 from pathlib import Path
 
 from sqlalchemy import inspect, text
 
 from app.infrastructure.db import get_engine
+
 from scripts.sembrar_negocios import sembrar
 
 ROOT = Path(__file__).resolve().parents[1]
+
 MIGRACIONES = [
     ROOT / "db" / "migrations" / "003_negocios.sql",
     ROOT / "db" / "migrations" / "004_pasaporte.sql",
@@ -35,72 +30,126 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "013_ciber_observables.sql",
     ROOT / "db" / "migrations" / "014_ciber_observables_extra.sql",
     ROOT / "db" / "migrations" / "015_drop_consultas_rag.sql",
+    ROOT / "db" / "migrations" / "016_drop_pgvector.sql",
+    ROOT / "db" / "migrations" / "017_tipos_cuenta_proveedor.sql",
+    ROOT / "db" / "migrations" / "018_antecedentes.sql",
+    ROOT / "db" / "migrations" / "019_score_cookies.sql",
+    ROOT / "db" / "migrations" / "020_score_mercado_publico.sql",
+    ROOT / "db" / "migrations" / "021_rut_empresa.sql",
+    ROOT / "db" / "migrations" / "022_score_sii.sql",
+    ROOT / "db" / "migrations" / "023_cmf_indice.sql",
+    ROOT / "db" / "migrations" / "024_score_incidentes.sql",
+    ROOT / "db" / "migrations" / "025_incidentes_razones.sql",
+    ROOT / "db" / "migrations" / "026_google_place_nombre.sql",
+    ROOT / "db" / "migrations" / "027_docs_legales.sql",
 ]
 
 
 def _psql_url(database_url: str) -> str:
-    # Convierte postgresql+psycopg://... a postgresql://... para psql.
+
     return database_url.replace("postgresql+psycopg://", "postgresql://", 1)
 
 
 def _correr_sql(archivo: Path, database_url: str) -> None:
+
     url = _psql_url(database_url)
+
     cmd = ["psql", url, "-v", "ON_ERROR_STOP=1", "-f", str(archivo)]
+
     print("→", " ".join(cmd))
+
     subprocess.run(cmd, check=True)
 
 
 def _schema_listo(engine) -> bool:
+
     insp = inspect(engine)
+
     if not insp.has_table("business_entities"):
+
         return False
+
     cols = {c["name"] for c in insp.get_columns("business_entities")}
-    return {"direccion", "descripcion", "requiere_nivel", "imagen_url", "logo_url"}.issubset(cols)
+
+    return {
+        "direccion",
+        "descripcion",
+        "requiere_nivel",
+        "imagen_url",
+        "logo_url",
+    }.issubset(cols)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Prepara schema demo y siembra negocios.")
+
+    parser = argparse.ArgumentParser(
+        description="Prepara schema demo y siembra negocios."
+    )
+
     parser.add_argument(
         "--reset-seed",
         action="store_true",
         help="Borra y recrea solo los negocios seed:*.",
     )
+
     parser.add_argument(
         "--solo-seed",
         action="store_true",
         help="No intenta migraciones; solo siembra si el schema ya está listo.",
     )
+
     args = parser.parse_args()
 
     engine = get_engine()
+
     database_url = str(engine.url)
 
     def _tiene_biometria() -> bool:
+
         insp = inspect(engine)
+
         if not insp.has_table("usuarios"):
+
             return False
+
         cols = {c["name"] for c in insp.get_columns("usuarios")}
+
         return "biometria_verificada" in cols
 
     def _tiene_xp() -> bool:
+
         insp = inspect(engine)
+
         if not insp.has_table("usuarios"):
+
             return False
+
         cols = {c["name"] for c in insp.get_columns("usuarios")}
+
         return "xp" in cols and insp.has_table("usuario_xp_eventos")
 
     def _tiene_tipo_cuenta() -> bool:
+
         insp = inspect(engine)
+
         if not insp.has_table("perfiles"):
+
             return False
+
         cols = {c["name"] for c in insp.get_columns("perfiles")}
+
         return "tipo_cuenta" in cols
 
     def _tiene_ciber() -> bool:
+
         insp = inspect(engine)
+
         if not insp.has_table("business_reputation_metrics"):
+
             return False
+
         cols = {c["name"] for c in insp.get_columns("business_reputation_metrics")}
+
         return {
             "score_ssl_tls",
             "score_headers_http",
@@ -112,80 +161,116 @@ def main() -> None:
             "score_dnssec",
             "score_subdominios",
             "score_uptime",
+            "score_cookies",
+            "score_politica_privacidad",
+            "score_terminos",
+            "score_sla",
+            "score_mercado_publico",
+            "score_sii",
+            "score_cmf",
+            "score_incidentes",
         }.issubset(cols)
 
     necesita_migrar = not args.solo_seed and (
         not _schema_listo(engine)
         or not _tiene_biometria()
-        or not _tiene_xp()
-        or not _tiene_tipo_cuenta()
-        or not _tiene_ciber()
+        or (not _tiene_xp())
+        or (not _tiene_tipo_cuenta())
+        or (not _tiene_ciber())
     )
+
     if necesita_migrar:
+
         print("Schema incompleto. Aplicando migraciones pendientes...")
+
         for migracion in MIGRACIONES:
+
             if not migracion.exists():
+
                 raise SystemExit(f"No existe {migracion}")
-            # Solo ciber faltante: aplicar 013/014 y seguir (evita fallar en 004 por ownership).
+
             if (
                 _schema_listo(engine)
                 and _tiene_biometria()
                 and _tiene_xp()
                 and _tiene_tipo_cuenta()
-                and not _tiene_ciber()
-                and migracion.name
-                not in ("013_ciber_observables.sql", "014_ciber_observables_extra.sql")
+                and (not _tiene_ciber())
+                and (
+                    migracion.name
+                    not in (
+                        "013_ciber_observables.sql",
+                        "014_ciber_observables_extra.sql",
+                    )
+                )
             ):
+
                 continue
+
             try:
+
                 _correr_sql(migracion, database_url)
+
             except FileNotFoundError:
+
                 raise SystemExit("No se encontró el comando psql en el PATH.") from None
+
             except subprocess.CalledProcessError as e:
+
                 raise SystemExit(
-                    f"Falló {migracion.name}. Si la tabla es de otro dueño, "
-                    "corra el psql como el dueño de la tabla (p. ej. `psql -d NOMBRE_DB -f ...`) "
-                    "o transfiera ownership."
+                    f"Falló {migracion.name}. Si la tabla es de otro dueño, corra el psql como el dueño de la tabla (p. ej. `psql -d NOMBRE_DB -f ...`) o transfiera ownership."
                 ) from e
 
     if not _schema_listo(engine):
+
         raise SystemExit(
-            "El schema sigue incompleto. Cargue db/init_script.sql en una base nueva "
-            "o aplique las migraciones manualmente."
+            "El schema sigue incompleto. Cargue db/init_script.sql en una base nueva o aplique las migraciones manualmente."
         )
+
     if not _tiene_biometria():
+
         raise SystemExit(
-            "Falta biometria_verificada en usuarios. Aplique db/migrations/007_biometria.sql "
-            "con el usuario dueño de la base."
+            "Falta biometria_verificada en usuarios. Aplique db/migrations/007_biometria.sql con el usuario dueño de la base."
         )
+
     if not _tiene_xp():
+
         raise SystemExit(
-            "Falta xp / usuario_xp_eventos. Aplique db/migrations/008_xp.sql "
-            "con el usuario dueño de la base."
+            "Falta xp / usuario_xp_eventos. Aplique db/migrations/008_xp.sql con el usuario dueño de la base."
         )
+
     if not _tiene_tipo_cuenta():
+
         raise SystemExit(
-            "Falta tipo_cuenta en perfiles. Aplique db/migrations/009_tipo_cuenta.sql "
-            "con el usuario dueño de la base."
+            "Falta tipo_cuenta en perfiles. Aplique db/migrations/009_tipo_cuenta.sql con el usuario dueño de la base."
         )
+
     if not _tiene_ciber():
+
         raise SystemExit(
-            "Faltan columnas ciber en business_reputation_metrics. "
-            "Aplique 013_ciber_observables.sql y 014_ciber_observables_extra.sql."
+            "Faltan columnas ciber en business_reputation_metrics. Aplique 013_ciber_observables.sql y 014_ciber_observables_extra.sql."
         )
 
     with engine.connect() as conn:
+
         usuarios = conn.execute(text("SELECT count(*) FROM usuarios")).scalar()
+
         print(f"DB lista. Usuarios existentes: {usuarios}.")
 
     sembrar(reset=args.reset_seed)
 
 
 if __name__ == "__main__":
+
     try:
+
         main()
+
     except RuntimeError as e:
+
         print(e, file=sys.stderr)
+
         raise SystemExit(1) from e
+
     except subprocess.CalledProcessError:
+
         raise SystemExit(1) from None
