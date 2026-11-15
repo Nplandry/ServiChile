@@ -9,7 +9,7 @@ from app.api.dependencias import (
 
 from app.api.esquemas import ReporteOut, ReporteValidacionOut, ReporteValidarIn
 
-from app.domain.errores import ReporteInvalido
+from app.dominio.errores import ReporteInvalido
 
 router = APIRouter(prefix="/v1/reporte", tags=["Reporte"])
 

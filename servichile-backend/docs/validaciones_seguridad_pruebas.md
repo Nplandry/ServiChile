@@ -39,7 +39,7 @@ Mensajes de borde habituales:
 
 ### 1.3 Mapeo de errores de dominio → HTTP
 
-Las excepciones de negocio viven en `app/domain/errores.py` **sin conocer FastAPI**. La capa API las captura y las traduce a `HTTPException` con código semántico:
+Las excepciones de negocio viven en `app/dominio/errores.py` **sin conocer FastAPI**. La capa API las captura y las traduce a `HTTPException` con código semántico:
 
 | Ámbito | Ejemplos de error de dominio | HTTP típico |
 |---|---|---|
@@ -53,7 +53,7 @@ Principio: **el servicio lanza error de negocio; el router decide el status code
 
 ### 1.4 Rate limits (control de límites de peticiones)
 
-Implementación en `app/infrastructure/limite_solicitudes.py`, inyectada vía `dependencias.py`:
+Implementación en `app/infraestructura/limite_solicitudes.py`, inyectada vía `dependencias.py`:
 
 1. Sin `REDIS_URL`: contador **en memoria** del proceso (adecuado solo a desarrollo / una instancia).
 2. Con `REDIS_URL`: límite compartido entre instancias.
@@ -74,7 +74,7 @@ Respuesta al exceder: **429** + `Retry-After`. `TRUST_PROXY` solo debe ser `true
 
 ### 2.1 Hashing de contraseñas
 
-`app/services/autenticacion.py` usa **Argon2id** (`argon2-cffi`, `PasswordHasher` con parámetros por defecto de la librería).
+El hash vive en `app/infraestructura/seguridad/hasher.py` (**Argon2id**, `argon2-cffi`). El servicio de autenticación solo llama al puerto `HasherContrasena`.
 
 1. Al registrar: se guarda solo el hash, nunca la contraseña en claro.
 2. Al login o al borrar cuenta: `verify` contra el hash; fallos de verificación → credenciales inválidas / 403 según el flujo.
@@ -82,7 +82,7 @@ Respuesta al exceder: **429** + `Retry-After`. `TRUST_PROXY` solo debe ser `true
 
 ### 2.2 JWT
 
-1. Emisión y verificación con **PyJWT**, firmado con `JWT_SECRET` (`SecretStr`, mínimo 32 caracteres).
+1. Emisión y verificación en `app/infraestructura/seguridad/` (**PyJWT**), firmado con `JWT_SECRET` (`SecretStr`, mínimo 32 caracteres). Los servicios no importan `jwt`.
 2. Token de sesión: `Bearer` en `Authorization`; expiración `JWT_EXPIRES_MINUTES`.
 3. **Reporte** usa un token firmado **distinto** al de sesión, con vida `REPORTE_EXPIRES_MINUTES` (corta). El QR solo valida ese reporte; el JWT de sesión no sirve.
 4. Sesión inválida o expirada → 401 uniforme, sin filtrar si el usuario existe.
@@ -108,9 +108,9 @@ La API responde con `BiometriaOut` y un mensaje que deja explícito que la foto 
 
 Las reglas de dependencia se verifican con **import-linter** (`.importlinter`):
 
-1. Capas: `api` → `services` → `domain`. La infraestructura implementa puertos del dominio.
-2. Dominio sin FastAPI / SQLAlchemy / Pydantic de frameworks.
-3. Servicios sin infraestructura ni imports de `app.api`.
+1. Capas: `api` → `servicios` → `dominio`. La infraestructura implementa puertos del dominio.
+2. Dominio sin FastAPI / SQLAlchemy / Pydantic.
+3. Servicios sin infraestructura, API, JWT ni Argon2.
 4. API sin acceso directo a persistencia (salvo ensamblado en `dependencias.py`).
 
 Ejecución:

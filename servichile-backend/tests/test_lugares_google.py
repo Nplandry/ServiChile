@@ -1,7 +1,7 @@
-from app.domain.transparencia.indicadores import razones_resenas
+from app.dominio.transparencia.indicadores import razones_resenas
 
-from app.infrastructure.lugares_google import (
-    FakePlacesGoogle,
+from app.infraestructura.lugares_google import (
+    MuestraPlacesGoogle,
     NullPlacesGoogle,
     elegir_lugar,
     resultado_desde_lugar,
@@ -17,9 +17,9 @@ def test_null_sin_datos():
     assert r.rating is None
 
 
-def test_fake_con_nombre():
+def test_muestra_con_nombre():
 
-    r = FakePlacesGoogle().buscar_reputacion(
+    r = MuestraPlacesGoogle().buscar_reputacion(
         nombre="Gearlabs SpA", direccion="Las Condes"
     )
 
@@ -30,9 +30,9 @@ def test_fake_con_nombre():
     assert r.reviews_count == 120
 
 
-def test_fake_sin_nombre():
+def test_muestra_sin_nombre():
 
-    assert FakePlacesGoogle().buscar_reputacion(nombre="").encontrado is False
+    assert MuestraPlacesGoogle().buscar_reputacion(nombre="").encontrado is False
 
 
 def test_elige_por_sitio_web():

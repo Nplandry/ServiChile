@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.api import dependencias
 
-from app.infrastructure.persistencia.modelos import Usuario
+from app.infraestructura.persistencia.modelos import Usuario
 
 from app.principal import app
 
@@ -220,7 +220,7 @@ def test_limite_por_ip_aunque_cambie_el_correo(client: TestClient):
 
 def test_limite_registro_por_ip(client: TestClient, monkeypatch):
 
-    from app.infrastructure import limite_solicitudes
+    from app.infraestructura import limite_solicitudes
 
     class RelojFijo:
 

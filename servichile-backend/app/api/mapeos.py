@@ -2,7 +2,7 @@
 
 from app.api.esquemas import PerfilOut, UsuarioOut
 
-from app.domain.entidades import EstadoPasaporte, Usuario
+from app.dominio.entidades import EstadoPasaporte, Usuario
 
 
 def to_perfil_out(estado: EstadoPasaporte) -> PerfilOut:

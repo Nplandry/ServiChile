@@ -8,11 +8,11 @@ from sqlalchemy import inspect, select, text
 
 from sqlalchemy.orm import sessionmaker
 
-from app.domain.ficha_negocio import IMAGEN_POR_CATEGORIA
+from app.dominio.ficha_negocio import IMAGEN_POR_CATEGORIA
 
-from app.domain.transparencia.reputacion import EntradaScore, calcular_indice
+from app.dominio.transparencia.reputacion import EntradaScore, calcular_indice
 
-from app.infrastructure.persistencia.modelos import BusinessEntity, BusinessReputationMetrics, get_engine
+from app.infraestructura.persistencia.modelos import BusinessEntity, BusinessReputationMetrics, get_engine
 
 from app.tiempo import ahora_utc
 

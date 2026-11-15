@@ -1,4 +1,4 @@
-from app.domain.ficha_negocio import cta_texto, imagen_efectiva, logo_texto
+from app.dominio.ficha_negocio import cta_texto, imagen_efectiva, logo_texto
 
 
 def test_cta_por_categoria():

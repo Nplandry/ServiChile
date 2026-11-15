@@ -10,40 +10,52 @@ name = Capas de la aplicación
 type = layers
 layers =
     app.api
-    app.services
-    app.domain
+    app.servicios
+    app.dominio
 
 # El dominio es puro: ni SQLAlchemy, ni FastAPI, ni Pydantic.
 [importlinter:contract:dominio-puro]
 name = El dominio no depende de frameworks
 type = forbidden
 source_modules =
-    app.domain
+    app.dominio
 forbidden_modules =
     sqlalchemy
     fastapi
     pydantic
+    pydantic_settings
+    jwt
+    argon2
+    app.configuracion
+    app.api
+    app.servicios
+    app.infraestructura
 
 # Los servicios solo conocen puertos y entidades. No importan adaptadores.
 [importlinter:contract:servicios-sin-infra]
 name = Los servicios no conocen la infraestructura ni la API
 type = forbidden
 source_modules =
-    app.services
+    app.servicios
 forbidden_modules =
-    app.infrastructure
+    app.infraestructura
     app.api
+    app.configuracion
     sqlalchemy
     fastapi
+    pydantic
+    pydantic_settings
+    jwt
+    argon2
 
 # Los adaptadores no suben hacia casos de uso ni HTTP.
 [importlinter:contract:infra-no-sube]
 name = La infraestructura no conoce servicios ni API
 type = forbidden
 source_modules =
-    app.infrastructure
+    app.infraestructura
 forbidden_modules =
-    app.services
+    app.servicios
     app.api
 
 # Los routers no tocan la base: solo dependencias.py ensambla persistencia.
@@ -53,11 +65,11 @@ type = forbidden
 source_modules =
     app.api
 forbidden_modules =
-    app.infrastructure.persistencia.modelos
-    app.infrastructure.persistencia.repositorios
-    app.infrastructure.cmf.repositorio
+    app.infraestructura.persistencia.modelos
+    app.infraestructura.persistencia.repositorios
+    app.infraestructura.cmf.repositorio
 allow_indirect_imports = True
 ignore_imports =
-    app.api.dependencias -> app.infrastructure.persistencia.modelos
-    app.api.dependencias -> app.infrastructure.persistencia.repositorios
-    app.api.dependencias -> app.infrastructure.cmf.repositorio
+    app.api.dependencias -> app.infraestructura.persistencia.modelos
+    app.api.dependencias -> app.infraestructura.persistencia.repositorios
+    app.api.dependencias -> app.infraestructura.cmf.repositorio

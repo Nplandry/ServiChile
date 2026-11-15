@@ -1,11 +1,11 @@
-from app.domain.transparencia.sii import (
+from app.dominio.transparencia.sii import (
     HallazgosSii,
     hallazgos_desde_payload,
     score_sii,
 )
 
-from app.infrastructure.sii import (
-    FakeSiiContribuyentes,
+from app.infraestructura.sii import (
+    MuestraSiiContribuyentes,
     NullSiiContribuyentes,
 )
 
@@ -58,10 +58,10 @@ def test_hallazgos_desde_payload_ejemplo():
     assert score_sii(h) == 100
 
 
-def test_null_y_fake():
+def test_nulo_y_muestra():
 
     assert NullSiiContribuyentes().score_para_rut("76.192.083-9") == 0
 
-    assert FakeSiiContribuyentes().score_para_rut(None) == 0
+    assert MuestraSiiContribuyentes().score_para_rut(None) == 0
 
-    assert FakeSiiContribuyentes().score_para_rut("76192083-9") == 100
+    assert MuestraSiiContribuyentes().score_para_rut("76192083-9") == 100

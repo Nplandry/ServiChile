@@ -2,9 +2,9 @@
 
 from fastapi import HTTPException, status
 
-from app.domain.entidades import Usuario
+from app.dominio.entidades import Usuario
 
-from app.domain.tipo_cuenta import es_proveedor, tipo_de_usuario
+from app.dominio.tipo_cuenta import es_proveedor, tipo_de_usuario
 
 SOLO_PROVEEDOR = (
     "Solo una cuenta proveedor puede crear o reclamar fichas en el marketplace."

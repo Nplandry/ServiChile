@@ -14,9 +14,9 @@ from sqlalchemy.orm import sessionmaker
 
 from app.api import dependencias
 
-from app.infrastructure.persistencia.modelos import get_session
+from app.infraestructura.persistencia.modelos import get_session
 
-from app.infrastructure.limite_solicitudes import MemoryRateLimiter
+from app.infraestructura.limite_solicitudes import MemoryRateLimiter
 
 from app.principal import app
 

@@ -12,20 +12,22 @@ servichile-backend/
 │   ├── principal.py             # Aplicación FastAPI, CORS y routers
 │   ├── configuracion.py         # Variables de entorno (Pydantic Settings)
 │   ├── tiempo.py                # Reloj UTC
-│   ├── domain/                  # Núcleo: entidades, reglas y puertos (sin SQLAlchemy, FastAPI ni Pydantic)
+│   ├── dominio/                 # Núcleo: entidades, reglas y puertos (sin SQLAlchemy, FastAPI ni Pydantic)
 │   │   ├── entidades.py         # Usuario, Negocio, Reserva y resultados de servicio
 │   │   ├── errores.py           # Excepciones de negocio
 │   │   ├── puertos.py           # Contratos (repositorios y proveedores). Los servicios solo hablan esto
 │   │   ├── pasaporte.py         # RUT módulo 11 y score de confiabilidad
 │   │   ├── ficha_negocio.py     # Cómo se muestra un negocio en el mapa (foto, logo, botón)
 │   │   └── transparencia/       # Índice: indicadores, métricas, CMF, SII, Mercado Público
-│   ├── services/                # Casos de uso: reutilizables, sin ORM ni HTTP
-│   │   ├── autenticacion.py     # Registro, login (Argon2id) y JWT
+│   ├── servicios/               # Casos de uso: reutilizables, sin ORM, HTTP, JWT ni Argon2
+│   │   ├── autenticacion.py     # Registro y login
 │   │   └── pasaporte.py, reserva.py, negocio.py, …
-│   ├── infrastructure/          # Adaptadores que implementan los puertos
+│   ├── infraestructura/         # Adaptadores que implementan los puertos
 │   │   ├── persistencia/        # Modelos ORM y repositorios SQL
 │   │   ├── cmf/                 # Cliente CMF, índice local y repositorio
-│   │   ├── ciber_sonda.py       # Sonda de indicadores (fake|live)
+│   │   ├── ciber/               # Sonda, consulta DNS y documentos legales
+│   │   ├── busqueda/            # Búsqueda web, filtro e incidentes
+│   │   ├── seguridad/           # Hash Argon2 y tokens JWT
 │   │   └── limite_solicitudes.py
 │   └── api/                     # Presentación REST: sin reglas de negocio ni consultas
 │       ├── esquemas.py          # Contratos de entrada y salida (Pydantic)
@@ -70,9 +72,9 @@ Los endpoints marcados con "Sí" en Sesión requieren la cabecera `Authorization
 
 - `/v1/patrimonio`, `/v1/polizas`, `/v1/subtel`: cruce de datos, dependen de convenios con SII, Registro Civil, CMF y SUBTEL.
 - Endpoints B2B y webhook de WhatsApp.
-- Worker de ingesta y recálculo del Índice de Transparencia (cron/Celery): recolectar métricas de Google Maps y NLP de sentimiento, y persistir `final_score` periódicamente. Hoy la fórmula (`app/domain/transparencia/reputacion.py`) y el recálculo al reclamar/al vuelo ya existen; falta el proceso en segundo plano que alimente las métricas.
+- Worker de ingesta y recálculo del Índice de Transparencia (cron/Celery): recolectar métricas de Google Maps y NLP de sentimiento, y persistir `final_score` periódicamente. Hoy la fórmula (`app/dominio/transparencia/reputacion.py`) y el recálculo al reclamar/al vuelo ya existen; falta el proceso en segundo plano que alimente las métricas.
 - Pasaporte de Confianza, pendientes antes de producción:
-  - Verificador de RUT real (proveedor de identidad). Hoy `FakeVerificadorRut` acepta cualquier RUT con DV válido.
+  - Verificador de RUT real (proveedor de identidad). Hoy `MuestraVerificadorRut` acepta cualquier RUT con DV válido.
   - Eliminar `preocupacion` y `proposito` de la base en una migración posterior, cuando el frontend antiguo ya no los envíe.
   - Reclamo de comercios: hoy el documento de verificación no se valida ni se guarda.
 

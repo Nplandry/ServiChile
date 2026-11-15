@@ -18,7 +18,7 @@ from app.api.esquemas import (
     ReservaOut,
 )
 
-from app.domain.errores import (
+from app.dominio.errores import (
     NegocioNoEncontrado,
     NegocioYaReclamado,
     NoEsTitularDelNegocio,
