@@ -10,33 +10,24 @@ import urllib.request
 
 from datetime import date, timedelta
 
-from typing import Protocol
+from app.domain.pasaporte import RutInvalido, normalizar_rut
 
-from app.domain.mercado_publico import (
+from app.domain.puertos import NuloMercadoPublico, ProveedorMercadoPublico
+
+from app.domain.transparencia.mercado_publico import (
     HallazgosMercadoPublico,
     formato_rut_chilecompra,
     score_mercado_publico,
 )
 
-from app.domain.pasaporte import RutInvalido, normalizar_rut
-
-from app.infrastructure.http_ssl import ssl_context
+from app.infrastructure.contexto_https import ssl_context
 
 _BASE = "https://api.mercadopublico.cl/servicios/v1"
 
 _UA = "ServiChile-ChileCompra/1.0"
 
 
-class ChileCompra(Protocol):
-
-    def score_para_rut(self, rut: str | None) -> int: ...
-
-
-class NullChileCompra:
-
-    def score_para_rut(self, rut: str | None) -> int:
-
-        return 0
+NullChileCompra = NuloMercadoPublico
 
 
 class FakeChileCompra:
@@ -239,7 +230,7 @@ class LiveChileCompra:
         return False
 
 
-def build_chilecompra(ticket: str | None, *, fake: bool = False) -> ChileCompra:
+def build_chilecompra(ticket: str | None, *, fake: bool = False) -> ProveedorMercadoPublico:
 
     if fake:
 

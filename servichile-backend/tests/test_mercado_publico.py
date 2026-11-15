@@ -1,4 +1,4 @@
-from app.domain.mercado_publico import (
+from app.domain.transparencia.mercado_publico import (
     HallazgosMercadoPublico,
     formato_rut_chilecompra,
     score_mercado_publico,

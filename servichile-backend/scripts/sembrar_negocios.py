@@ -8,13 +8,13 @@ from sqlalchemy import inspect, select, text
 
 from sqlalchemy.orm import sessionmaker
 
-from app.domain.marketplace import IMAGEN_POR_CATEGORIA
+from app.domain.ficha_negocio import IMAGEN_POR_CATEGORIA
 
-from app.domain.reputacion import EntradaScore, calcular_indice
+from app.domain.transparencia.reputacion import EntradaScore, calcular_indice
 
-from app.infrastructure.db import BusinessEntity, BusinessReputationMetrics, get_engine
+from app.infrastructure.persistencia.modelos import BusinessEntity, BusinessReputationMetrics, get_engine
 
-from app.utils import ahora_utc
+from app.tiempo import ahora_utc
 
 _PLANTILLAS = {
     "tecnologia": [

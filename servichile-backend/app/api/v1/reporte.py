@@ -1,15 +1,15 @@
 from fastapi import APIRouter, HTTPException, status
 
-from app.api.deps import (
+from app.api.dependencias import (
     CurrentUserDep,
     RateLimiterDep,
     ReporteServiceDep,
     demasiadas_solicitudes,
 )
 
-from app.api.schemas import ReporteOut, ReporteValidacionOut, ReporteValidarIn
+from app.api.esquemas import ReporteOut, ReporteValidacionOut, ReporteValidarIn
 
-from app.services.reporte_service import ReporteInvalido
+from app.domain.errores import ReporteInvalido
 
 router = APIRouter(prefix="/v1/reporte", tags=["Reporte"])
 

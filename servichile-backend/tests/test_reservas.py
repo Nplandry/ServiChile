@@ -2,7 +2,7 @@ import uuid
 
 from fastapi.testclient import TestClient
 
-from app.infrastructure.db import BusinessEntity
+from app.infrastructure.persistencia.modelos import BusinessEntity
 
 
 def _negocio(session_factory) -> uuid.UUID:

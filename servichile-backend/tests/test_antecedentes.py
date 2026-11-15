@@ -2,11 +2,11 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app.domain import xp as reglas
+from app.domain import progreso_cliente as reglas
 
 from app.domain.antecedentes import detectar_anotaciones, run_valido
 
-from app.infrastructure.antecedentes_pdf import analizar_pdf_antecedentes
+from app.infrastructure.pdf_antecedentes import analizar_pdf_antecedentes
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ANT_500727268737_21082350.pdf"
 

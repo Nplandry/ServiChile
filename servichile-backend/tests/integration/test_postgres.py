@@ -12,13 +12,13 @@ from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.orm import sessionmaker
 
-from app.api import deps
+from app.api import dependencias
 
-from app.infrastructure.db import get_session
+from app.infrastructure.persistencia.modelos import get_session
 
-from app.infrastructure.rate_limit import MemoryRateLimiter
+from app.infrastructure.limite_solicitudes import MemoryRateLimiter
 
-from app.main import app
+from app.principal import app
 
 URL = os.environ.get("TEST_DATABASE_URL")
 
@@ -97,7 +97,7 @@ def client(db):
 
     app.dependency_overrides[get_session] = _session
 
-    app.dependency_overrides[deps.get_rate_limiter] = lambda: limiter
+    app.dependency_overrides[dependencias.get_rate_limiter] = lambda: limiter
 
     with TestClient(app) as c:
 

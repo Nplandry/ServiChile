@@ -1,10 +1,10 @@
-from app.domain.sii_contribuyente import (
+from app.domain.transparencia.sii import (
     HallazgosSii,
     hallazgos_desde_payload,
     score_sii,
 )
 
-from app.infrastructure.sii_apigateway import (
+from app.infrastructure.sii import (
     FakeSiiContribuyentes,
     NullSiiContribuyentes,
 )

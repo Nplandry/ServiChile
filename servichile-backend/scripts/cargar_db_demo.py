@@ -10,7 +10,7 @@ from pathlib import Path
 
 from sqlalchemy import inspect, text
 
-from app.infrastructure.db import get_engine
+from app.infrastructure.persistencia.modelos import get_engine
 
 from scripts.sembrar_negocios import sembrar
 

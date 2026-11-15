@@ -16,13 +16,11 @@ import urllib.request
 
 from concurrent.futures import ThreadPoolExecutor
 
-from dataclasses import dataclass
-
 from datetime import datetime, timezone
 
-from typing import Protocol
+from app.domain.puertos import ResultadoSondaCiber, SondaCiber
 
-from app.domain.ciber_observables import (
+from app.domain.transparencia.indicadores import (
     HallazgosBlacklist,
     HallazgosCookies,
     HallazgosDnssec,
@@ -34,7 +32,6 @@ from app.domain.ciber_observables import (
     HallazgosSubdominios,
     HallazgosUptime,
     HallazgosWhois,
-    ObservableScore,
     PUERTOS_CRITICOS,
     armar_observables,
     detectar_cookies_html,
@@ -51,15 +48,15 @@ from app.domain.ciber_observables import (
     score_whois,
 )
 
-from app.domain.docs_legales import ResultadoDocsLegales
+from app.domain.transparencia.docs_legales import ResultadoDocsLegales
 
 from app.infrastructure.busqueda_web import BuscadorWeb
 
-from app.infrastructure.ciber_dns import doh_a, doh_ns, doh_tiene_tipo, doh_txt
+from app.infrastructure.consulta_dns import doh_a, doh_ns, doh_tiene_tipo, doh_txt
 
-from app.infrastructure.docs_legales_sonda import DocsLegalesSonda
+from app.infrastructure.sonda_docs_legales import DocsLegalesSonda
 
-from app.infrastructure.http_ssl import ssl_context
+from app.infrastructure.contexto_https import ssl_context
 
 _SUBS_SENSIBLES = ("dev", "staging", "admin", "vpn", "mail")
 
@@ -106,23 +103,6 @@ _SCORES_SIN_HOST_LIVE = {
     "cookies": 85,
     **_SCORES_DOCS_LIVE_SIN,
 }
-
-
-@dataclass(frozen=True)
-class ResultadoSondaCiber:
-
-    observables: list[ObservableScore]
-
-    host: str | None
-
-    scores: dict[str, int]
-
-    docs_razones: dict[str, list[str]] | None = None
-
-
-class CiberSonda(Protocol):
-
-    def escanear(self, sitio_web: str | None) -> ResultadoSondaCiber: ...
 
 
 def _host_resuelve(host: str) -> bool:
@@ -713,7 +693,7 @@ class LiveCiberSonda:
         return HallazgosSubdominios(expuestos=tuple(expuestos))
 
 
-def build_ciber_sonda(provider: str, buscador: BuscadorWeb | None = None) -> CiberSonda:
+def build_ciber_sonda(provider: str, buscador: BuscadorWeb | None = None) -> SondaCiber:
 
     if provider == "live":
 

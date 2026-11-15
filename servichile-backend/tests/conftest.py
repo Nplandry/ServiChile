@@ -14,13 +14,13 @@ from sqlalchemy.orm import sessionmaker
 
 from sqlalchemy.pool import StaticPool
 
-from app.api import deps
+from app.api import dependencias
 
-from app.infrastructure.db import Base, get_session
+from app.infrastructure.persistencia.modelos import Base, get_session
 
-from app.infrastructure.rate_limit import MemoryRateLimiter
+from app.infrastructure.limite_solicitudes import MemoryRateLimiter
 
-from app.main import app
+from app.principal import app
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ def client(session_factory):
 
     app.dependency_overrides[get_session] = _session
 
-    app.dependency_overrides[deps.get_rate_limiter] = lambda: limiter
+    app.dependency_overrides[dependencias.get_rate_limiter] = lambda: limiter
 
     with TestClient(app) as c:
 

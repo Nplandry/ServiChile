@@ -2,15 +2,15 @@
 root_package = app
 include_external_packages = True
 
-# Arquitectura en capas: cada capa solo puede importar las de abajo.
-# api -> services -> infrastructure -> domain -> utils/config
+# Presentación -> casos de uso -> dominio.
+# La infraestructura es hermana de los servicios: ambos dependen del dominio.
+# El ensamblado concreto vive en app.api.dependencias.
 [importlinter:contract:capas]
 name = Capas de la aplicación
 type = layers
 layers =
     app.api
     app.services
-    app.infrastructure
     app.domain
 
 # El dominio es puro: ni SQLAlchemy, ni FastAPI, ni Pydantic.
@@ -24,30 +24,40 @@ forbidden_modules =
     fastapi
     pydantic
 
-# Los servicios trabajan con entidades del dominio, no con modelos ORM ni con schemas de API.
-[importlinter:contract:servicios-sin-orm-ni-api]
-name = Los servicios no conocen el ORM ni la API
+# Los servicios solo conocen puertos y entidades. No importan adaptadores.
+[importlinter:contract:servicios-sin-infra]
+name = Los servicios no conocen la infraestructura ni la API
 type = forbidden
 source_modules =
     app.services
 forbidden_modules =
-    app.infrastructure.db
+    app.infrastructure
     app.api
     sqlalchemy
-# Un servicio puede usar repositorios (que sí usan el ORM). Lo prohibido es importar el ORM o la API directamente.
-allow_indirect_imports = True
+    fastapi
 
-# Los routers no tocan la base ni los repositorios: pasan por servicios. Solo deps.py ensambla dependencias.
+# Los adaptadores no suben hacia casos de uso ni HTTP.
+[importlinter:contract:infra-no-sube]
+name = La infraestructura no conoce servicios ni API
+type = forbidden
+source_modules =
+    app.infrastructure
+forbidden_modules =
+    app.services
+    app.api
+
+# Los routers no tocan la base: solo dependencias.py ensambla persistencia.
 [importlinter:contract:api-sin-base-de-datos]
 name = La API no accede a la base de datos directamente
 type = forbidden
 source_modules =
     app.api
 forbidden_modules =
-    app.infrastructure.db
-    app.infrastructure.repositories
-# Solo imports directos. deps.py es el ensamblador de dependencias y puede usar la sesión y los repositorios.
+    app.infrastructure.persistencia.modelos
+    app.infrastructure.persistencia.repositorios
+    app.infrastructure.cmf.repositorio
 allow_indirect_imports = True
 ignore_imports =
-    app.api.deps -> app.infrastructure.db
-    app.api.deps -> app.infrastructure.repositories
+    app.api.dependencias -> app.infrastructure.persistencia.modelos
+    app.api.dependencias -> app.infrastructure.persistencia.repositorios
+    app.api.dependencias -> app.infrastructure.cmf.repositorio

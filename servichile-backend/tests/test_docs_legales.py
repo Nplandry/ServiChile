@@ -1,4 +1,4 @@
-from app.domain.docs_legales import (
+from app.domain.transparencia.docs_legales import (
     HallazgoDocLegal,
     ResultadoDocsLegales,
     clasificar_url_candidata,

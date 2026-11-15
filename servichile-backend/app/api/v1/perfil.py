@@ -4,7 +4,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import (
+from app.api.dependencias import (
     CurrentUserDep,
     PasaporteServiceDep,
     RateLimiterDep,
@@ -13,20 +13,21 @@ from app.api.deps import (
 
 from app.api.mapeos import to_perfil_out
 
-from app.api.schemas import AntecedentesOut, BiometriaOut, PerfilIn, PerfilOut
+from app.api.esquemas import AntecedentesOut, BiometriaOut, PerfilIn, PerfilOut
 
 from app.domain.antecedentes import ANTECEDENTES_MAX_BYTES
 
-from app.services.pasaporte_service import (
+from app.domain.errores import (
     AntecedentesInvalido,
     AntecedentesMuyGrande,
-    BIOMETRIA_MAX_BYTES,
     BiometriaInvalida,
     BiometriaMuyGrande,
     RutEnUso,
     RutRechazado,
     RutYaVerificado,
 )
+
+from app.services.pasaporte import BIOMETRIA_MAX_BYTES
 
 router = APIRouter(prefix="/v1/perfil", tags=["Perfil"])
 

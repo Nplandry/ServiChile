@@ -1,4 +1,4 @@
-from app.domain.incidentes_publicos import (
+from app.domain.transparencia.incidentes import (
     HallazgosIncidentes,
     SnippetBusqueda,
     armar_consultas,
@@ -6,13 +6,13 @@ from app.domain.incidentes_publicos import (
     score_incidentes,
 )
 
-from app.infrastructure.incidentes_scanner import (
+from app.infrastructure.escaner_incidentes import (
     FakeIncidentesScanner,
     LiveIncidentesScanner,
     NullIncidentesScanner,
 )
 
-from app.infrastructure.llm_filtro_incidentes import HeuristicoFiltroIncidentes
+from app.infrastructure.filtro_incidentes import HeuristicoFiltroIncidentes
 
 
 def test_score_sin_nombre_o_busqueda_cero():
@@ -71,7 +71,7 @@ def test_score_con_confirmados():
 
 def test_razones_breves_lista_titulos():
 
-    from app.domain.incidentes_publicos import razones_breves
+    from app.domain.transparencia.incidentes import razones_breves
 
     h = HallazgosIncidentes(
         nombre_consultable=True, busqueda_ok=True, confirmados=1, severos=1

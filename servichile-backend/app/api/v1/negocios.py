@@ -4,11 +4,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.authz import exige_cuenta_proveedor
+from app.api.autorizacion import exige_cuenta_proveedor
 
-from app.api.deps import CurrentUserDep, NegocioServiceDep, ReservaServiceDep
+from app.api.dependencias import CurrentUserDep, NegocioServiceDep, ReservaServiceDep
 
-from app.api.schemas import (
+from app.api.esquemas import (
     CheckinIn,
     ClaimIn,
     ClaimOut,
