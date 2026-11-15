@@ -15,6 +15,7 @@ from typing import Protocol
 from app.dominio.antecedentes import ResultadoAntecedentes
 from app.dominio.entidades import Negocio, Reserva, TokenEmitido, Usuario
 from app.dominio.transparencia.cmf import InstitucionCmf
+from app.dominio.transparencia.datalux import FichaDatalux
 from app.dominio.transparencia.indicadores import ObservableScore
 
 
@@ -146,6 +147,10 @@ class ProveedorPlaces(Protocol):
     ) -> ResultadoPlaces: ...
 
 
+class ProveedorDatalux(Protocol):
+    def consultar(self, consulta: str | None) -> FichaDatalux | None: ...
+
+
 class HasherContrasena(Protocol):
     def hash(self, password: str) -> str: ...
 
@@ -230,6 +235,11 @@ class NuloPlaces:
         sitio_web: str | None = None,
     ) -> ResultadoPlaces:
         return ResultadoPlaces(encontrado=False)
+
+
+class NuloDatalux:
+    def consultar(self, consulta: str | None) -> FichaDatalux | None:
+        return None
 
 
 class NuloAnalizadorAntecedentes:

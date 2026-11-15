@@ -782,4 +782,23 @@ def armar_observables(valores: dict[str, int]) -> list[ObservableScore]:
                     )
                 )
 
+    from app.dominio.transparencia.datalux import OBSERVABLES_DATALUX
+
+    for d in OBSERVABLES_DATALUX:
+
+        if d.id not in valores:
+
+            continue
+
+        out.append(
+            ObservableScore(
+                id=d.id,
+                etiqueta=d.etiqueta,
+                detalle=d.detalle,
+                score=_clamp_score(valores[d.id]),
+                peso=d.peso,
+                grupo=d.grupo,
+            )
+        )
+
     return out

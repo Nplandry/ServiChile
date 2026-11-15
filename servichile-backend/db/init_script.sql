@@ -108,6 +108,10 @@ CREATE TABLE business_reputation_metrics (
     score_sii                double precision CHECK (score_sii IS NULL OR score_sii BETWEEN 0 AND 100),
     score_cmf                double precision CHECK (score_cmf IS NULL OR score_cmf BETWEEN 0 AND 100),
     score_incidentes         double precision CHECK (score_incidentes IS NULL OR score_incidentes BETWEEN 0 AND 100),
+    score_domicilio          double precision CHECK (score_domicilio IS NULL OR score_domicilio BETWEEN 0 AND 100),
+    score_huella_digital     double precision CHECK (score_huella_digital IS NULL OR score_huella_digital BETWEEN 0 AND 100),
+    score_persona_juridica   double precision CHECK (score_persona_juridica IS NULL OR score_persona_juridica BETWEEN 0 AND 100),
+    datalux_razones          jsonb,
     ciber_escaneado_en       timestamptz,
     actualizado_en           timestamptz NOT NULL DEFAULT now()
 );
