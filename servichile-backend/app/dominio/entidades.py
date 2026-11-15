@@ -116,6 +116,14 @@ class Metricas:
 
     incidentes_razones: list[str] | None = None
 
+    score_domicilio: float | None = None
+
+    score_huella_digital: float | None = None
+
+    score_persona_juridica: float | None = None
+
+    datalux_razones: dict[str, list[str]] | None = None
+
     ciber_escaneado_en: datetime | None = None
 
     actualizado_en: datetime | None = None

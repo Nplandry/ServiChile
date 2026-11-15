@@ -49,6 +49,8 @@ class Settings(BaseSettings):
 
     places_mode: Literal["automatico", "muestra", "produccion", "apagado"] = "automatico"
 
+    datalux_mode: Literal["produccion", "apagado"] = "produccion"
+
     rut_verifier: Literal["muestra"] = "muestra"
 
     redis_url: str | None = None

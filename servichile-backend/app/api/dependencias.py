@@ -26,6 +26,7 @@ from app.dominio.puertos import (
     EmisorSesion,
     HasherContrasena,
     ProveedorCmf,
+    ProveedorDatalux,
     ProveedorIncidentes,
     ProveedorMercadoPublico,
     ProveedorPlaces,
@@ -47,6 +48,8 @@ from app.infraestructura.cmf.repositorio import CmfInstitucionRepository
 from app.infraestructura.busqueda.escaner import build_incidentes_scanner
 
 from app.infraestructura.lugares_google import build_places_google
+
+from app.infraestructura.datalux import build_datalux
 
 from app.infraestructura.sii import build_sii_contribuyentes
 
@@ -310,6 +313,10 @@ def get_places_google() -> ProveedorPlaces:
     return build_places_google(key, muestra=False)
 
 
+def get_datalux() -> ProveedorDatalux:
+    return build_datalux(enabled=get_settings().datalux_mode != "apagado")
+
+
 def get_negocio_service(
     session: SessionDep,
     sonda: Annotated[SondaCiber, Depends(get_ciber_sonda)],
@@ -318,6 +325,7 @@ def get_negocio_service(
     cmf: Annotated[ProveedorCmf, Depends(get_cmf_indice)],
     incidentes: Annotated[ProveedorIncidentes, Depends(get_incidentes_scanner)],
     places: Annotated[ProveedorPlaces, Depends(get_places_google)],
+    datalux: Annotated[ProveedorDatalux, Depends(get_datalux)],
 ) -> NegocioService:
 
     return NegocioService(
@@ -329,6 +337,7 @@ def get_negocio_service(
         cmf=cmf,
         incidentes=incidentes,
         places=places,
+        datalux=datalux,
     )
 
 

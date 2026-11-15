@@ -240,6 +240,14 @@ class BusinessReputationMetrics(Base):
 
     incidentes_razones: Mapped[list | None] = mapped_column(JSONB, default=None)
 
+    score_domicilio: Mapped[float | None] = mapped_column(Float, default=None)
+
+    score_huella_digital: Mapped[float | None] = mapped_column(Float, default=None)
+
+    score_persona_juridica: Mapped[float | None] = mapped_column(Float, default=None)
+
+    datalux_razones: Mapped[dict | None] = mapped_column(JSONB, default=None)
+
     ciber_escaneado_en: Mapped[datetime | None] = mapped_column(default=None)
 
     actualizado_en: Mapped[datetime] = mapped_column(

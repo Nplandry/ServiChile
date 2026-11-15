@@ -52,6 +52,9 @@ IDS_API = IDS_SONDA | {
     "sii",
     "cmf",
     "incidentes",
+    "persona-juridica",
+    "domicilio",
+    "huella-digital",
 }
 
 IDS_CONTRACTUAL = {"cookies", "politica-privacidad", "terminos", "sla"}
@@ -240,7 +243,23 @@ def test_reputacion_incluye_observables_ciber(client, token_empresa):
 
         assert 0 <= o["score"] <= 100
 
-        if o["id"] in ("uptime", "resenas-reclamos", "incidentes"):
+        if o["id"] in ("domicilio", "huella-digital"):
+
+            assert o["peso"] == "2.0%"
+
+            assert o["grupo"] == "operativa"
+
+            assert o["score"] in (50, 100)
+
+        elif o["id"] == "persona-juridica":
+
+            assert o["peso"] == "3.0%"
+
+            assert o["grupo"] == "legal"
+
+            assert 0 <= o["score"] <= 100
+
+        elif o["id"] in ("uptime", "resenas-reclamos", "incidentes"):
 
             assert o["peso"] == "4.0%"
 

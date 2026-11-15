@@ -25,12 +25,14 @@ from app.dominio.ficha_negocio import cta_texto, imagen_efectiva, logo_texto
 
 from app.dominio.puertos import (
     NuloCmf,
+    NuloDatalux,
     NuloIncidentes,
     NuloMercadoPublico,
     NuloPlaces,
     NuloSii,
     NuloSondaCiber,
     ProveedorCmf,
+    ProveedorDatalux,
     ProveedorIncidentes,
     ProveedorMercadoPublico,
     ProveedorPlaces,
@@ -39,7 +41,6 @@ from app.dominio.puertos import (
     RepositorioUsuarios,
     SondaCiber,
 )
-
 from app.dominio.transparencia.mercado_publico import rut_desde_documento
 
 from app.dominio.transparencia.reputacion import EntradaScore, calcular_indice
@@ -198,6 +199,7 @@ class NegocioService:
         cmf: ProveedorCmf | None = None,
         incidentes: ProveedorIncidentes | None = None,
         places: ProveedorPlaces | None = None,
+        datalux: ProveedorDatalux | None = None,
     ) -> None:
 
         self.negocios = negocios
@@ -215,6 +217,8 @@ class NegocioService:
         self.incidentes = incidentes or NuloIncidentes()
 
         self.places = places or NuloPlaces()
+
+        self.datalux = datalux or NuloDatalux()
 
     def _buscar(self, business_id: uuid.UUID) -> Negocio:
 
@@ -253,6 +257,7 @@ class NegocioService:
             cmf=self.cmf,
             incidentes=self.incidentes,
             places=self.places,
+            datalux=self.datalux,
             rut=self._rut_para_mercado_publico(negocio),
             nombre=negocio.nombre,
             direccion=negocio.direccion,
@@ -396,6 +401,14 @@ class NegocioService:
         metricas.score_sii = None
 
         metricas.score_cmf = None
+
+        metricas.score_domicilio = None
+
+        metricas.score_huella_digital = None
+
+        metricas.score_persona_juridica = None
+
+        metricas.datalux_razones = None
 
         metricas.score_incidentes = None
 

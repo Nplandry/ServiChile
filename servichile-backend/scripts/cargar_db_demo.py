@@ -42,6 +42,8 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "025_incidentes_razones.sql",
     ROOT / "db" / "migrations" / "026_google_place_nombre.sql",
     ROOT / "db" / "migrations" / "027_docs_legales.sql",
+    ROOT / "db" / "migrations" / "028_datalux_domicilio_huella.sql",
+    ROOT / "db" / "migrations" / "029_score_persona_juridica.sql",
 ]
 
 

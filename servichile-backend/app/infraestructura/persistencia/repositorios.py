@@ -99,6 +99,18 @@ def _metricas(m: orm.BusinessReputationMetrics | None) -> Metricas | None:
         score_cmf=getattr(m, "score_cmf", None),
         score_incidentes=getattr(m, "score_incidentes", None),
         incidentes_razones=razones,
+        score_domicilio=getattr(m, "score_domicilio", None),
+        score_huella_digital=getattr(m, "score_huella_digital", None),
+        score_persona_juridica=getattr(m, "score_persona_juridica", None),
+        datalux_razones=(
+            {
+                str(k): [str(x) for x in (v or [])]
+                for k, v in getattr(m, "datalux_razones", None).items()
+                if isinstance(v, list)
+            }
+            if isinstance(getattr(m, "datalux_razones", None), dict)
+            else None
+        ),
         ciber_escaneado_en=m.ciber_escaneado_en,
         actualizado_en=m.actualizado_en,
     )
@@ -428,6 +440,16 @@ class NegocioRepository:
             n.metricas.score_incidentes = m.score_incidentes
 
             n.metricas.incidentes_razones = m.incidentes_razones
+
+            n.metricas.score_domicilio = getattr(m, "score_domicilio", None)
+
+            n.metricas.score_huella_digital = getattr(m, "score_huella_digital", None)
+
+            n.metricas.score_persona_juridica = getattr(
+                m, "score_persona_juridica", None
+            )
+
+            n.metricas.datalux_razones = getattr(m, "datalux_razones", None)
 
             n.metricas.ciber_escaneado_en = m.ciber_escaneado_en
 
