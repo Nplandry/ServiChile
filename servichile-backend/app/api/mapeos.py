@@ -1,4 +1,6 @@
-from app.api.schemas import PerfilOut, UsuarioOut
+"""Pasa entidades del dominio a las respuestas JSON de la API."""
+
+from app.api.esquemas import PerfilOut, UsuarioOut
 
 from app.domain.entidades import EstadoPasaporte, Usuario
 

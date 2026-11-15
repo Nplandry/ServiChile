@@ -2,9 +2,9 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.api.deps import CurrentUserDep, PasaporteServiceDep, ReservaServiceDep
+from app.api.dependencias import CurrentUserDep, PasaporteServiceDep, ReservaServiceDep
 
-from app.api.schemas import ReservaIn, ReservaOut
+from app.api.esquemas import ReservaIn, ReservaOut
 
 from app.domain.errores import (
     NegocioNoEncontrado,

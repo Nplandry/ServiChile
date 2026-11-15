@@ -25,7 +25,7 @@ docker run -d --name servichile-db -p 5432:5432 \
 ```bash
 psql "postgresql://servichile:servichile@localhost:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
 python -m scripts.cargar_db_demo
-uvicorn app.main:app --reload
+uvicorn app.principal:app --reload
 ```
 
 `init_script.sql` ya incluye marketplace (`direccion`, `descripcion`, `requiere_nivel`, `imagen_url`, `logo_url`).  

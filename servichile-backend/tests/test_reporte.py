@@ -4,7 +4,7 @@ import jwt
 
 from fastapi.testclient import TestClient
 
-from app.config import get_settings
+from app.configuracion import get_settings
 
 
 def _cuenta(

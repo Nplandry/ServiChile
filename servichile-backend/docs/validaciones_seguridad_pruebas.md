@@ -8,7 +8,7 @@ Documento de apoyo al informe técnico del backend ServiChile.
 
 ### 1.1 Validadores de entrada (Pydantic)
 
-La capa API define contratos de entrada y salida en `app/api/schemas.py` con **Pydantic v2**. FastAPI valida automáticamente el cuerpo JSON, query params y path params antes de ejecutar el caso de uso.
+La capa API define contratos de entrada y salida en `app/api/esquemas.py` con **Pydantic v2**. FastAPI valida automáticamente el cuerpo JSON, query params y path params antes de ejecutar el caso de uso.
 
 Ejemplos de reglas aplicadas:
 
@@ -39,13 +39,13 @@ Mensajes de borde habituales:
 
 ### 1.3 Mapeo de errores de dominio → HTTP
 
-Las excepciones de negocio viven en el dominio/servicios **sin conocer FastAPI** (`app/domain/errores.py`, errores de `PasaporteService`, `AuthService`, etc.). La capa API las captura y las traduce a `HTTPException` con código semántico:
+Las excepciones de negocio viven en `app/domain/errores.py` **sin conocer FastAPI**. La capa API las captura y las traduce a `HTTPException` con código semántico:
 
 | Ámbito | Ejemplos de error de dominio | HTTP típico |
 |---|---|---|
 | Auth | Credenciales inválidas; correo duplicado; contraseña de baja incorrecta | 401 / 409 / 403 |
 | Perfil / pasaporte | RUT inválido; RUT en uso; RUT ya verificado; biometría inválida o muy grande | 422 / 409 / 413 |
-| Autorización de cuenta | Solo proveedor puede crear/reclamar | 403 (`authz.py`) |
+| Autorización de cuenta | Solo proveedor puede crear/reclamar | 403 (`autorizacion.py`) |
 | Negocios / reservas | No encontrado; ya reclamado; no titular; nivel insuficiente; reserva cerrada | 404 / 409 / 403 |
 | Reporte (QR) | Payload inválido o expirado | 422 |
 
@@ -53,12 +53,12 @@ Principio: **el servicio lanza error de negocio; el router decide el status code
 
 ### 1.4 Rate limits (control de límites de peticiones)
 
-Implementación en `app/infrastructure/rate_limit.py`, inyectada vía `deps.py`:
+Implementación en `app/infrastructure/limite_solicitudes.py`, inyectada vía `dependencias.py`:
 
 1. Sin `REDIS_URL`: contador **en memoria** del proceso (adecuado solo a desarrollo / una instancia).
 2. Con `REDIS_URL`: límite compartido entre instancias.
 
-Límites configurables en `.env` (`app/config.py`):
+Límites configurables en `.env` (`app/configuracion.py`):
 
 | Límite | Variable | Uso |
 |---|---|---|
@@ -74,7 +74,7 @@ Respuesta al exceder: **429** + `Retry-After`. `TRUST_PROXY` solo debe ser `true
 
 ### 2.1 Hashing de contraseñas
 
-`app/services/auth_service.py` usa **Argon2id** (`argon2-cffi`, `PasswordHasher` con parámetros por defecto de la librería).
+`app/services/autenticacion.py` usa **Argon2id** (`argon2-cffi`, `PasswordHasher` con parámetros por defecto de la librería).
 
 1. Al registrar: se guarda solo el hash, nunca la contraseña en claro.
 2. Al login o al borrar cuenta: `verify` contra el hash; fallos de verificación → credenciales inválidas / 403 según el flujo.
@@ -108,10 +108,10 @@ La API responde con `BiometriaOut` y un mensaje que deja explícito que la foto 
 
 Las reglas de dependencia se verifican con **import-linter** (`.importlinter`):
 
-1. Capas: `api` → `services` → `infrastructure` → `domain`.
+1. Capas: `api` → `services` → `domain`. La infraestructura implementa puertos del dominio.
 2. Dominio sin FastAPI / SQLAlchemy / Pydantic de frameworks.
-3. Servicios sin ORM directo ni imports de `app.api`.
-4. API sin acceso directo a `db` / `repositories` (salvo ensamblado en `deps.py`).
+3. Servicios sin infraestructura ni imports de `app.api`.
+4. API sin acceso directo a persistencia (salvo ensamblado en `dependencias.py`).
 
 Ejecución:
 
@@ -170,10 +170,10 @@ pytest -v
 
 Cobertura representativa en `tests/`:
 
-- `test_auth.py`, `test_cuenta.py`, `test_perfil.py`, `test_pasaporte.py`
-- `test_biometria.py`, `test_xp.py`, `test_tipo_cuenta.py`
-- `test_reservas.py`, `test_negocios.py`, `test_marketplace_presentacion.py`
-- `test_reporte.py`, `test_ciber_observables.py`, `test_seguridad.py`
+- `test_autenticacion.py`, `test_cuenta.py`, `test_perfil.py`, `test_pasaporte.py`
+- `test_biometria.py`, `test_progreso_cliente.py`, `test_tipo_cuenta.py`
+- `test_reservas.py`, `test_negocios.py`, `test_ficha_negocio.py`
+- `test_reporte.py`, `test_indicadores.py`, `test_seguridad.py`
 
 Estas pruebas **no requieren** una instancia activa de PostgreSQL.
 

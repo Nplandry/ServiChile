@@ -6,11 +6,11 @@ from fastapi.testclient import TestClient
 
 from sqlalchemy import select
 
-from app.api import deps
+from app.api import dependencias
 
-from app.infrastructure.db import Usuario
+from app.infrastructure.persistencia.modelos import Usuario
 
-from app.main import app
+from app.principal import app
 
 
 class SinLimite:
@@ -169,7 +169,7 @@ def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
 
     client.post("/v1/auth/registro", json=datos)
 
-    app.dependency_overrides[deps.get_rate_limiter] = lambda: SinLimite()
+    app.dependency_overrides[dependencias.get_rate_limiter] = lambda: SinLimite()
 
     try:
 
@@ -181,7 +181,7 @@ def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
 
     finally:
 
-        app.dependency_overrides.pop(deps.get_rate_limiter, None)
+        app.dependency_overrides.pop(dependencias.get_rate_limiter, None)
 
     cociente = max(con_cuenta, sin_cuenta) / min(con_cuenta, sin_cuenta)
 
@@ -220,7 +220,7 @@ def test_limite_por_ip_aunque_cambie_el_correo(client: TestClient):
 
 def test_limite_registro_por_ip(client: TestClient, monkeypatch):
 
-    from app.infrastructure import rate_limit
+    from app.infrastructure import limite_solicitudes
 
     class RelojFijo:
 
@@ -229,7 +229,7 @@ def test_limite_registro_por_ip(client: TestClient, monkeypatch):
 
             return 1000000.0
 
-    monkeypatch.setattr(rate_limit, "time", RelojFijo)
+    monkeypatch.setattr(limite_solicitudes, "time", RelojFijo)
 
     codigos = [
         client.post(
@@ -268,14 +268,14 @@ def test_respuesta_429_incluye_retry_after(client: TestClient):
 
 def _settings_con_proxy(valor: bool):
 
-    from app.config import get_settings
+    from app.configuracion import get_settings
 
     return get_settings().model_copy(update={"trust_proxy": valor})
 
 
 def test_sin_proxy_de_confianza_se_ignora_x_forwarded_for(client: TestClient):
 
-    from app.config import get_settings
+    from app.configuracion import get_settings
 
     app.dependency_overrides[get_settings] = lambda: _settings_con_proxy(False)
 
@@ -301,7 +301,7 @@ def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(
     client: TestClient,
 ):
 
-    from app.config import get_settings
+    from app.configuracion import get_settings
 
     app.dependency_overrides[get_settings] = lambda: _settings_con_proxy(True)
 

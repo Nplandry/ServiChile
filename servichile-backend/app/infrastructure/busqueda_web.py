@@ -8,9 +8,9 @@ import urllib.request
 
 from typing import Protocol
 
-from app.domain.incidentes_publicos import SnippetBusqueda
+from app.domain.transparencia.incidentes import SnippetBusqueda
 
-from app.infrastructure.http_ssl import ssl_context
+from app.infrastructure.contexto_https import ssl_context
 
 _UA = "ServiChile-Incidentes/1.0"
 

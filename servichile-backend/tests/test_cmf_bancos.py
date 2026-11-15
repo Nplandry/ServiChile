@@ -1,11 +1,11 @@
-from app.domain.cmf_bancos import (
+from app.domain.transparencia.cmf import (
     HallazgosCmf,
     InstitucionCmf,
     hallazgos_desde_institucion,
     score_cmf,
 )
 
-from app.infrastructure.cmf_indice import FakeCmfIndice, NullCmfIndice
+from app.infrastructure.cmf.indice import FakeCmfIndice, NullCmfIndice
 
 
 def test_score_sin_rut_o_indice_cero():

@@ -9,27 +9,30 @@ Stack: Python 3.12, FastAPI, SQLAlchemy 2, PostgreSQL.
 ```
 servichile-backend/
 ├── app/
-│   ├── main.py                  # Aplicación FastAPI, CORS y routers
-│   ├── config.py                # Variables de entorno (Pydantic Settings)
-│   ├── domain/                  # Capa 1: entidades y reglas puras (sin SQLAlchemy, FastAPI ni Pydantic)
+│   ├── principal.py             # Aplicación FastAPI, CORS y routers
+│   ├── configuracion.py         # Variables de entorno (Pydantic Settings)
+│   ├── tiempo.py                # Reloj UTC
+│   ├── domain/                  # Núcleo: entidades, reglas y puertos (sin SQLAlchemy, FastAPI ni Pydantic)
 │   │   ├── entidades.py         # Usuario, Negocio, Reserva y resultados de servicio
-│   │   ├── reputacion.py        # Fórmula del Índice de Transparencia
+│   │   ├── errores.py           # Excepciones de negocio
+│   │   ├── puertos.py           # Contratos (repositorios y proveedores). Los servicios solo hablan esto
 │   │   ├── pasaporte.py         # RUT módulo 11 y score de confiabilidad
-│   │   └── ciber_observables.py # Scores de observables medibles
-│   ├── services/                # Capa 2: casos de uso (solo entidades, sin ORM ni schemas de API)
-│   │   ├── auth_service.py      # Registro, login (Argon2id) y JWT
-│   │   └── pasaporte_service.py, reserva_service.py, negocio_service.py, …
-│   ├── infrastructure/          # Capa 3: adaptadores (convierten ORM <-> entidades)
-│   │   ├── db.py                # Conexión y modelos ORM
-│   │   ├── repositories.py      # Consultas SQL y mapeo a entidades
-│   │   ├── verificacion.py      # Verificador de RUT (configurable)
-│   │   ├── ciber_sonda.py       # Sonda de observables (fake|live)
-│   │   └── rate_limit.py        # Límite de solicitudes (Redis o memoria)
-│   └── api/                     # Capa 4: endpoints REST
-│       ├── schemas.py           # Schemas de entrada y salida (Pydantic)
+│   │   ├── ficha_negocio.py     # Cómo se muestra un negocio en el mapa (foto, logo, botón)
+│   │   └── transparencia/       # Índice: indicadores, métricas, CMF, SII, Mercado Público
+│   ├── services/                # Casos de uso: reutilizables, sin ORM ni HTTP
+│   │   ├── autenticacion.py     # Registro, login (Argon2id) y JWT
+│   │   └── pasaporte.py, reserva.py, negocio.py, …
+│   ├── infrastructure/          # Adaptadores que implementan los puertos
+│   │   ├── persistencia/        # Modelos ORM y repositorios SQL
+│   │   ├── cmf/                 # Cliente CMF, índice local y repositorio
+│   │   ├── ciber_sonda.py       # Sonda de indicadores (fake|live)
+│   │   └── limite_solicitudes.py
+│   └── api/                     # Presentación REST: sin reglas de negocio ni consultas
+│       ├── esquemas.py          # Contratos de entrada y salida (Pydantic)
 │       ├── mapeos.py            # Entidades y resultados -> respuestas
-│       ├── deps.py              # Ensamblado de dependencias (única capa que toca la base)
-│       └── v1/                  # Routers: auth, perfil, negocios, reservas, reporte
+│       ├── dependencias.py      # Ensambla servicios, repositorios y APIs externas
+│       ├── autorizacion.py      # Quién puede crear o reclamar un negocio
+│       └── v1/                  # Routers: autenticacion, perfil, negocios, reservas, reporte
 ├── db/init_script.sql           # Crea el esquema completo desde cero
 ├── docs/
 │   ├── api_interface_table.md   # Tabla de la interfaz de programación
@@ -37,7 +40,7 @@ servichile-backend/
 └── tests/                       # Pruebas pytest y colección Postman
 ```
 
-Las reglas de capas se verifican con `import-linter` (`lint-imports`, ver `.importlinter`): cada capa solo importa a las de abajo, el dominio no depende de frameworks, los servicios no conocen el ORM ni la API, y los routers no acceden a la base.
+Las reglas de capas se verifican con `import-linter` (`lint-imports`, ver `.importlinter`): el dominio no depende de frameworks, los servicios no importan infraestructura ni API, y los routers no acceden a la base. `app.api.dependencias` ensambla repositorios y proveedores.
 
 ## Endpoints y estado de desarrollo
 
@@ -45,17 +48,17 @@ Los tests de integración con PostgreSQL (`tests/integration/`) se omiten sin `T
 
 | Método | Ruta | Sesión | Descripción | Archivo | Estado |
 |---|---|---|---|---|---|
-| GET | `/salud` | No | Healthcheck → `{"estado": "ok"}` | `app/main.py` | Implementado y probado |
-| POST | `/v1/auth/registro` | No | Registra usuario (201) | `app/api/v1/auth.py` | Implementado y probado |
-| POST | `/v1/auth/login` | No | Login → `TokenOut` (JWT) | `app/api/v1/auth.py` | Implementado y probado |
-| GET | `/v1/auth/yo` | Sí | Datos del usuario autenticado | `app/api/v1/auth.py` | Implementado y probado |
+| GET | `/salud` | No | Healthcheck → `{"estado": "ok"}` | `app/principal.py` | Implementado y probado |
+| POST | `/v1/auth/registro` | No | Registra usuario (201) | `app/api/v1/autenticacion.py` | Implementado y probado |
+| POST | `/v1/auth/login` | No | Login → `TokenOut` (JWT) | `app/api/v1/autenticacion.py` | Implementado y probado |
+| GET | `/v1/auth/yo` | Sí | Datos del usuario autenticado | `app/api/v1/autenticacion.py` | Implementado y probado |
 | GET | `/v1/perfil` | Sí | Estado del Pasaporte de Confianza (nivel, score de confiabilidad) | `app/api/v1/perfil.py` | Implementado y probado |
 | PATCH | `/v1/perfil` | Sí | Actualiza edad, teléfono y verifica el RUT | `app/api/v1/perfil.py` | Implementado y probado |
 | POST | `/v1/perfil/biometria` | Sí | Verificación biométrica; la foto no se almacena (201) | `app/api/v1/perfil.py` | Implementado y probado |
 | GET | `/v1/reservas` | Sí | Reservas del usuario con su código QR | `app/api/v1/reservas.py` | Implementado y probado |
 | POST | `/v1/reservas` | Sí | Reserva un cupo en un comercio (201) | `app/api/v1/reservas.py` | Implementado y probado |
 | DELETE | `/v1/reservas/{id}` | Sí | Cancela una reserva propia que siga activa | `app/api/v1/reservas.py` | Implementado y probado |
-| DELETE | `/v1/auth/yo` | Sí | Elimina la cuenta, con confirmación por contraseña (204) | `app/api/v1/auth.py` | Implementado y probado |
+| DELETE | `/v1/auth/yo` | Sí | Elimina la cuenta, con confirmación por contraseña (204) | `app/api/v1/autenticacion.py` | Implementado y probado |
 | POST | `/v1/businesses/{id}/checkin` | Sí (titular) | El dueño registra asistencia con el QR del usuario | `app/api/v1/negocios.py` | Implementado y probado |
 | POST | `/v1/businesses/{id}/reservas/{reserva_id}/no-show` | Sí (titular) | El dueño marca una reserva como no-show | `app/api/v1/negocios.py` | Implementado y probado |
 | GET | `/v1/businesses/{id}/reputation` | No | Índice de Transparencia y métricas estadísticas | `app/api/v1/negocios.py` | Implementado y probado |
@@ -67,7 +70,7 @@ Los endpoints marcados con "Sí" en Sesión requieren la cabecera `Authorization
 
 - `/v1/patrimonio`, `/v1/polizas`, `/v1/subtel`: cruce de datos, dependen de convenios con SII, Registro Civil, CMF y SUBTEL.
 - Endpoints B2B y webhook de WhatsApp.
-- Worker de ingesta y recálculo del Índice de Transparencia (cron/Celery): recolectar métricas de Google Maps y NLP de sentimiento, y persistir `final_score` periódicamente. Hoy la fórmula (`app/domain/reputacion.py`) y el recálculo al reclamar/al vuelo ya existen; falta el proceso en segundo plano que alimente las métricas.
+- Worker de ingesta y recálculo del Índice de Transparencia (cron/Celery): recolectar métricas de Google Maps y NLP de sentimiento, y persistir `final_score` periódicamente. Hoy la fórmula (`app/domain/transparencia/reputacion.py`) y el recálculo al reclamar/al vuelo ya existen; falta el proceso en segundo plano que alimente las métricas.
 - Pasaporte de Confianza, pendientes antes de producción:
   - Verificador de RUT real (proveedor de identidad). Hoy `FakeVerificadorRut` acepta cualquier RUT con DV válido.
   - Eliminar `preocupacion` y `proposito` de la base en una migración posterior, cuando el frontend antiguo ya no los envíe.
@@ -97,7 +100,7 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 
 psql "postgresql://servichile:servichile@localhost:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
 
-uvicorn app.main:app --reload
+uvicorn app.principal:app --reload
 ```
 
 Abra http://localhost:8000/docs para probar los endpoints, o importe `tests/servichile_api_collection.json` en Postman o Insomnia.
