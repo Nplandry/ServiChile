@@ -120,15 +120,28 @@ const Market = {
     return Market.esProveedor();
   },
 
-  renderAccionEmpresa() {
+  async asegurarEmpresas() {
+    if (!Market.esProveedor()) return false;
+    if (typeof SubirConfianza === 'undefined' && typeof Carga !== 'undefined') {
+      await Carga.script('js/modules/subir-confianza.js?v=88');
+    }
+    if (typeof SubirConfianza === 'undefined') return false;
+    if (!Array.isArray(SubirConfianza.empresas)) {
+      await SubirConfianza.cargarEmpresas();
+    }
+    return SubirConfianza.tieneEmpresa();
+  },
+
+  async renderAccionEmpresa() {
     if (!Market.el.list) return;
     let barra = document.getElementById('marketEmpresaAccion');
-    const mostrar = Market.esProveedor();
-
-    if (!mostrar) {
+    if (!Market.esProveedor()) {
       if (barra) barra.remove();
       return;
     }
+
+    const tieneEmpresa = await Market.asegurarEmpresas();
+    const sinFicha = !tieneEmpresa;
 
     if (!barra) {
       barra = document.createElement('div');
@@ -137,16 +150,10 @@ const Market = {
 
       const texto = document.createElement('p');
       texto.className = 'market__empresa-accion-texto';
-      texto.textContent =
-        '¿Es proveedor B2B? Mejore su índice de transparencia para no quedar fuera del filtro.';
 
       const cta = document.createElement('button');
       cta.type = 'button';
       cta.className = 'submit-btn market__empresa-accion-cta';
-      cta.textContent = 'Mejorar mi nota';
-      cta.addEventListener('click', () => {
-        if (typeof App !== 'undefined' && App.openSection) App.openSection('subir-confianza');
-      });
 
       barra.append(texto, cta);
 
@@ -162,10 +169,50 @@ const Market = {
         Market.el.list.insertBefore(barra, Market.el.list.firstChild);
       }
     }
+
+    const texto = barra.querySelector('.market__empresa-accion-texto');
+    const cta = barra.querySelector('.market__empresa-accion-cta');
+    if (!texto || !cta) return;
+
+    const ctaNuevo = cta.cloneNode(true);
+    cta.parentNode.replaceChild(ctaNuevo, cta);
+
+    if (sinFicha) {
+      barra.classList.add('market__empresa-accion--crear');
+      texto.textContent =
+        'Aún no tiene una empresa publicada. Créela en Perfil para aparecer en Explorar y obtener su índice de transparencia.';
+      ctaNuevo.textContent = 'Crear mi empresa';
+      ctaNuevo.addEventListener('click', () => {
+        if (typeof App !== 'undefined' && App.openSection) App.openSection('perfil');
+        setTimeout(() => {
+          const el = document.getElementById('perfilEmpresaRaiz');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+      });
+      return;
+    }
+
+    barra.classList.remove('market__empresa-accion--crear');
+    texto.textContent =
+      '¿Es proveedor B2B? Mejore su índice de transparencia para no quedar fuera del filtro.';
+    ctaNuevo.textContent = 'Mejorar mi nota';
+    ctaNuevo.addEventListener('click', () => {
+      if (typeof App !== 'undefined' && App.openSection) App.openSection('subir-confianza');
+    });
   },
 
-  renderProgreso() {
+  async renderProgreso() {
     if (!Market.el.progreso || typeof ProgresoCuenta === 'undefined') return;
+    if (Market.esProveedor()) {
+      const tieneEmpresa = await Market.asegurarEmpresas();
+      if (!tieneEmpresa) {
+        Market.el.progreso.hidden = true;
+        while (Market.el.progreso.firstChild) {
+          Market.el.progreso.removeChild(Market.el.progreso.firstChild);
+        }
+        return;
+      }
+    }
     ProgresoCuenta.actual().montarIndicador(Market.el.progreso, {
       onAbrir: () => {
         if (typeof App !== 'undefined' && App.openSection) App.openSection('subir-confianza');
@@ -336,7 +383,7 @@ const Market = {
     pie.className = 'market__card-pie';
     pie.append(
       Market.bloqueIndice(n),
-      bloqueado ? Market.avisoNivel(n) : Market.selloVerificado(n)
+      ...(bloqueado ? [Market.avisoNivel(n)] : [])
     );
 
     cuerpo.append(nombre, dir, desc, pie);
@@ -386,7 +433,6 @@ const Market = {
     const indiceValor = rep && rep.indice_transparencia != null
       ? rep.indice_transparencia
       : n.indice_transparencia;
-    const verificado = rep ? !!rep.is_verified_profile : !!n.is_verified_profile;
 
     const volver = document.createElement('button');
     volver.type = 'button';
@@ -404,13 +450,10 @@ const Market = {
 
     const chips = document.createElement('div');
     chips.className = 'market-detalle__chips';
-    const sello = document.createElement('span');
     if (bloqueado) {
       chips.append(Market.logoMarca(n), Market.chipCategoria(n), Market.avisoNivel(n));
     } else {
-      sello.className = 'market__sello' + (verificado ? ' market__sello--ok' : '');
-      sello.textContent = verificado ? 'Perfil verificado' : 'Sin verificar';
-      chips.append(Market.logoMarca(n), Market.chipCategoria(n), sello);
+      chips.append(Market.logoMarca(n), Market.chipCategoria(n));
     }
 
     const nombre = document.createElement('h2');
@@ -437,23 +480,29 @@ const Market = {
       raiz.appendChild(err);
     }
 
-    const negocioIndice = Object.assign({}, n, { indice_transparencia: indiceValor, is_verified_profile: verificado });
+    const pctValor =
+      rep && rep.indice_pct != null
+        ? Number(rep.indice_pct)
+        : n.indice_pct != null
+          ? Number(n.indice_pct)
+          : Math.round((Number(indiceValor) / 10) * 100);
+    const negocioIndice = Object.assign({}, n, {
+      indice_transparencia: indiceValor,
+      indice_pct: pctValor
+    });
 
     const cuerpo = document.createElement('div');
     cuerpo.className = 'market-detalle__cuerpo';
 
     const colIzq = document.createElement('div');
     colIzq.className = 'market-detalle__col';
-    colIzq.appendChild(Market.bloqueIndice(negocioIndice, true));
-    colIzq.appendChild(Market.bloqueDesgloseIndice(n, rep, indiceValor, verificado));
 
     const filas = [
       ['Descripción', n.descripcion || 'Sin descripción por ahora.'],
       ['Categoría', Market.etiquetaDe(n.categoria)],
       ['Dirección', n.direccion || 'Sin dirección'],
       ['Distancia', Market.distanciaTexto(n) || 'No disponible'],
-      ['Nivel pedido', 'Nivel ' + pide],
-      ['Perfil', verificado ? 'Verificado' : 'Sin verificar']
+      ['Nivel pedido', 'Nivel ' + pide]
     ];
     if (rep) {
       filas.push(
@@ -480,6 +529,15 @@ const Market = {
       datos.appendChild(fila);
     });
     colIzq.appendChild(datos);
+
+    colIzq.appendChild(Market.bloqueIndice(negocioIndice, true));
+    const nDocs = Object.assign({}, n, {
+      indice_pct: pctValor,
+      docs_empresa:
+        (rep && rep.docs_empresa) || n.docs_empresa || null
+    });
+    const desglose = Market.bloqueDesgloseIndice(nDocs, rep, indiceValor, false);
+    if (desglose) colIzq.appendChild(desglose);
 
     const colDer = document.createElement('div');
     colDer.className = 'market-detalle__col market-detalle__col--paywall';
@@ -575,26 +633,15 @@ const Market = {
     return logo;
   },
 
-  selloVerificado(n) {
-    const sello = document.createElement('span');
-    if (n.is_verified_profile) {
-      sello.className = 'market__sello market__sello--ok';
-      sello.textContent = 'Perfil verificado';
-    } else {
-      sello.className = 'market__sello';
-      sello.textContent = 'Sin verificar';
-    }
-    return sello;
-  },
-
   bloqueIndice(n, grande) {
     const score = document.createElement('div');
     score.className = 'market__card-score' + (grande ? ' market__card-score--detalle' : '');
     const num = document.createElement('strong');
-    num.textContent = '★ ' + Number(n.indice_transparencia).toFixed(1);
+    const indice = Number(n.indice_transparencia);
+    num.textContent = '★ ' + (Number.isFinite(indice) ? indice.toFixed(1) : '0.0');
     const lbl = document.createElement('span');
     lbl.className = 'market__card-score-lbl';
-    lbl.textContent = ' Índice generado por IA';
+    lbl.textContent = ' Índice global';
     score.append(num, lbl);
     return score;
   },

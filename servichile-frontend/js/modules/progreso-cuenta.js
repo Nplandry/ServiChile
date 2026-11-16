@@ -206,13 +206,20 @@ const ProgresoCuenta = {
     montarIndicador(contenedor, opts) {
       if (!contenedor) return null;
       this.limpiar(contenedor);
-      contenedor.appendChild(this.crearIndicador(opts || {}));
+      const snap = this.snapshot();
+      if (!snap || snap.oculto) {
+        contenedor.hidden = true;
+        return null;
+      }
+      contenedor.hidden = false;
+      contenedor.appendChild(this.crearIndicador(opts || {}, snap));
       return contenedor.firstChild;
     },
 
-    crearIndicador(opts) {
+    crearIndicador(opts, snapPrev) {
       const opciones = opts || {};
-      const snap = this.snapshot();
+      const snap = snapPrev || this.snapshot();
+      if (!snap || snap.oculto) return document.createComment('sin-indicador');
       const card = this.el(
         'section',
         'confianza-indicador' + (opciones.onAbrir ? ' confianza-indicador--accion' : '')
@@ -242,16 +249,19 @@ const ProgresoCuenta = {
       const abajo = this.el('div', 'confianza-indicador__fila confianza-indicador__fila--abajo');
       abajo.appendChild(this.el('h3', 'confianza-indicador__titulo', snap.titulo));
 
-      const cta = this.el(
-        opciones.onAbrir && opciones.ctaAsButton ? 'button' : 'span',
-        'confianza-indicador__cta',
-        snap.cta
-      );
-      if (opciones.onAbrir && opciones.ctaAsButton) {
-        cta.type = 'button';
-        cta.addEventListener('click', opciones.onAbrir);
+      let cta = null;
+      if (typeof opciones.onAbrir === 'function' && snap.cta) {
+        cta = this.el(
+          opciones.ctaAsButton ? 'button' : 'span',
+          'confianza-indicador__cta',
+          snap.cta
+        );
+        if (opciones.ctaAsButton) {
+          cta.type = 'button';
+          cta.addEventListener('click', opciones.onAbrir);
+        }
+        abajo.appendChild(cta);
       }
-      abajo.appendChild(cta);
       card.appendChild(abajo);
 
       if (typeof opciones.onAbrir === 'function') {
@@ -259,7 +269,7 @@ const ProgresoCuenta = {
         card.setAttribute('role', 'button');
         const abrir = (e) => {
           if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
-          if (opciones.ctaAsButton && e.target === cta) return;
+          if (opciones.ctaAsButton && cta && e.target === cta) return;
           e.preventDefault();
           opciones.onAbrir();
         };
@@ -361,7 +371,6 @@ ProgresoCuenta.registrar('persona', {
   }),
 
   DOCS: [
-    ['cedula', 'Cédula de identidad (Nivel 1)'],
     ['antecedentes', 'Certificado de antecedentes (Nivel 3)'],
     ['aval', 'Aval o garantía de respaldo (Nivel 3)']
   ],
@@ -438,8 +447,9 @@ ProgresoCuenta.registrar('persona', {
     return [
       () => sc.bloqueIndicador(),
       () => sc.bloqueChecklist(),
-      () => sc.bloqueDocumentos(),
       () => sc.bloqueBiometria(),
+      () => sc.bloqueCedula(),
+      () => sc.bloqueDocumentos(),
       () => sc.bloqueTablaNiveles()
     ];
   }
@@ -455,7 +465,6 @@ ProgresoCuenta.registrar('contratista', {
   }),
 
   DOCS: [
-    ['cedula', 'Cédula de identidad (Nivel 1)'],
     ['antecedentes', 'Certificado de antecedentes (Nivel 3)'],
     ['aval', 'Aval o garantía de respaldo (Nivel 3)']
   ],
@@ -508,10 +517,17 @@ ProgresoCuenta.registrar('proveedor', {
   }),
 
   DOCS: [
-    ['constitucion', 'Constitución de la sociedad'],
-    ['patente', 'Patente municipal'],
-    ['inicio_actividades', 'Inicio de actividades (SII)'],
-    ['poder_representante', 'Poder del representante legal']
+    ['carpeta_tributaria', 'Carpeta tributaria electrónica (SII)'],
+    ['inicio_actividades', 'Inicio de actividades / situación tributaria (SII)'],
+    ['vigencia_sociedad', 'Vigencia de la sociedad (RES/CBR)'],
+    ['vigencia_poderes', 'Vigencia de poderes'],
+    ['poder_representante', 'Poder del representante legal'],
+    ['constitucion', 'Constitución / escritura'],
+    ['f30', 'F30 antecedentes laborales y previsionales'],
+    ['no_quiebra', 'No quiebra / procedimientos concursales'],
+    ['antecedentes_rl', 'Antecedentes del representante legal'],
+    ['patente', 'Patente municipal vigente'],
+    ['titularidad_cuenta', 'Titularidad de cuenta bancaria empresa']
   ],
 
   etiquetaCorta() {
@@ -527,19 +543,19 @@ ProgresoCuenta.registrar('proveedor', {
   },
 
   labelNombre() {
-    return 'Proveedor';
+    return 'Responsable';
   },
 
   placeholderNombre() {
-    return 'Nombre del proveedor';
+    return 'Nombre del responsable';
   },
 
   tituloNombreOnboarding() {
-    return '¿Cuál es el nombre del proveedor?';
+    return '¿Cuál es el nombre del responsable?';
   },
 
   textoNombreOnboarding() {
-    return 'Razón social o nombre comercial. Aparecerá en su ficha y reportes.';
+    return 'Nombre de la persona responsable de la cuenta. Aparecerá en su perfil y reportes.';
   },
 
   textoLeadQr() {
@@ -551,85 +567,114 @@ ProgresoCuenta.registrar('proveedor', {
   },
 
   notaDocumentos() {
-    return 'Zero-Retention (mock): constitución, patente e inicio de actividades alimentan el índice. El archivo no se guarda.';
+    return 'Los documentos legales quedan en la ficha; el ★ público lo define el índice global de señales. El archivo no se guarda (zero-retention).';
   },
 
   calcularFicha() {
-    const user = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
     const sc = this._sc();
-    const perfil = (user && user.perfil) || (sc && sc.perfil()) || {};
-    const ids = this.idsDocumento();
-    let cargados = 0;
-    if (sc) {
-      for (let i = 0; i < ids.length; i++) {
-        if (sc.tieneDoc(ids[i])) cargados += 1;
-      }
+    if (sc && typeof sc.fichaEmpresaMock === 'function') {
+      return sc.fichaEmpresaMock();
     }
-    const verificado = cargados >= 2 || !!perfil.rut_verificado;
-    const base = 4.2 + cargados * 1.1 + (perfil.rut_verificado ? 0.8 : 0);
-    const indice = Math.max(1, Math.min(9.8, Math.round(base * 10) / 10));
     return {
-      id: 'proveedor:' + ((user && user.email) || 'local'),
-      nombre: (user && user.nombre) || 'Mi proveedor',
-      indice_transparencia: indice,
-      is_verified_profile: verificado,
-      _docsCargados: cargados,
-      _verificado: verificado
+      id: null,
+      nombre: 'Sin empresa',
+      indice_transparencia: null,
+      indice_pct: null,
+      _docsCargados: 0,
+      _docsTotal: 0,
+      _sinFicha: true
     };
   },
 
   snapshot() {
     const sc = this._sc();
     if (sc) sc.cargar();
+    if (sc && typeof sc.tieneEmpresa === 'function' && !sc.tieneEmpresa()) {
+      return { oculto: true, tipo: this.tipo };
+    }
     const ficha = this.calcularFicha();
-    const indice = Number(ficha.indice_transparencia) || 0;
+    if (ficha._sinFicha || ficha.indice_transparencia == null) {
+      return { oculto: true, tipo: this.tipo };
+    }
+    const indice = Number(ficha.indice_transparencia);
     const docs = ficha._docsCargados || 0;
-    const totalDocs = this.idsDocumento().length || 4;
-    const pct = Math.round((indice / 10) * 100);
-    const titularidad = ficha._verificado ? 'Titularidad en progreso' : 'Sin reclamo completo';
+    const totalDocs = ficha._docsTotal || this.idsDocumento().length || 11;
+    const pct =
+      ficha.indice_pct != null
+        ? Math.round(Number(ficha.indice_pct))
+        : Math.round((indice / 10) * 100);
+    const titularidad = pct >= 100 ? 'Documentos en orden' : 'Falta documentación';
     const detalleIzq = docs + ' de ' + totalDocs + ' documentos legales';
-    const detalleDer = 'Índice: ' + this.formatoIndice(indice);
+    const detalleDer = '★ ' + indice.toFixed(1);
     return {
       tipo: this.tipo,
       titulo: 'Transparencia para publicar',
-      aria: 'Índice de transparencia del proveedor',
+      aria: 'Rating por documentos del proveedor',
       detalleIzq,
       detalleDer,
       meta: detalleIzq + ' · ' + titularidad,
-      valor: this.formatoIndice(indice),
+      valor: '★ ' + indice.toFixed(1),
       pct,
       cta: 'Ver transparencia →',
-      extras: { indice, docs, totalDocs, verificado: !!ficha._verificado, ficha }
+      extras: { indice, pct, docs, totalDocs, ficha }
     };
   },
 
   filasPerfil(c) {
-    const indiceTxt = this.formatoIndice(this.calcularFicha().indice_transparencia);
-    return [
-      ['Índice de transparencia', indiceTxt],
-      this.filaEstado(c.perfil),
-      this.filaRut(c.perfil)
-    ];
+    const ficha = this.calcularFicha();
+    const filas = [];
+    if (ficha._sinFicha || ficha.indice_transparencia == null) {
+      filas.push(['Empresa', 'No registrada']);
+    } else {
+      filas.push([
+        'Índice de transparencia',
+        this.formatoIndice(ficha.indice_transparencia)
+      ]);
+      filas.push([
+        'RUT empresa',
+        (ficha.rut_empresa && String(ficha.rut_empresa).trim()) || 'Sin registrar'
+      ]);
+    }
+    filas.push(this.filaEstado(c.perfil));
+    filas.push([
+      'RUT responsable',
+      c.perfil && c.perfil.rut_verificado ? 'Verificado' : 'Sin verificar'
+    ]);
+    return filas;
   },
 
   filasQr(c) {
-    const indiceTxt = this.formatoIndice(this.calcularFicha().indice_transparencia);
-    return [
-      this.filaTitular(c),
-      this.filaCorreo(c),
-      ['Índice de transparencia', indiceTxt],
-      this.filaEstado(c.datos),
-      this.filaRut(c.datos)
-    ];
+    const ficha = this.calcularFicha();
+    const filas = [
+      ['Responsable', (c.datos && c.datos.nombre) || '—'],
+      this.filaCorreo(c)
+    ].filter(Boolean);
+    if (!ficha._sinFicha && ficha.indice_transparencia != null) {
+      filas.push([
+        'Índice de transparencia',
+        this.formatoIndice(ficha.indice_transparencia)
+      ]);
+      filas.push([
+        'RUT empresa',
+        (ficha.rut_empresa && String(ficha.rut_empresa).trim()) || 'Sin registrar'
+      ]);
+    } else {
+      filas.push(['Empresa', 'No registrada']);
+    }
+    filas.push(this.filaEstado(c.datos));
+    filas.push([
+      'RUT responsable',
+      c.datos && c.datos.rut_verificado ? 'Verificado' : 'Sin verificar'
+    ]);
+    return filas;
   },
 
   seccionesVista() {
     const sc = this._sc();
     if (!sc) return [];
-    return [
-      () => sc.bloqueIndicador(),
-      () => sc.bloqueDesgloseEmpresa(),
-      () => sc.bloqueDocumentos()
-    ];
+    if (typeof sc.tieneEmpresa === 'function' && !sc.tieneEmpresa()) {
+      return [() => sc.bloqueSinEmpresa()];
+    }
+    return [() => sc.bloqueIndicador(), () => sc.bloqueDocumentos()];
   }
 });

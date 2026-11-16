@@ -3,6 +3,22 @@ const Security = {
     return String(text).trim().replace(/[<>]/g, '');
   },
 
+  validateNombre: function (nombre) {
+    const value = String(nombre || '').trim().replace(/\s+/g, ' ');
+    if (value.length < 2 || value.length > 120) return false;
+    return /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .\-]+$/.test(value);
+  },
+
+  validateEmail: function (email) {
+    const value = String(email || '').trim().toLowerCase();
+    return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value);
+  },
+
+  validateEdad: function (edad) {
+    const n = Number(edad);
+    return Number.isInteger(n) && n >= 14 && n <= 120;
+  },
+
   validateRut: function (rut) {
     const cleaned = String(rut).replace(/\./g, '').replace(/-/g, '').toUpperCase().trim();
     if (/^\d{7,8}[0-9K]$/.test(cleaned) === false) {
@@ -47,33 +63,28 @@ const Security = {
   },
 
   formatTelefono: function (tel) {
-    let digits = String(tel || '').replace(/\D/g, '');
-    if (!digits) return '';
+    const raw = String(tel || '').trim();
+    if (!raw) return '';
 
+    let digits = raw.replace(/\D/g, '');
     if (digits.startsWith('56')) digits = digits.slice(2);
     if (digits.startsWith('0')) digits = digits.slice(1);
-
     if (digits.length > 9) digits = digits.slice(0, 9);
 
-    if (digits.charAt(0) === '9' || digits.length <= 9) {
-
-      if (!digits) return '';
-      if (digits.charAt(0) !== '9') {
-
-        digits = digits.slice(0, 8);
-        if (digits.length <= 4) return '+56 ' + digits;
-        return '+56 ' + digits.slice(0, 4) + ' ' + digits.slice(4);
-      }
-      if (digits.length === 1) return '+56 9';
-      if (digits.length <= 5) return '+56 9 ' + digits.slice(1);
-      return '+56 9 ' + digits.slice(1, 5) + ' ' + digits.slice(5, 9);
+    if (!digits) return '+56 ';
+    if (digits.charAt(0) !== '9') {
+      digits = '9' + digits;
+      if (digits.length > 9) digits = digits.slice(0, 9);
     }
-    return '+56 ' + digits;
+    if (digits.length === 1) return '+56 9';
+    if (digits.length <= 5) return '+56 9 ' + digits.slice(1);
+    return '+56 9 ' + digits.slice(1, 5) + ' ' + digits.slice(5, 9);
   },
 
   validateTelefono: function (tel) {
     const raw = String(tel || '').trim();
     if (!raw) return false;
+    if (!raw.replace(/\s/g, '').startsWith('+56')) return false;
     const formatted = Security.formatTelefono(raw);
     return /^\+56 9 \d{4} \d{4}$/.test(formatted);
   },

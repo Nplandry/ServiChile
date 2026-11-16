@@ -158,6 +158,13 @@ const ReportePersona = {
         ? 'Sin historial'
         : Number(score).toFixed(1) + '%';
 
+    const resumenTitulo = document.createElement('h3');
+    resumenTitulo.className = 'reporte-doc__h';
+    resumenTitulo.textContent = 'Resumen de confianza';
+    resumen.appendChild(resumenTitulo);
+
+    const metricas = document.createElement('div');
+    metricas.className = 'reporte-doc__metricas';
     [
       ['Nivel alcanzado', 'Nivel ' + nivelXp + ' · ' + nombreNivel],
       ['Requisitos cumplidos', hechas + ' de ' + total + ' (' + pct + '%)'],
@@ -202,8 +209,9 @@ const ReportePersona = {
       dd.className = 'reporte-doc__chip-v';
       dd.textContent = v;
       chip.append(dt, dd);
-      resumen.appendChild(chip);
+      metricas.appendChild(chip);
     });
+    resumen.appendChild(metricas);
 
     const nivelesSec = document.createElement('section');
     nivelesSec.className = 'reporte-doc__niveles';

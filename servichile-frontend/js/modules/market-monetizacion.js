@@ -496,7 +496,7 @@ const MarketMonetizacion = {
         total +
         ' empresas revisaron el perfil esta semana (Nota actual: ' +
         (vista.nota || demo.nota) +
-        ' ⭐). Reclama gratis o activa Sello Verificado ($' +
+        ' ⭐). Reclama gratis o publica tu ficha ($' +
         MarketMonetizacion.formatoClp(MarketMonetizacion.PRECIO_SELLO) +
         '/mes).»'
     );

@@ -22,7 +22,7 @@ const SubirConfianza = {
         {
           id: 'n1-cedula',
           label: 'Verificar su identidad',
-          como: 'Se completa al verificar el RUT en el perfil o al cargar la cédula de identidad.'
+          como: 'Se completa al verificar el RUT en el perfil o al validar la foto frontal del carnet (OCR local, sin reverso).'
         },
         {
           id: 'n1-perfil',
@@ -74,7 +74,7 @@ const SubirConfianza = {
         {
           id: 'n3-biometria',
           label: 'Confirmar identidad con foto',
-          como: 'Se completa al aprobar la verificación facial en vivo; la foto no se almacena.'
+          como: 'Se completa al aprobar la verificación facial; se guarda una copia comprimida con retención limitada.'
         },
         {
           id: 'n3-aval',
@@ -89,12 +89,53 @@ const SubirConfianza = {
     docs: [],
     biometriaOk: false
   },
+  empresas: null,
+  reputacionMia: null,
 
-  init() {
+  async init() {
     SubirConfianza.cargar();
     const raiz = document.getElementById('subirConfianzaRaiz');
     if (!raiz) return;
+    await SubirConfianza.cargarEmpresas();
     SubirConfianza.render(raiz);
+  },
+
+  async cargarEmpresas() {
+    SubirConfianza.empresas = [];
+    SubirConfianza.reputacionMia = null;
+    if (typeof Auth === 'undefined' || !Auth.isAuthenticated() || !Auth.request) {
+      return [];
+    }
+    try {
+      const mias = await Auth.request('/v1/businesses/mias', {
+        token: Auth.sesion.token
+      });
+      const lista = mias && Array.isArray(mias.data) ? mias.data : [];
+      SubirConfianza.empresas = lista;
+      if (!lista.length) return [];
+      SubirConfianza.sincronizarDocsEmpresaDesdeApi(lista[0]);
+      const res = await Auth.request(
+        '/v1/businesses/' + encodeURIComponent(lista[0].id) + '/reputation',
+        { token: Auth.sesion.token }
+      );
+      if (res && res.ok && res.data) {
+        SubirConfianza.reputacionMia = res.data;
+        lista[0].indice_transparencia = res.data.indice_transparencia;
+        lista[0].indice_pct = res.data.indice_pct;
+      }
+      return lista;
+    } catch (_e) {
+      SubirConfianza.empresas = [];
+      return [];
+    }
+  },
+
+  tieneEmpresa() {
+    return Array.isArray(SubirConfianza.empresas) && SubirConfianza.empresas.length > 0;
+  },
+
+  empresaActual() {
+    return SubirConfianza.tieneEmpresa() ? SubirConfianza.empresas[0] : null;
   },
 
   storageKey() {
@@ -167,13 +208,141 @@ const SubirConfianza = {
   },
 
   fichaEmpresaMock() {
-    return typeof ProgresoCuenta !== 'undefined'
-      ? ProgresoCuenta.de('proveedor').calcularFicha()
-      : { indice_transparencia: 4.2, _docsCargados: 0, _verificado: false, nombre: 'Mi empresa' };
+    const empresa = SubirConfianza.empresaActual();
+    const rep = SubirConfianza.reputacionMia;
+    if (!empresa) {
+      return {
+        id: null,
+        nombre: 'Sin empresa',
+        indice_transparencia: null,
+        indice_pct: null,
+        _docsCargados: 0,
+        _docsTotal: 0,
+        _sinFicha: true
+      };
+    }
+    const ids =
+      typeof ProgresoCuenta !== 'undefined'
+        ? ProgresoCuenta.de('proveedor').idsDocumento()
+        : [];
+    let docs = 0;
+    for (let i = 0; i < ids.length; i++) {
+      if (SubirConfianza.tieneDoc(ids[i])) docs += 1;
+    }
+    if (rep && rep.docs_verificados != null) docs = Number(rep.docs_verificados);
+    const totalDocs =
+      rep && rep.docs_total != null ? Number(rep.docs_total) : ids.length || 11;
+    const indice =
+      rep && rep.indice_transparencia != null
+        ? Number(rep.indice_transparencia)
+        : empresa.indice_transparencia != null
+          ? Number(empresa.indice_transparencia)
+          : null;
+    const pct =
+      rep && rep.indice_pct != null
+        ? Number(rep.indice_pct)
+        : empresa.indice_pct != null
+          ? Number(empresa.indice_pct)
+          : indice != null
+            ? Math.round((indice / 10) * 100)
+            : null;
+    return {
+      id: empresa.id,
+      nombre: empresa.nombre || 'Mi empresa',
+      rut_empresa: (empresa.rut_empresa || '').trim() || null,
+      telefono: (empresa.telefono || '').trim() || null,
+      sitio_web: (empresa.sitio_web || '').trim() || null,
+      direccion: (empresa.direccion || '').trim() || null,
+      indice_transparencia: indice,
+      indice_pct: pct,
+      _docsCargados: docs,
+      _docsTotal: totalDocs,
+      _sinFicha: false
+    };
+  },
+
+  bloqueSinEmpresa() {
+    if (typeof ReporteEmpresa !== 'undefined' && ReporteEmpresa.renderAvisoSinFicha) {
+      return ReporteEmpresa.renderAvisoSinFicha();
+    }
+    const box = document.createElement('section');
+    box.className = 'reporte-sin-ficha';
+    const titulo = document.createElement('h2');
+    titulo.className = 'section-heading';
+    titulo.textContent = 'Aún no tiene una ficha de empresa';
+    const lead = document.createElement('p');
+    lead.className = 'section-lead';
+    lead.textContent =
+      'Cree su empresa en Perfil para ver el índice de transparencia y cargar documentos legales.';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'submit-btn';
+    btn.textContent = 'Ir a Perfil a crear la empresa';
+    btn.addEventListener('click', () => {
+      if (typeof App !== 'undefined' && App.openSection) App.openSection('perfil');
+    });
+    box.append(titulo, lead, btn);
+    return box;
   },
 
   tieneDoc(tipo) {
-    return SubirConfianza.state.docs.some(d => d.tipo === tipo);
+    if (SubirConfianza.state.docs.some(d => d.tipo === tipo && d.verificado !== false)) {
+      return true;
+    }
+    const empresa = SubirConfianza.empresaActual();
+    const docs = empresa && empresa.docs_empresa;
+    return !!(docs && docs[tipo] && docs[tipo].verificado);
+  },
+
+  tiposDocEmpresa() {
+    return [
+      'carpeta_tributaria',
+      'inicio_actividades',
+      'vigencia_sociedad',
+      'vigencia_poderes',
+      'poder_representante',
+      'constitucion',
+      'f30',
+      'no_quiebra',
+      'antecedentes_rl',
+      'patente',
+      'titularidad_cuenta'
+    ];
+  },
+
+  tiposDocEmpresaPades() {
+    return [
+      'carpeta_tributaria',
+      'inicio_actividades',
+      'vigencia_sociedad',
+      'vigencia_poderes',
+      'poder_representante',
+      'constitucion',
+      'f30',
+      'no_quiebra',
+      'antecedentes_rl'
+    ];
+  },
+
+  sincronizarDocsEmpresaDesdeApi(empresa) {
+    if (!empresa || !empresa.docs_empresa || typeof empresa.docs_empresa !== 'object') {
+      return;
+    }
+    const tipos = SubirConfianza.tiposDocEmpresa();
+    tipos.forEach((tipo) => {
+      const meta = empresa.docs_empresa[tipo];
+      if (!meta || !meta.verificado) return;
+      SubirConfianza.state.docs = SubirConfianza.state.docs.filter((d) => d.tipo !== tipo);
+      SubirConfianza.state.docs.unshift({
+        id: 'api-' + tipo,
+        tipo,
+        nombre: tipo + '.pdf',
+        fecha: meta.verificado_en || new Date().toISOString(),
+        score: meta.score,
+        verificado: true
+      });
+    });
+    SubirConfianza.guardar();
   },
 
   scoreConfiabilidad() {
@@ -212,7 +381,7 @@ const SubirConfianza = {
       case 'n1-registro':
         return typeof Auth !== 'undefined' && Auth.isAuthenticated() ? 'ok' : 'pendiente';
       case 'n1-cedula':
-        if (perfil.rut_verificado || SubirConfianza.tieneDoc('cedula')) return 'ok';
+        if (perfil.rut_verificado || perfil.cedula_verificada) return 'ok';
         return 'pendiente';
       case 'n1-perfil': {
         const edad = SubirConfianza.edadNumerica();
@@ -239,6 +408,7 @@ const SubirConfianza = {
       case 'n3-biometria':
         return SubirConfianza.biometriaHecha() ? 'ok' : 'pendiente';
       case 'n3-aval':
+        if (SubirConfianza.perfil().aval_verificado) return 'ok';
         return SubirConfianza.tieneDoc('aval') ? 'ok' : 'pendiente';
       default:
         return 'pendiente';
@@ -263,9 +433,9 @@ const SubirConfianza = {
           ? 'Cuenta activa e inició sesión correctamente.'
           : 'Debe crear una cuenta e iniciar sesión.';
       case 'n1-cedula':
+        if (perfil.cedula_verificada) return 'Carnet validado (foto frontal).';
         if (perfil.rut_verificado) return 'Identidad verificada con RUT.';
-        if (SubirConfianza.tieneDoc('cedula')) return 'Cédula cargada correctamente.';
-        return 'Falta verificar el RUT o cargar la cédula.';
+        return 'Falta verificar el RUT o validar la foto frontal del carnet.';
       case 'n1-perfil': {
         const edad = SubirConfianza.edadNumerica();
         const telOk = SubirConfianza.telefonoOk();
@@ -300,16 +470,23 @@ const SubirConfianza = {
         }
         return estado === 'ok'
           ? 'Certificado de antecedentes cargado.'
-          : 'Debe cargar el PDF oficial del Registro Civil.';
+          : 'Debe cargar el PDF textual oficial del Registro Civil (con firma electrónica avanzada, sin editar).';
       }
       case 'n3-biometria':
         return estado === 'ok'
           ? 'Verificación facial completada.'
           : 'Complete la verificación facial más abajo.';
-      case 'n3-aval':
+      case 'n3-aval': {
+        if (perfil.aval_verificado) {
+          const partes = ['Aval/garantía verificado'];
+          if (perfil.aval_tipo) partes.push(perfil.aval_tipo);
+          if (perfil.aval_score != null) partes.push('score ' + perfil.aval_score);
+          return partes.join(' · ') + '.';
+        }
         return estado === 'ok'
           ? 'Aval o garantía registrado.'
-          : 'Debe cargar un aval, garantía o respaldo.';
+          : 'Debe cargar un PDF textual de aval, boleta o póliza (sin fotos).';
+      }
       default:
         return SubirConfianza.etiquetaPunto(estado);
     }
@@ -380,14 +557,22 @@ const SubirConfianza = {
   },
 
   bloqueDesgloseEmpresa() {
+    if (!SubirConfianza.tieneEmpresa()) return null;
     const ficha = SubirConfianza.fichaEmpresaMock();
+    const rep = SubirConfianza.reputacionMia;
+    if (ficha.indice_transparencia == null) return null;
     if (typeof Market === 'undefined' || !Market.bloqueDesgloseIndice) {
       const fallback = document.createElement('p');
       fallback.className = 'section-lead';
       fallback.textContent = 'El desglose del índice no está disponible.';
       return fallback;
     }
-    return Market.bloqueDesgloseIndice(ficha, null, ficha.indice_transparencia, ficha._verificado);
+    return Market.bloqueDesgloseIndice(
+      ficha,
+      rep,
+      ficha.indice_transparencia,
+      false
+    );
   },
 
   bloqueIndicador(opts) {
@@ -703,9 +888,58 @@ const SubirConfianza = {
       drop.classList.toggle('confianza-docs__drop--lleno', !!archivo);
       dropNombre.textContent = archivo
         ? archivo.name + ' · ' + SubirConfianza.formatoTamano(archivo.size)
-        : 'Ningún archivo seleccionado';
+        : select.value === 'cedula'
+          ? 'Ninguna foto seleccionada'
+          : 'Ningún archivo seleccionado';
     };
+
+    const sincronizarTipoArchivo = () => {
+      const esCarnet = select.value === 'cedula';
+      const esAval = select.value === 'aval';
+      const esDocEmpresa = SubirConfianza.tiposDocEmpresa().includes(select.value);
+      const soloPdf =
+        esAval || esDocEmpresa || select.value === 'antecedentes';
+      drop.hidden = false;
+      input.accept = esCarnet
+        ? 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
+        : soloPdf
+          ? 'application/pdf,.pdf'
+          : '.pdf,image/jpeg,image/png,application/pdf';
+      dropTitulo.textContent = esCarnet
+        ? 'Foto frontal del carnet'
+        : esAval
+          ? 'PDF de aval o garantía'
+          : esDocEmpresa
+            ? 'PDF del documento legal'
+            : 'Elegir archivo';
+      const esPades =
+        select.value === 'antecedentes' ||
+        SubirConfianza.tiposDocEmpresaPades().includes(select.value);
+      dropHint.textContent = esCarnet
+        ? 'Solo el frente · JPG o PNG · sin reverso'
+        : esPades
+          ? 'PDF textual oficial · PAdES íntegro + CA Chile · sin editar'
+          : soloPdf
+            ? 'Solo PDF con texto real · sin fotos ni escaneos'
+            : 'PDF, JPG o PNG';
+      if (esCarnet && input.files && input.files[0]) {
+        const tipo = (input.files[0].type || '').toLowerCase();
+        if (tipo && !tipo.startsWith('image/')) {
+          input.value = '';
+        }
+      }
+      if (soloPdf && input.files && input.files[0]) {
+        const f = input.files[0];
+        const ok =
+          String(f.type || '') === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+        if (!ok) input.value = '';
+      }
+      actualizarArchivo();
+    };
+
     input.addEventListener('change', actualizarArchivo);
+    select.addEventListener('change', sincronizarTipoArchivo);
+    sincronizarTipoArchivo();
 
     ['dragenter', 'dragover'].forEach(ev => {
       drop.addEventListener(ev, e => {
@@ -750,12 +984,26 @@ const SubirConfianza = {
 
     form.addEventListener('submit', async e => {
       e.preventDefault();
+      const tipo = select.value;
       const archivo = input.files && input.files[0];
       if (!archivo) {
-        status.textContent = 'Seleccione un archivo.';
+        status.textContent =
+          select.value === 'cedula'
+            ? 'Seleccione la foto frontal del carnet.'
+            : 'Seleccione un archivo.';
         return;
       }
-      const tipo = select.value;
+      if (tipo === 'cedula') {
+        const mime = (archivo.type || '').toLowerCase();
+        const esImagen =
+          mime.startsWith('image/') ||
+          /\.(jpe?g|png|webp)$/i.test(archivo.name || '');
+        if (!esImagen) {
+          status.textContent =
+            'Del carnet solo se acepta la foto frontal (JPG o PNG). No se pide el reverso.';
+          return;
+        }
+      }
       if (tipo === 'antecedentes') {
         if (SubirConfianza.perfil().antecedentes_verificados) {
           status.textContent = 'El certificado de antecedentes ya está verificado.';
@@ -784,6 +1032,103 @@ const SubirConfianza = {
           fecha: new Date().toISOString(),
           anotaciones: data.antecedentes_anotaciones,
           score: data.antecedentes_score,
+          verificado: true
+        });
+        SubirConfianza.guardar();
+        SubirConfianza.init();
+        return;
+      }
+      if (tipo === 'aval') {
+        const mime = (archivo.type || '').toLowerCase();
+        const esPdf = mime === 'application/pdf' || /\.pdf$/i.test(archivo.name || '');
+        if (!esPdf) {
+          status.textContent =
+            'Del aval/garantía solo se acepta PDF con texto real (sin fotos ni escaneos).';
+          return;
+        }
+        if (SubirConfianza.perfil().aval_verificado) {
+          status.textContent = 'El aval o garantía ya está verificado.';
+          return;
+        }
+        btn.disabled = true;
+        status.textContent = 'Validando aval/garantía…';
+        const res =
+          typeof Auth !== 'undefined' && Auth.verificarAval
+            ? await Auth.verificarAval(archivo)
+            : { ok: false, error: 'Sesión no disponible.' };
+        btn.disabled = false;
+        if (!res.ok) {
+          status.textContent = res.error || 'No se pudo validar el aval/garantía.';
+          return;
+        }
+        const data = res.aval || {};
+        SubirConfianza.state.docs = SubirConfianza.state.docs.filter((d) => d.tipo !== 'aval');
+        SubirConfianza.state.docs.unshift({
+          id: String(Date.now()),
+          tipo: 'aval',
+          nombre: archivo.name,
+          tamano: archivo.size,
+          fecha: new Date().toISOString(),
+          score: data.aval_score,
+          avalTipo: data.aval_tipo,
+          verificado: true
+        });
+        SubirConfianza.guardar();
+        SubirConfianza.init();
+        return;
+      }
+      if (SubirConfianza.tiposDocEmpresa().includes(tipo)) {
+        const mime = (archivo.type || '').toLowerCase();
+        const esPdf = mime === 'application/pdf' || /\.pdf$/i.test(archivo.name || '');
+        if (!esPdf) {
+          status.textContent =
+            'Solo se acepta PDF con texto real (sin fotos ni escaneos).';
+          return;
+        }
+        const empresa = SubirConfianza.empresaActual();
+        if (!empresa || !empresa.id) {
+          status.textContent = 'Cree primero su empresa en Perfil.';
+          return;
+        }
+        if (SubirConfianza.tieneDoc(tipo)) {
+          status.textContent = 'Ese documento legal ya está verificado.';
+          return;
+        }
+        btn.disabled = true;
+        status.textContent = 'Validando documento legal…';
+        const res =
+          typeof Auth !== 'undefined' && Auth.verificarDocEmpresa
+            ? await Auth.verificarDocEmpresa(empresa.id, tipo, archivo)
+            : { ok: false, error: 'Sesión no disponible.' };
+        btn.disabled = false;
+        if (!res.ok) {
+          status.textContent = res.error || 'No se pudo validar el documento.';
+          return;
+        }
+        const data = res.documento || {};
+        if (data.docs_empresa) {
+          empresa.docs_empresa = data.docs_empresa;
+        }
+        if (data.indice_transparencia != null) {
+          empresa.indice_transparencia = data.indice_transparencia;
+        }
+        if (data.indice_pct != null) {
+          empresa.indice_pct = data.indice_pct;
+        }
+        SubirConfianza.reputacionMia = Object.assign({}, SubirConfianza.reputacionMia || {}, {
+          indice_transparencia: data.indice_transparencia,
+          indice_pct: data.indice_pct,
+          docs_verificados: data.docs_verificados,
+          docs_total: data.docs_total
+        });
+        SubirConfianza.state.docs = SubirConfianza.state.docs.filter((d) => d.tipo !== tipo);
+        SubirConfianza.state.docs.unshift({
+          id: String(Date.now()),
+          tipo,
+          nombre: archivo.name,
+          tamano: archivo.size,
+          fecha: new Date().toISOString(),
+          score: data.score,
           verificado: true
         });
         SubirConfianza.guardar();
@@ -847,6 +1192,10 @@ const SubirConfianza = {
             (doc.anotaciones === true ? 'Sí' : doc.anotaciones === false ? 'No' : '—');
           if (doc.score != null) metaTxt += ' · Score ' + doc.score;
         }
+        if (doc.tipo === 'aval' && doc.verificado) {
+          if (doc.avalTipo) metaTxt += ' · ' + doc.avalTipo;
+          if (doc.score != null) metaTxt += ' · Score ' + doc.score;
+        }
         meta.textContent = metaTxt;
 
         cuerpo.append(nombre, meta);
@@ -857,6 +1206,356 @@ const SubirConfianza = {
 
     listaWrap.append(listaTitulo, lista);
     wrap.append(head, form, listaWrap);
+    return wrap;
+  },
+
+  cedulaHecha() {
+    const p = SubirConfianza.perfil();
+    return !!(p.cedula_verificada || p.rut_verificado);
+  },
+
+  bloqueCedula() {
+    const wrap = document.createElement('section');
+    wrap.className = 'confianza-bio config-card';
+    wrap.setAttribute('aria-label', 'Validación de cédula');
+
+    const titulo = document.createElement('h3');
+    titulo.className = 'section-heading';
+    titulo.textContent = 'Foto frontal del carnet';
+
+    const lead = document.createElement('p');
+    lead.className = 'section-lead';
+
+    const status = document.createElement('p');
+    status.className = 'status-text confianza-bio__status';
+    status.setAttribute('role', 'status');
+
+    const perfil = SubirConfianza.perfil();
+    if (perfil.cedula_verificada) {
+      lead.textContent =
+        'Carnet validado (OCR + face-match con su selfie). La foto del carnet no se retuvo.';
+      const partes = [];
+      if (perfil.cedula_verificada_en) {
+        partes.push('Validada el ' + SubirConfianza.formatoFecha(perfil.cedula_verificada_en));
+      }
+      if (perfil.cedula_score != null) partes.push('score ' + perfil.cedula_score + '/100');
+      status.textContent = (partes.join(' · ') || 'Cédula verificada') + '.';
+      wrap.append(titulo, lead, status);
+      return wrap;
+    }
+
+    if (!perfil.biometria_verificada) {
+      lead.textContent =
+        'Primero complete la verificación biométrica (selfie). Se usa para comparar el rostro del carnet.';
+      status.textContent = 'Bloqueado hasta tener selfie biométrica.';
+      wrap.append(titulo, lead, status);
+      return wrap;
+    }
+
+    if (perfil.rut_verificado) {
+      lead.textContent =
+        'Ya tiene RUT verificado. Puede reforzar con la foto frontal: OCR + face-match contra su selfie. La imagen del carnet no se guarda.';
+    } else {
+      lead.textContent =
+        'Encaje el frente del carnet en el marco. Se valida con OCR local, ROI del RUN y face-match contra su selfie; la foto del carnet no se retiene.';
+    }
+
+    const previewWrap = document.createElement('div');
+    previewWrap.className = 'confianza-cedula__preview-wrap';
+    previewWrap.hidden = true;
+    const preview = document.createElement('img');
+    preview.className = 'confianza-cedula__preview-img';
+    preview.alt = 'Vista previa del carnet';
+    previewWrap.append(preview);
+
+    const file = document.createElement('input');
+    file.type = 'file';
+    file.accept = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+    file.className = 'confianza-docs__file';
+    file.id = 'confianzaCedulaArchivo';
+
+    const dropLabel = document.createElement('label');
+    dropLabel.className = 'confianza-docs__drop-label';
+    dropLabel.htmlFor = 'confianzaCedulaArchivo';
+    dropLabel.innerHTML =
+      '<span class="confianza-docs__drop-titulo">Elegir foto frontal</span>' +
+      '<span class="confianza-docs__drop-hint">Solo el frente · JPG o PNG · sin reverso</span>' +
+      '<span class="confianza-docs__drop-nombre" id="confianzaCedulaNombre">Ninguna foto seleccionada</span>';
+
+    const drop = document.createElement('div');
+    drop.className = 'confianza-docs__drop';
+    drop.append(file, dropLabel);
+
+    const acciones = document.createElement('div');
+    acciones.className = 'confianza-bio__acciones';
+
+    const btnCam = document.createElement('button');
+    btnCam.type = 'button';
+    btnCam.className = 'confianza-bio__btn confianza-bio__btn--cam';
+    btnCam.textContent = 'Abrir cámara (trasera)';
+
+    const btnCapturar = document.createElement('button');
+    btnCapturar.type = 'button';
+    btnCapturar.className = 'confianza-bio__btn';
+    btnCapturar.textContent = 'Capturar carnet';
+    btnCapturar.hidden = true;
+
+    const btnReintentar = document.createElement('button');
+    btnReintentar.type = 'button';
+    btnReintentar.className = 'confianza-bio__btn confianza-bio__btn--retry';
+    btnReintentar.textContent = 'Reintentar captura';
+    btnReintentar.hidden = true;
+
+    acciones.append(btnCam, btnCapturar, btnReintentar);
+
+    const visor = document.createElement('div');
+    visor.className = 'confianza-cedula__visor';
+    visor.hidden = true;
+    const video = document.createElement('video');
+    video.className = 'confianza-cedula__video';
+    video.setAttribute('playsinline', '');
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    const mascara = document.createElement('div');
+    mascara.className = 'confianza-cedula__mascara';
+    mascara.setAttribute('aria-hidden', 'true');
+    const guia = document.createElement('p');
+    guia.className = 'confianza-cedula__guia';
+    guia.textContent = 'Encaje el frente del carnet en el marco';
+    const canvas = document.createElement('canvas');
+    canvas.hidden = true;
+    visor.append(video, mascara, guia, canvas);
+
+    const consentWrap = document.createElement('label');
+    consentWrap.className = 'confianza-bio__consent';
+    const consent = document.createElement('input');
+    consent.type = 'checkbox';
+    consent.id = 'confianzaCedulaConsent';
+    const consentTxt = document.createElement('span');
+    consentTxt.textContent =
+      'Autorizo procesar la foto frontal de mi carnet (OCR + comparación facial con mi selfie). Entiendo que la imagen del carnet no se retiene.';
+    consentWrap.append(consent, consentTxt);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'submit-btn confianza-bio__enviar';
+    btn.textContent = 'Validar carnet';
+    btn.disabled = true;
+
+    const nota = document.createElement('p');
+    nota.className = 'confianza-bio__nota';
+    nota.textContent =
+      'Sin Paddle ni LLM. Tesseract + ROI del RUN + face-match OpenCV contra su selfie en disco. Si falla, reencuadre y reintente.';
+
+    let archivoElegido = null;
+    let stream = null;
+    let enviando = false;
+    let previewUrl = null;
+    const nombreSpan = () => document.getElementById('confianzaCedulaNombre');
+
+    function actualizarEnviar() {
+      btn.disabled = enviando || !(archivoElegido && consent.checked);
+    }
+
+    function limpiarPreviewUrl() {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        previewUrl = null;
+      }
+    }
+
+    function setArchivo(archivo, etiqueta) {
+      archivoElegido = archivo || null;
+      limpiarPreviewUrl();
+      const span = nombreSpan();
+      if (span) {
+        span.textContent = archivoElegido
+          ? (etiqueta || archivoElegido.name) +
+            ' · ' +
+            SubirConfianza.formatoTamano(archivoElegido.size)
+          : 'Ninguna foto seleccionada';
+      }
+      drop.classList.toggle('confianza-docs__drop--lleno', !!archivoElegido);
+      if (archivoElegido) {
+        previewUrl = URL.createObjectURL(archivoElegido);
+        preview.src = previewUrl;
+        previewWrap.hidden = false;
+        btnReintentar.hidden = false;
+      } else {
+        previewWrap.hidden = true;
+        preview.removeAttribute('src');
+        btnReintentar.hidden = true;
+      }
+      actualizarEnviar();
+      if (archivoElegido && !consent.checked) {
+        status.textContent = 'Foto lista. Marque el consentimiento para validar.';
+      } else if (archivoElegido) {
+        status.textContent = 'Foto lista. Pulse Validar carnet.';
+      }
+    }
+
+    function detenerCamara() {
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+        stream = null;
+      }
+      video.srcObject = null;
+    }
+
+    async function abrirCamara() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        status.textContent = 'Este dispositivo no permite usar la cámara.';
+        return;
+      }
+      btnCam.disabled = true;
+      status.textContent = 'Abriendo cámara trasera…';
+      try {
+        detenerCamara();
+        setArchivo(null);
+        file.value = '';
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1600 },
+            height: { ideal: 900 }
+          },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        visor.hidden = false;
+        btnCapturar.hidden = false;
+        btnReintentar.hidden = true;
+        status.textContent = 'Encaje el carnet en el marco blanco y capture.';
+      } catch {
+        detenerCamara();
+        status.textContent = 'No se pudo abrir la cámara. Use Elegir foto frontal.';
+      } finally {
+        btnCam.disabled = false;
+      }
+    }
+
+    function prepararReintento(mensaje) {
+      detenerCamara();
+      visor.hidden = true;
+      btnCapturar.hidden = true;
+      setArchivo(null);
+      file.value = '';
+      btnReintentar.hidden = false;
+      status.textContent = mensaje;
+      actualizarEnviar();
+    }
+
+    file.addEventListener('change', () => {
+      const f = file.files && file.files[0];
+      if (!f) {
+        setArchivo(null);
+        return;
+      }
+      if (!String(f.type || '').startsWith('image/')) {
+        status.textContent = 'Solo se acepta la foto frontal (JPG o PNG).';
+        file.value = '';
+        setArchivo(null);
+        return;
+      }
+      detenerCamara();
+      visor.hidden = true;
+      btnCapturar.hidden = true;
+      setArchivo(f);
+    });
+
+    consent.addEventListener('change', () => {
+      actualizarEnviar();
+      if (archivoElegido && !enviando) {
+        status.textContent = consent.checked
+          ? 'Foto lista. Pulse Validar carnet.'
+          : 'Foto lista. Marque el consentimiento para validar.';
+      }
+    });
+
+    btnCam.addEventListener('click', () => {
+      abrirCamara();
+    });
+
+    btnReintentar.addEventListener('click', () => {
+      abrirCamara();
+    });
+
+    btnCapturar.addEventListener('click', async () => {
+      if (!stream || video.videoWidth < 2) {
+        status.textContent = 'La cámara aún no está lista.';
+        return;
+      }
+      // Recorta al marco (proporción carnet ~1.586) centrado en el video.
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const targetRatio = 1.586;
+      let cw;
+      let ch;
+      if (vw / vh > targetRatio) {
+        ch = Math.floor(vh * 0.78);
+        cw = Math.floor(ch * targetRatio);
+      } else {
+        cw = Math.floor(vw * 0.88);
+        ch = Math.floor(cw / targetRatio);
+      }
+      const sx = Math.floor((vw - cw) / 2);
+      const sy = Math.floor((vh - ch) / 2);
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      ctx.drawImage(video, sx, sy, cw, ch, 0, 0, cw, ch);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.93));
+      detenerCamara();
+      visor.hidden = true;
+      btnCapturar.hidden = true;
+      if (!blob || blob.size < 1500) {
+        prepararReintento('No se pudo capturar. Reintente o suba un archivo.');
+        return;
+      }
+      setArchivo(new File([blob], 'carnet-frontal.jpg', { type: 'image/jpeg' }), 'Captura');
+    });
+
+    btn.addEventListener('click', async () => {
+      if (enviando) return;
+      if (!archivoElegido) {
+        status.textContent = 'Seleccione o capture la foto frontal.';
+        return;
+      }
+      if (!consent.checked) {
+        status.textContent = 'Debe aceptar el procesamiento de la foto del carnet.';
+        actualizarEnviar();
+        return;
+      }
+      enviando = true;
+      actualizarEnviar();
+      status.textContent = 'Validando: OCR + face-match con su selfie…';
+      const res = await Auth.verificarCedula(archivoElegido);
+      if (!res.ok) {
+        enviando = false;
+        prepararReintento(
+          (res.error || 'No se pudo validar el carnet.') + ' Pulse Reintentar captura.'
+        );
+        return;
+      }
+      detenerCamara();
+      limpiarPreviewUrl();
+      SubirConfianza.init();
+    });
+
+    wrap.append(
+      titulo,
+      lead,
+      drop,
+      previewWrap,
+      visor,
+      acciones,
+      consentWrap,
+      btn,
+      status,
+      nota
+    );
     return wrap;
   },
 
@@ -881,16 +1580,30 @@ const SubirConfianza = {
     if (hecha) {
       const perfil = SubirConfianza.perfil();
       lead.textContent =
-        'Identidad verificada. La foto se usó solo para el chequeo y no se almacenó.';
-      status.textContent = perfil.biometria_verificada_en
-        ? 'Completada el ' + SubirConfianza.formatoFecha(perfil.biometria_verificada_en) + '.'
-        : 'Biometría completada.';
+        'Identidad verificada. Se guardó una copia comprimida de la selfie con acceso restringido y retención limitada.';
+      const partes = [];
+      if (perfil.biometria_verificada_en) {
+        partes.push(
+          'Completada el ' + SubirConfianza.formatoFecha(perfil.biometria_verificada_en)
+        );
+      } else {
+        partes.push('Biometría completada');
+      }
+      if (perfil.biometria_retener_hasta) {
+        partes.push(
+          'retención hasta ' + SubirConfianza.formatoFecha(perfil.biometria_retener_hasta)
+        );
+      }
+      if (perfil.biometria_bytes) {
+        partes.push(SubirConfianza.formatoTamano(perfil.biometria_bytes));
+      }
+      status.textContent = partes.join(' · ') + '.';
       wrap.append(titulo, lead, status);
       return wrap;
     }
 
     lead.textContent =
-      'Abra la cámara frontal, encuadre su rostro y capture la selfie. La imagen no se guarda.';
+      'Abra la cámara frontal, encuadre su rostro y capture la selfie. Se guardará una copia comprimida solo para verificación de identidad, con retención limitada, y se borrará al eliminar la cuenta.';
 
     const visor = document.createElement('div');
     visor.className = 'confianza-bio__preview';
@@ -977,28 +1690,58 @@ const SubirConfianza = {
     btn.textContent = 'Verificar identidad';
     btn.disabled = true;
 
+    const consentWrap = document.createElement('label');
+    consentWrap.className = 'confianza-bio__consent';
+    const consent = document.createElement('input');
+    consent.type = 'checkbox';
+    consent.id = 'confianzaBioConsent';
+    const consentTxt = document.createElement('span');
+    consentTxt.textContent =
+      'Autorizo guardar una copia comprimida de mi selfie para verificar identidad, con acceso restringido y retención limitada. Se borrará al eliminar mi cuenta.';
+    consentWrap.append(consent, consentTxt);
+
+    let enviando = false;
+
+    function mensajeListo() {
+      if (!archivoElegido) return;
+      status.textContent = consent.checked
+        ? 'Selfie lista. Pulse Verificar identidad.'
+        : 'Selfie lista. Marque el consentimiento para continuar.';
+    }
+
+    function actualizarEnviar() {
+      btn.disabled = enviando || !(archivoElegido && consent.checked);
+      btn.setAttribute('aria-disabled', btn.disabled ? 'true' : 'false');
+    }
+
     function uiInicial() {
       btnAbrir.hidden = false;
       btnAbrir.disabled = false;
       btnAbrir.textContent = 'Abrir cámara';
       btnCapturar.hidden = true;
       btnOtra.hidden = true;
-      btn.disabled = !archivoElegido;
+      actualizarEnviar();
     }
 
     function uiCamaraLista() {
       btnAbrir.hidden = true;
       btnCapturar.hidden = false;
       btnOtra.hidden = true;
+      actualizarEnviar();
     }
 
     function uiTrasCaptura() {
       btnAbrir.hidden = true;
       btnCapturar.hidden = true;
       btnOtra.hidden = false;
-      btn.disabled = false;
+      actualizarEnviar();
+      mensajeListo();
     }
 
+    consent.addEventListener('change', () => {
+      actualizarEnviar();
+      if (archivoElegido && !enviando) mensajeListo();
+    });
     uiInicial();
 
     btnAbrir.addEventListener('click', async () => {
@@ -1013,7 +1756,7 @@ const SubirConfianza = {
         detenerCamara();
         archivoElegido = null;
         congelado = false;
-        btn.disabled = true;
+        actualizarEnviar();
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: 'user' },
@@ -1061,6 +1804,8 @@ const SubirConfianza = {
       if (!blob || blob.size < 500) {
         congelado = false;
         pintarFrame();
+        archivoElegido = null;
+        actualizarEnviar();
         status.textContent = 'No se pudo capturar la foto. Intente de nuevo.';
         return;
       }
@@ -1073,28 +1818,38 @@ const SubirConfianza = {
       }
       video.srcObject = null;
       uiTrasCaptura();
-      status.textContent = 'Selfie lista. Pulse Verificar identidad.';
     });
 
     btnOtra.addEventListener('click', () => {
+      if (enviando) return;
       archivoElegido = null;
       congelado = false;
-      btn.disabled = true;
+      actualizarEnviar();
       uiInicial();
       btnAbrir.click();
     });
 
     btn.addEventListener('click', async () => {
+      if (enviando) return;
       if (!archivoElegido) {
         status.textContent = 'Primero capture una selfie.';
+        actualizarEnviar();
         return;
       }
-      btn.disabled = true;
-      status.textContent = 'Verificando… la foto no se almacenará.';
+      if (!consent.checked) {
+        status.textContent =
+          'Debe aceptar el almacenamiento de la selfie comprimida para continuar.';
+        actualizarEnviar();
+        return;
+      }
+      enviando = true;
+      actualizarEnviar();
+      status.textContent = 'Verificando y guardando copia comprimida…';
       const res = await Auth.verificarBiometria(archivoElegido);
       if (!res.ok) {
+        enviando = false;
         status.textContent = res.error || 'No se pudo verificar.';
-        btn.disabled = false;
+        actualizarEnviar();
         return;
       }
       detenerCamara();
@@ -1106,9 +1861,10 @@ const SubirConfianza = {
 
     const nota = document.createElement('p');
     nota.className = 'confianza-bio__nota';
-    nota.textContent = 'Zero-Retention: solo se registra que la verificación ocurrió.';
+    nota.textContent =
+      'Dato sensible: la foto no se publica. Solo metadata aparece en su perfil (tamaño y fecha de retención).';
 
-    wrap.append(titulo, lead, visor, acciones, btn, status, nota);
+    wrap.append(titulo, lead, visor, acciones, consentWrap, btn, status, nota);
     return wrap;
   },
 
@@ -1191,13 +1947,20 @@ const SubirConfianza = {
 
   etiquetaTipo(tipo) {
     const mapa = {
-      cedula: 'Identidad',
+      cedula: 'Carnet (frontal)',
       antecedentes: 'Antecedentes',
       aval: 'Aval / garantía',
+      carpeta_tributaria: 'Carpeta tributaria (SII)',
+      inicio_actividades: 'Inicio de actividades (SII)',
+      vigencia_sociedad: 'Vigencia de la sociedad',
+      vigencia_poderes: 'Vigencia de poderes',
+      poder_representante: 'Poder representante',
       constitucion: 'Constitución',
+      f30: 'F30 Dirección del Trabajo',
+      no_quiebra: 'No quiebra / concursal',
+      antecedentes_rl: 'Antecedentes representante',
       patente: 'Patente municipal',
-      inicio_actividades: 'Inicio de actividades',
-      poder_representante: 'Poder representante'
+      titularidad_cuenta: 'Titularidad cuenta bancaria'
     };
     return mapa[tipo] || tipo;
   },
