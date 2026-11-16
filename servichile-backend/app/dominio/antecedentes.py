@@ -18,6 +18,12 @@ _OBLIGATORIAS = frozenset(
         "codigo-etiquetado",
         "run-etiquetado",
         "seccion-condenas",
+        "texto-real",
+        "pades-intacta",
+        "emisor-oficial",
+        "pades-trusted",
+        "fecha-reciente",
+        "glosa-estado",
     }
 )
 
@@ -55,6 +61,16 @@ class ResultadoAntecedentes:
     senales: tuple[str, ...]
 
     motivo: str
+
+    verificado_criptograficamente: bool = False
+
+    entidad_emisora: str | None = None
+
+    fecha_emision: str | None = None
+
+    sha256_hash: str | None = None
+
+    glosa: str | None = None
 
 
 def digito_verificador(cuerpo: str) -> str:
@@ -217,13 +233,49 @@ def validar_certificado_antecedentes(
     producer: str | None = None,
     num_paginas: int = 0,
     texto: str = "",
+    texto_real: bool = False,
+    pades_ok: bool = False,
+    entidad_emisora: str | None = None,
+    sha256_hash: str | None = None,
 ) -> ResultadoAntecedentes:
+
+    from app.dominio.pades import (
+        detectar_glosa,
+        fecha_dentro_ventana,
+        parsear_fecha_emision,
+    )
 
     senales: list[str] = []
 
     score = 0
 
     faltantes: list[str] = []
+
+    if texto_real:
+
+        score += 10
+
+        senales.append("texto-real")
+
+    else:
+
+        faltantes.append("PDF con texto real seleccionable (no escaneo)")
+
+    if pades_ok:
+
+        score += 15
+
+        senales.append("pades-intacta")
+
+        senales.append("emisor-oficial")
+
+        senales.append("pades-trusted")
+
+    else:
+
+        faltantes.append(
+            "firma PAdES íntegra, cobertura total y confiable (CA Chile)"
+        )
 
     if num_paginas != 1:
 
@@ -239,7 +291,7 @@ def validar_certificado_antecedentes(
 
     if "itext" in prod:
 
-        score += 15
+        score += 10
 
         senales.append("itext")
 
@@ -258,7 +310,7 @@ def validar_certificado_antecedentes(
 
     if es_srcei:
 
-        score += 20
+        score += 15
 
         senales.append("formato-srcei")
 
@@ -274,7 +326,7 @@ def validar_certificado_antecedentes(
 
     if "registrogeneraldecondenas" in compact:
 
-        score += 10
+        score += 5
 
         senales.append("seccion-condenas")
 
@@ -292,7 +344,7 @@ def validar_certificado_antecedentes(
 
     if folio:
 
-        score += 10
+        score += 5
 
         senales.append("folio-etiquetado")
 
@@ -304,7 +356,7 @@ def validar_certificado_antecedentes(
 
     if codigo:
 
-        score += 10
+        score += 5
 
         senales.append("codigo-etiquetado")
 
@@ -316,7 +368,7 @@ def validar_certificado_antecedentes(
 
     if run and run_valido(run):
 
-        score += 10
+        score += 5
 
         senales.append("run-etiquetado")
 
@@ -327,6 +379,19 @@ def validar_certificado_antecedentes(
         run = run if run and run_valido(run) else None
 
     fecha_txt = _fecha_emision_texto(texto_l)
+    fecha_emision = parsear_fecha_emision(texto_l)
+    if fecha_txt and fecha_emision is None:
+        fecha_emision = fecha_txt.date()
+
+    if fecha_dentro_ventana(fecha_emision):
+
+        score += 10
+
+        senales.append("fecha-reciente")
+
+    else:
+
+        faltantes.append("fecha de emisión con menos de 60 días")
 
     if fecha_txt and meta_creation:
 
@@ -348,6 +413,18 @@ def validar_certificado_antecedentes(
 
         senales.append("fecha-texto")
 
+    glosa = detectar_glosa(texto_l, "antecedentes")
+
+    if glosa:
+
+        score += 5
+
+        senales.append("glosa-estado")
+
+    else:
+
+        faltantes.append("glosa de estado (ej. Sin antecedentes / Sin anotaciones)")
+
     if _nombre_coherente(nombre_archivo, folio, run):
 
         score += 5
@@ -366,7 +443,21 @@ def validar_certificado_antecedentes(
 
     if not aceptado:
 
-        if es_srcei and anotaciones is None:
+        if not texto_real:
+
+            motivo = (
+                "Solo se aceptan PDF con texto seleccionable. "
+                "No se admiten fotos escaneadas ni PDF de solo imagen."
+            )
+
+        elif not pades_ok:
+
+            motivo = (
+                "El certificado debe traer firma electrónica avanzada (PAdES) "
+                "íntegra del Registro Civil / Acepta. No edite el PDF."
+            )
+
+        elif es_srcei and anotaciones is None:
 
             motivo = "El PDF parece un certificado, pero no se pudo determinar si tiene o no anotaciones. Suba el PDF oficial completo."
 
@@ -380,11 +471,17 @@ def validar_certificado_antecedentes(
 
     elif anotaciones:
 
-        motivo = "Certificado válido. Anotaciones: Sí (no afecta el puntaje)."
+        motivo = (
+            "Certificado válido con firma PAdES íntegra. "
+            "Anotaciones: Sí (no afecta el puntaje). El PDF no se retuvo."
+        )
 
     else:
 
-        motivo = "Certificado válido. Anotaciones: No (no afecta el puntaje)."
+        motivo = (
+            "Certificado válido con firma PAdES íntegra. "
+            "Anotaciones: No (no afecta el puntaje). El PDF no se retuvo."
+        )
 
     return ResultadoAntecedentes(
         aceptado=aceptado,
@@ -395,4 +492,9 @@ def validar_certificado_antecedentes(
         run=run,
         senales=tuple(senales),
         motivo=motivo,
+        verificado_criptograficamente=bool(pades_ok and aceptado),
+        entidad_emisora=entidad_emisora if aceptado else None,
+        fecha_emision=fecha_emision.isoformat() if (aceptado and fecha_emision) else None,
+        sha256_hash=sha256_hash if aceptado else None,
+        glosa=glosa if aceptado else None,
     )

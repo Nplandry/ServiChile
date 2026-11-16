@@ -47,15 +47,21 @@ def _reservar(client: TestClient, headers, business_id) -> dict:
     return r.json()
 
 
-def _reclamar(client: TestClient, headers, business_id) -> None:
+def _publicar(client: TestClient, headers, nombre: str = "Proveedor TI Central") -> str:
 
     r = client.post(
-        f"/v1/businesses/{business_id}/claim",
-        json={"documento_verificacion": "76.543.210-K"},
+        "/v1/businesses",
+        json={
+            "nombre": nombre,
+            "categoria": "tecnologia",
+            "direccion": "Av. Siempre Viva 100",
+        },
         headers=headers,
     )
 
     assert r.status_code == 201, r.text
+
+    return r.json()["id"]
 
 
 def test_reservar_devuelve_codigo_qr(client: TestClient, session_factory, token: str):
@@ -93,15 +99,11 @@ def test_listar_mis_reservas(client: TestClient, session_factory, token: str):
     assert len(client.get("/v1/reservas", headers=h).json()) == 2
 
 
-def test_checkin_del_titular_da_score_100(
-    client: TestClient, session_factory, token_empresa: str
-):
-
-    bid = _negocio(session_factory)
+def test_checkin_del_titular_da_score_100(client: TestClient, token_empresa: str):
 
     titular = {"Authorization": f"Bearer {token_empresa}"}
 
-    _reclamar(client, titular, bid)
+    bid = _publicar(client, titular)
 
     cliente = _cuenta(client, "cliente@servichile.cl")
 
@@ -122,13 +124,11 @@ def test_checkin_del_titular_da_score_100(
     )
 
 
-def test_no_show_baja_el_score(client: TestClient, session_factory, token_empresa: str):
-
-    bid = _negocio(session_factory)
+def test_no_show_baja_el_score(client: TestClient, token_empresa: str):
 
     titular = {"Authorization": f"Bearer {token_empresa}"}
 
-    _reclamar(client, titular, bid)
+    bid = _publicar(client, titular)
 
     cliente = _cuenta(client, "cliente@servichile.cl")
 
@@ -155,15 +155,11 @@ def test_no_show_baja_el_score(client: TestClient, session_factory, token_empres
     )
 
 
-def test_checkin_de_otro_usuario_da_403(
-    client: TestClient, session_factory, token_empresa: str
-):
-
-    bid = _negocio(session_factory)
+def test_checkin_de_otro_usuario_da_403(client: TestClient, token_empresa: str):
 
     titular = {"Authorization": f"Bearer {token_empresa}"}
 
-    _reclamar(client, titular, bid)
+    bid = _publicar(client, titular)
 
     otro = _cuenta(client, "otro@servichile.cl")
 
@@ -199,19 +195,13 @@ def test_checkin_en_negocio_no_reclamado_da_403(
     assert r.status_code == 403
 
 
-def test_qr_de_otro_negocio_da_404(
-    client: TestClient, session_factory, token_empresa: str
-):
-
-    bid_a = _negocio(session_factory)
-
-    bid_b = _negocio(session_factory)
+def test_qr_de_otro_negocio_da_404(client: TestClient, token_empresa: str):
 
     titular = {"Authorization": f"Bearer {token_empresa}"}
 
-    _reclamar(client, titular, bid_a)
+    bid_a = _publicar(client, titular, "Proveedor A")
 
-    _reclamar(client, titular, bid_b)
+    bid_b = _publicar(client, titular, "Proveedor B")
 
     cliente = _cuenta(client, "cliente@servichile.cl")
 
@@ -227,14 +217,12 @@ def test_qr_de_otro_negocio_da_404(
 
 
 def test_reserva_cerrada_no_se_puede_volver_a_cerrar(
-    client: TestClient, session_factory, token_empresa: str
+    client: TestClient, token_empresa: str
 ):
-
-    bid = _negocio(session_factory)
 
     titular = {"Authorization": f"Bearer {token_empresa}"}
 
-    _reclamar(client, titular, bid)
+    bid = _publicar(client, titular)
 
     cliente = _cuenta(client, "cliente@servichile.cl")
 

@@ -48,18 +48,20 @@ def test_perfil_nuevo_es_pasaporte_nivel_1_basico(client: TestClient):
     assert "inmobiliaria_scoring" not in cuerpo
 
 
-def test_campos_deprecados_se_aceptan_pero_no_se_devuelven(client: TestClient):
+def test_campos_deprecados_preocupacion_proposito_rechazados(client: TestClient):
 
-    h = _registrar(
-        client, perfil={"edad": 70, "preocupacion": "seguros", "proposito": "asesorar"}
+    h = _registrar(client, perfil={"edad": 70})
+
+    r = client.patch(
+        "/v1/perfil",
+        json={"preocupacion": "seguros", "proposito": "asesorar"},
+        headers=h,
     )
+    assert r.status_code == 422
 
     cuerpo = client.get("/v1/perfil", headers=h).json()
-
-    assert cuerpo["preocupacion"] is None
-
-    assert cuerpo["proposito"] is None
-
+    assert "preocupacion" not in cuerpo
+    assert "proposito" not in cuerpo
     assert cuerpo["edad"] == 70
 
 
@@ -82,11 +84,36 @@ def test_patch_null_borra_el_telefono(client: TestClient):
 
     h = _registrar(client)
 
-    client.patch("/v1/perfil", json={"telefono": "+56912345678"}, headers=h)
+    client.patch("/v1/perfil", json={"telefono": "+56 9 1234 5678"}, headers=h)
 
     r = client.patch("/v1/perfil", json={"telefono": None}, headers=h)
 
     assert r.json()["telefono"] is None
+
+
+def test_telefono_debe_empezar_con_mas_56(client: TestClient):
+
+    h = _registrar(client)
+
+    assert (
+        client.patch("/v1/perfil", json={"telefono": "9 1234 5678"}, headers=h).status_code
+        == 422
+    )
+
+    assert (
+        client.patch(
+            "/v1/perfil", json={"telefono": "56912345678"}, headers=h
+        ).status_code
+        == 422
+    )
+
+    r = client.patch(
+        "/v1/perfil", json={"telefono": "+56912345678"}, headers=h
+    )
+
+    assert r.status_code == 200, r.text
+
+    assert r.json()["telefono"] == "+56 9 1234 5678"
 
 
 def test_rut_valido_queda_verificado(client: TestClient):

@@ -135,34 +135,27 @@ def test_eliminar_cuenta_borra_el_acceso(client: TestClient):
     assert login.status_code == 401
 
 
-def test_eliminar_cuenta_libera_negocios_reclamados(
-    client: TestClient, session_factory
-):
-
-    bid = _negocio(session_factory, nombre="Negocio a reclamar")
+def test_eliminar_cuenta_borra_sus_empresas(client: TestClient):
 
     h = _cuenta(client, "titular@servichile.cl", tipo="proveedor")
 
-    claim = client.post(
-        f"/v1/businesses/{bid}/claim",
-        json={"documento_verificacion": "76.543.210-K"},
+    creada = client.post(
+        "/v1/businesses",
         headers=h,
+        json={
+            "nombre": "Negocio del titular",
+            "categoria": "tecnologia",
+            "direccion": "Av. Siempre Viva 100",
+        },
     )
 
-    assert claim.status_code == 201
+    assert creada.status_code == 201
 
-    assert (
-        client.get(f"/v1/businesses/{bid}/reputation").json()["is_verified_profile"]
-        is True
-    )
+    bid = creada.json()["id"]
 
     client.request("DELETE", "/v1/auth/yo", json={"password": CLAVE}, headers=h)
 
-    despues = client.get(f"/v1/businesses/{bid}/reputation").json()
-
-    assert despues["is_verified_profile"] is False
-
-    assert despues["estado_perfil"] == "Perfil No Verificado / Índice Básico"
+    assert client.get(f"/v1/businesses/{bid}/reputation").status_code == 404
 
 
 def test_eliminar_cuenta_requiere_sesion(client: TestClient):

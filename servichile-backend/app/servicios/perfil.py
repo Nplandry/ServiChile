@@ -1,6 +1,6 @@
 from app.dominio.entidades import Perfil, Usuario
 
-CAMPOS_PERFIL = {"edad", "tipo_cuenta", "preocupacion", "proposito"}
+CAMPOS_PERFIL = {"edad", "tipo_cuenta"}
 
 
 def aplicar_perfil(usuario: Usuario, cambios: dict) -> None:

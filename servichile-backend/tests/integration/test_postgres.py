@@ -132,24 +132,14 @@ def test_perfil_constraints_y_cascade(db):
         )
 
         s.execute(
-            text(
-                "insert into perfiles (usuario_id, edad, preocupacion) values (:u, 70, 'seguros')"
-            ),
+            text("insert into perfiles (usuario_id, edad) values (:u, 70)"),
             {"u": uid},
         )
 
         s.commit()
 
-        for sql in (
-            "update perfiles set edad = 13",
-            "update perfiles set preocupacion = 'otra'",
-            "update perfiles set proposito = 'otro'",
-        ):
-
-            with pytest.raises(IntegrityError):
-
-                s.execute(text(sql))
-
+        with pytest.raises(IntegrityError):
+            s.execute(text("update perfiles set edad = 13"))
             s.rollback()
 
         s.execute(text("delete from usuarios where id = :u"), {"u": uid})
@@ -168,8 +158,6 @@ def test_registro_y_patch_perfil_en_postgres(client, db):
         "perfil": {
             "tipo_cuenta": "persona",
             "edad": 68,
-            "preocupacion": "telecom",
-            "proposito": "investigar",
         },
     }
 
@@ -187,12 +175,10 @@ def test_registro_y_patch_perfil_en_postgres(client, db):
 
     assert perfil["tipo_cuenta"] == "persona"
 
-    client.patch("/v1/perfil", json={"preocupacion": "embargo"}, headers=h)
+    assert "preocupacion" not in perfil
 
     with db() as s:
 
-        fila = s.execute(
-            text("select edad, preocupacion, proposito from perfiles")
-        ).one()
+        fila = s.execute(text("select edad, tipo_cuenta from perfiles")).one()
 
-    assert tuple(fila) == (68, "embargo", "investigar")
+    assert tuple(fila) == (68, "persona")

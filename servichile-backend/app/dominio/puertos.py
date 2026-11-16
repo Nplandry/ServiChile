@@ -2,7 +2,8 @@
 
 Los servicios dependen de estos protocolos, no de SQLAlchemy, HTTP ni
 proveedores concretos. Cada adaptador en ``app.infraestructura`` implementa
-uno de ellos. ``app.api.dependencias`` es el único ensamblador.
+uno de ellos. El ensamblado concreto vive en ``app.api.dependencias`` y
+``app.ensamblado``.
 """
 
 from __future__ import annotations
@@ -13,10 +14,29 @@ from datetime import datetime
 from typing import Protocol
 
 from app.dominio.antecedentes import ResultadoAntecedentes
+from app.dominio.aval import ResultadoAval
+from app.dominio.biometria import MetaBiometria
+from app.dominio.cedula import MetaCedula, ResultadoCedula
+from app.dominio.docs_empresa import ResultadoDocEmpresa, TipoDocEmpresa
 from app.dominio.entidades import Negocio, Reserva, TokenEmitido, Usuario
+from app.dominio.transparencia.rater.motor import ResultadoRater
 
 
-class RepositorioUsuarios(Protocol):
+class RegistroHashPades(Protocol):
+    """Anti-replay de PDFs firmados (usuario o empresa)."""
+
+    def registrar_hash_pades(
+        self,
+        sha256: str,
+        *,
+        scope: str,
+        tipo: str | None = None,
+        usuario_id: uuid.UUID | None = None,
+        business_id: uuid.UUID | None = None,
+    ) -> bool: ...
+
+
+class RepositorioUsuarios(RegistroHashPades, Protocol):
     def get_by_email(self, email: str) -> Usuario | None: ...
 
     def get(self, usuario_id: uuid.UUID) -> Usuario | None: ...
@@ -30,16 +50,22 @@ class RepositorioUsuarios(Protocol):
     def guardar(self, usuario: Usuario) -> Usuario: ...
 
 
-class RepositorioNegocios(Protocol):
+class RepositorioNegocios(RegistroHashPades, Protocol):
     def get(self, business_id: uuid.UUID) -> Negocio | None: ...
 
     def listar(
         self, categoria: str | None = None, q: str | None = None, limite: int = 100
     ) -> list[Negocio]: ...
 
-    def listar_reclamados_por(self, usuario_id: uuid.UUID) -> list[Negocio]: ...
+    def listar_de(self, usuario_id: uuid.UUID) -> list[Negocio]: ...
+
+    def listar_completos(self, limite: int = 500) -> list[Negocio]: ...
 
     def guardar(self, negocio: Negocio) -> Negocio: ...
+
+    def eliminar(self, business_id: uuid.UUID) -> None: ...
+
+    def eliminar_de(self, usuario_id: uuid.UUID) -> None: ...
 
 
 class RepositorioReservas(Protocol):
@@ -105,6 +131,72 @@ class AnalizadorAntecedentes(Protocol):
     ) -> ResultadoAntecedentes: ...
 
 
-class NuloVerificadorIdentidad:
-    def existe_y_activo(self, rut: str) -> bool:
-        return False
+class AnalizadorAval(Protocol):
+    def analizar(
+        self,
+        contenido: bytes,
+        *,
+        rut_perfil: str | None = None,
+        nombre_perfil: str | None = None,
+        nombre_archivo: str | None = None,
+    ) -> ResultadoAval: ...
+
+
+class AnalizadorDocEmpresa(Protocol):
+    def analizar(
+        self,
+        contenido: bytes,
+        *,
+        tipo: TipoDocEmpresa,
+        rut_empresa: str | None = None,
+        nombre_empresa: str | None = None,
+        nombre_archivo: str | None = None,
+    ) -> ResultadoDocEmpresa: ...
+
+
+class AlmacenamientoBiometria(Protocol):
+    def guardar(self, usuario_id: uuid.UUID, contenido: bytes) -> MetaBiometria: ...
+
+    def leer(self, ruta_relativa: str) -> bytes: ...
+
+    def eliminar(
+        self, usuario_id: uuid.UUID, ruta_relativa: str | None = None
+    ) -> None: ...
+
+
+class AlmacenamientoCedula(Protocol):
+    def preparar_en_memoria(self, contenido: bytes) -> tuple[bytes, MetaCedula]: ...
+
+    def guardar(self, usuario_id: uuid.UUID, contenido: bytes) -> MetaCedula: ...
+
+    def leer(self, ruta_relativa: str) -> bytes: ...
+
+    def eliminar(
+        self, usuario_id: uuid.UUID, ruta_relativa: str | None = None
+    ) -> None: ...
+
+
+class LectorOcrCedula(Protocol):
+    def extraer_texto(self, jpeg_bytes: bytes) -> str: ...
+
+
+class AnalizadorCedula(Protocol):
+    def analizar(
+        self,
+        jpeg_bytes: bytes,
+        *,
+        ancho: int,
+        alto: int,
+        bytes_: int,
+        rut_perfil: str | None = None,
+        nombre_perfil: str | None = None,
+        rut_perfil_verificado: bool = False,
+        selfie_jpeg: bytes | None = None,
+    ) -> ResultadoCedula: ...
+
+
+class EvaluadorRater(Protocol):
+    """Señales públicas del índice (Places, ChileCompra, crawler, etc.)."""
+
+    def evaluar(self, negocio: Negocio) -> ResultadoRater: ...
+

@@ -18,22 +18,21 @@ servichile-backend/
 │   │   ├── puertos.py           # Contratos (repositorios y proveedores). Los servicios solo hablan esto
 │   │   ├── pasaporte.py         # RUT módulo 11 y score de confiabilidad
 │   │   ├── ficha_negocio.py     # Cómo se muestra un negocio en el mapa (foto, logo, botón)
-│   │   └── transparencia/       # Índice: indicadores, métricas, CMF, SII, Mercado Público
+│   │   └── transparencia/       # Índice unificado (rater + documentos)
 │   ├── servicios/               # Casos de uso: reutilizables, sin ORM, HTTP, JWT ni Argon2
 │   │   ├── autenticacion.py     # Registro y login
-│   │   └── pasaporte.py, reserva.py, negocio.py, …
+│   │   └── pasaporte.py, reserva.py, negocio.py, negocio_reputacion.py, …
 │   ├── infraestructura/         # Adaptadores que implementan los puertos
 │   │   ├── persistencia/        # Modelos ORM y repositorios SQL
-│   │   ├── cmf/                 # Cliente CMF, índice local y repositorio
-│   │   ├── ciber/               # Sonda, consulta DNS y documentos legales
-│   │   ├── busqueda/            # Búsqueda web, filtro e incidentes
+│   │   ├── rater/               # Places, ChileCompra, crawler y AdaptadorRater
 │   │   ├── seguridad/           # Hash Argon2 y tokens JWT
 │   │   └── limite_solicitudes.py
+│   ├── ensamblado/              # Factory y loops de proceso (fuera de servicios)
 │   └── api/                     # Presentación REST: sin reglas de negocio ni consultas
 │       ├── esquemas.py          # Contratos de entrada y salida (Pydantic)
 │       ├── mapeos.py            # Entidades y resultados -> respuestas
 │       ├── dependencias.py      # Ensambla servicios, repositorios y APIs externas
-│       ├── autorizacion.py      # Quién puede crear o reclamar un negocio
+│       ├── autorizacion.py      # Quién puede crear un negocio
 │       └── v1/                  # Routers: autenticacion, perfil, negocios, reservas, reporte
 ├── db/init_script.sql           # Crea el esquema completo desde cero
 ├── docs/
@@ -42,7 +41,7 @@ servichile-backend/
 └── tests/                       # Pruebas pytest y colección Postman
 ```
 
-Las reglas de capas se verifican con `import-linter` (`lint-imports`, ver `.importlinter`): el dominio no depende de frameworks, los servicios no importan infraestructura ni API, y los routers no acceden a la base. `app.api.dependencias` ensambla repositorios y proveedores.
+Las reglas de capas se verifican con `import-linter` (`lint-imports`, ver `.importlinter`): el dominio no depende de frameworks, los servicios no importan infraestructura ni API, y los routers no acceden a la base. `app.api.dependencias` y `app.ensamblado` ensamblan repositorios, rater y loops de background.
 
 ## Endpoints y estado de desarrollo
 
@@ -56,27 +55,33 @@ Los tests de integración con PostgreSQL (`tests/integration/`) se omiten sin `T
 | GET | `/v1/auth/yo` | Sí | Datos del usuario autenticado | `app/api/v1/autenticacion.py` | Implementado y probado |
 | GET | `/v1/perfil` | Sí | Estado del Pasaporte de Confianza (nivel, score de confiabilidad) | `app/api/v1/perfil.py` | Implementado y probado |
 | PATCH | `/v1/perfil` | Sí | Actualiza edad, teléfono y verifica el RUT | `app/api/v1/perfil.py` | Implementado y probado |
-| POST | `/v1/perfil/biometria` | Sí | Verificación biométrica; la foto no se almacena (201) | `app/api/v1/perfil.py` | Implementado y probado |
+| POST | `/v1/perfil/biometria` | Sí | Verificación biométrica; JPEG comprimido en disco local + metadata (201) | `app/api/v1/perfil.py` | Implementado y probado |
 | GET | `/v1/reservas` | Sí | Reservas del usuario con su código QR | `app/api/v1/reservas.py` | Implementado y probado |
 | POST | `/v1/reservas` | Sí | Reserva un cupo en un comercio (201) | `app/api/v1/reservas.py` | Implementado y probado |
 | DELETE | `/v1/reservas/{id}` | Sí | Cancela una reserva propia que siga activa | `app/api/v1/reservas.py` | Implementado y probado |
 | DELETE | `/v1/auth/yo` | Sí | Elimina la cuenta, con confirmación por contraseña (204) | `app/api/v1/autenticacion.py` | Implementado y probado |
-| POST | `/v1/businesses/{id}/checkin` | Sí (titular) | El dueño registra asistencia con el QR del usuario | `app/api/v1/negocios.py` | Implementado y probado |
-| POST | `/v1/businesses/{id}/reservas/{reserva_id}/no-show` | Sí (titular) | El dueño marca una reserva como no-show | `app/api/v1/negocios.py` | Implementado y probado |
-| GET | `/v1/businesses/{id}/reputation` | No | Índice de Transparencia y métricas estadísticas | `app/api/v1/negocios.py` | Implementado y probado |
-| POST | `/v1/businesses/{id}/claim` | Sí | Derecho a Réplica: el dueño reclama su perfil (201) | `app/api/v1/negocios.py` | Implementado y probado |
+| GET | `/v1/businesses` | No | Marketplace público (`NegocioEnMapaOut`) | `app/api/v1/negocios.py` | Implementado y probado |
+| POST | `/v1/businesses` | Sí (proveedor) | Crea empresa (`NegocioTitularOut`) | `app/api/v1/negocios.py` | Implementado y probado |
+| GET | `/v1/businesses/mias` | Sí | Empresas del titular | `app/api/v1/negocios.py` | Implementado y probado |
+| POST | `/v1/businesses/{id}/rater-refresh` | Sí (titular) | Re-evalúa rater e índice | `app/api/v1/negocios.py` | Implementado y probado |
+| POST | `/v1/businesses/{id}/checkin` | Sí (titular) | Asistencia con QR | `app/api/v1/reservas.py` | Implementado y probado |
+| POST | `/v1/businesses/{id}/reservas/{reserva_id}/no-show` | Sí (titular) | Marca no-show | `app/api/v1/reservas.py` | Implementado y probado |
+| GET | `/v1/businesses/{id}/reputation` | No | Índice de Transparencia | `app/api/v1/negocios.py` | Implementado y probado |
+| DELETE | `/v1/businesses/{id}` | Sí (creador) | Elimina la empresa (204) | `app/api/v1/negocios.py` | Implementado y probado |
 
 Los endpoints marcados con "Sí" en Sesión requieren la cabecera `Authorization: Bearer <access_token>`. El detalle de esquemas de entrada/salida y errores está en `docs/api_interface_table.md`.
 
 ### Pendientes (no implementados)
 
-- `/v1/patrimonio`, `/v1/polizas`, `/v1/subtel`: cruce de datos, dependen de convenios con SII, Registro Civil, CMF y SUBTEL.
 - Endpoints B2B y webhook de WhatsApp.
-- Worker de ingesta y recálculo del Índice de Transparencia (cron/Celery): recolectar métricas de Google Maps y NLP de sentimiento, y persistir `final_score` periódicamente. Hoy la fórmula (`app/dominio/transparencia/reputacion.py`) y el recálculo al reclamar/al vuelo ya existen; falta el proceso en segundo plano que alimente las métricas.
-- Pasaporte de Confianza, pendientes antes de producción:
-  - Verificador de RUT real (proveedor de identidad). Hoy `MuestraVerificadorRut` acepta cualquier RUT con DV válido.
-  - Eliminar `preocupacion` y `proposito` de la base en una migración posterior, cuando el frontend antiguo ya no los envíe.
-  - Reclamo de comercios: hoy el documento de verificación no se valida ni se guarda.
+- Pasaporte de Confianza en producción: verificador de RUT real (hoy `MuestraVerificadorRut` acepta cualquier RUT con DV válido).
+
+### Índice de transparencia (empresa)
+
+- El rater corre al crear/actualizar empresa (y RUT) y se refresca en background cada `RATER_REFRESH_MINUTES` (default 30); el titular puede forzar con `POST …/rater-refresh`.
+- Persistencia viva: `observables` + `final_score` (★ = overall/10). API: `indice_transparencia`, `indice_pct`, `observables`.
+- Alta/edición usa `rut_empresa` (no hay sello de perfil verificado de empresa).
+
 
 ## Levantar en local
 
@@ -134,6 +139,5 @@ gcloud run deploy servichile-api \
 
 ## Pendiente (fases siguientes)
 
-- Endpoints de cruce de datos (`/v1/patrimonio`, `/v1/polizas`, `/v1/subtel`): dependen de convenios con SII, Registro Civil, CMF y SUBTEL.
 - Endpoints B2B y webhook de WhatsApp.
 - Conectar el frontend: hoy `js/core/auth.js` guarda usuarios y contraseñas en `localStorage` y debe reemplazarse por llamadas a `/v1/auth`.

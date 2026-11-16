@@ -1,8 +1,19 @@
+from io import BytesIO
+
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app.dominio import progreso_cliente as reglas
 
-_JPEG_BYTES = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xda\x00\x08\x01\x01\x00\x00?\x00\x7f\xff\xd9"
+
+def _jpeg_bytes() -> bytes:
+    img = Image.new("RGB", (96, 128), (20, 80, 140))
+    buf = BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    return buf.getvalue()
+
+
+_JPEG_BYTES = _jpeg_bytes()
 
 
 def _headers(token: str) -> dict[str, str]:
@@ -38,7 +49,7 @@ def test_perfil_basico_suma_xp(client: TestClient, token: str):
     antes = client.get("/v1/auth/yo", headers=h).json()["perfil"]["xp"]
 
     r = client.patch(
-        "/v1/perfil", headers=h, json={"edad": 30, "telefono": "+56911112222"}
+        "/v1/perfil", headers=h, json={"edad": 30, "telefono": "+56 9 1111 2222"}
     )
 
     assert r.status_code == 200
@@ -46,7 +57,7 @@ def test_perfil_basico_suma_xp(client: TestClient, token: str):
     assert r.json()["xp"] == antes + reglas.XP_PERFIL_BASICO
 
     r2 = client.patch(
-        "/v1/perfil", headers=h, json={"edad": 31, "telefono": "+56911112222"}
+        "/v1/perfil", headers=h, json={"edad": 31, "telefono": "+56 9 1111 2222"}
     )
 
     assert r2.status_code == 200
@@ -102,32 +113,25 @@ def test_rut_suma_xp(client: TestClient, token: str):
     assert r2.json()["xp"] == antes + reglas.XP_RUT
 
 
-def test_asistencia_suma_xp(client: TestClient, session_factory, token_empresa: str):
+def test_asistencia_suma_xp(client: TestClient, token_empresa: str):
 
     import uuid
 
-    from app.infraestructura.persistencia.modelos import BusinessEntity
-
-    with session_factory() as s:
-
-        negocio = BusinessEntity(nombre="XP Tech", categoria="tecnologia")
-
-        s.add(negocio)
-
-        s.commit()
-
-        bid = negocio.id
-
     titular = _headers(token_empresa)
 
-    assert (
-        client.post(
-            f"/v1/businesses/{bid}/claim",
-            json={"documento_verificacion": "76.543.210-K"},
-            headers=titular,
-        ).status_code
-        == 201
+    creada = client.post(
+        "/v1/businesses",
+        headers=titular,
+        json={
+            "nombre": "XP Tech",
+            "categoria": "tecnologia",
+            "direccion": "Av. Siempre Viva 100",
+        },
     )
+
+    assert creada.status_code == 201, creada.text
+
+    bid = creada.json()["id"]
 
     datos = {
         "email": "xp-cliente@servichile.cl",

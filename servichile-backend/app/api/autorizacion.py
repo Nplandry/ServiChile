@@ -7,7 +7,7 @@ from app.dominio.entidades import Usuario
 from app.dominio.tipo_cuenta import es_proveedor, tipo_de_usuario
 
 SOLO_PROVEEDOR = (
-    "Solo una cuenta proveedor puede crear o reclamar fichas en el marketplace."
+    "Solo una cuenta proveedor puede crear fichas en el marketplace."
 )
 
 

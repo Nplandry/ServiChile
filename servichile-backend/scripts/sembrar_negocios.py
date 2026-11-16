@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.dominio.ficha_negocio import IMAGEN_POR_CATEGORIA
 
-from app.dominio.transparencia.reputacion import EntradaScore, calcular_indice
+from app.dominio.transparencia.rating import calcular_indice
 
 from app.infraestructura.persistencia.modelos import BusinessEntity, BusinessReputationMetrics, get_engine
 
@@ -188,8 +188,6 @@ def _generar_negocios() -> list[dict]:
 
             lng = lng0 + (n % 5 - 2) * 0.008
 
-            verificado = n % 3 != 0
-
             out.append(
                 {
                     "external_ref": f"seed:b2b-{n:03d}",
@@ -204,7 +202,6 @@ def _generar_negocios() -> list[dict]:
                     "requiere_nivel": 1,
                     "google_rating_avg": None,
                     "google_reviews_count": 0,
-                    "is_verified_profile": verificado,
                 }
             )
 
@@ -223,14 +220,9 @@ COLUMNAS_REQUERIDAS = (
 
 
 def _indice(n: dict) -> float:
-
-    return calcular_indice(
-        EntradaScore(
-            google_rating_avg=n.get("google_rating_avg"),
-            google_reviews_count=n.get("google_reviews_count") or 0,
-            is_verified_profile=n["is_verified_profile"],
-        )
-    )
+    # Semilla sin docs validados: rating 0 hasta que se carguen documentos.
+    del n
+    return calcular_indice(docs=None)
 
 
 def _aplicar_negocio(negocio: BusinessEntity, n: dict) -> None:
@@ -264,47 +256,9 @@ def _aplicar_metricas(negocio: BusinessEntity, n: dict) -> None:
 
     negocio.metricas.google_reviews_count = n["google_reviews_count"]
 
-    negocio.metricas.is_verified_profile = n["is_verified_profile"]
-
     negocio.metricas.final_score = _indice(n)
 
-    negocio.metricas.score_ssl_tls = n.get("score_ssl_tls", 83)
-
-    negocio.metricas.score_email_auth = n.get("score_email_auth", 80)
-
-    negocio.metricas.score_puertos = n.get("score_puertos", 88)
-
-    negocio.metricas.score_headers_http = n.get("score_headers_http", 79)
-
-    negocio.metricas.score_stack_vulnerable = n.get("score_stack_vulnerable", 74)
-
-    negocio.metricas.score_blacklist = n.get("score_blacklist", 77)
-
-    negocio.metricas.score_dnssec = n.get("score_dnssec", 72)
-
-    negocio.metricas.score_subdominios = n.get("score_subdominios", 85)
-
-    negocio.metricas.score_whois = n.get("score_whois", 73)
-
-    negocio.metricas.score_uptime = n.get("score_uptime", 90)
-
-    negocio.metricas.score_cookies = n.get("score_cookies", 84)
-
-    negocio.metricas.score_politica_privacidad = n.get("score_politica_privacidad", 72)
-
-    negocio.metricas.score_terminos = n.get("score_terminos", 70)
-
-    negocio.metricas.score_sla = n.get("score_sla", 48)
-
-    negocio.metricas.score_mercado_publico = n.get("score_mercado_publico")
-
-    negocio.metricas.score_sii = n.get("score_sii")
-
-    negocio.metricas.score_cmf = n.get("score_cmf")
-
-    negocio.metricas.score_incidentes = n.get("score_incidentes")
-
-    negocio.metricas.ciber_escaneado_en = ahora_utc()
+    negocio.metricas.rater_escaneado_en = ahora_utc()
 
 
 def _verificar_esquema(engine) -> None:

@@ -59,6 +59,16 @@ def test_analizar_fixture_acepta_sin_anotaciones():
 
     assert "codigo-etiquetado" in r.senales
 
+    assert "pades-intacta" in r.senales
+
+    assert "texto-real" in r.senales
+
+    assert r.verificado_criptograficamente is True
+
+    assert r.entidad_emisora == "REGISTRO_CIVIL"
+
+    assert r.sha256_hash and len(r.sha256_hash) == 64
+
 
 def test_pdf_de_clase_o_apuntes_se_rechaza():
 
@@ -100,6 +110,12 @@ def test_endpoint_antecedentes_suma_xp(client: TestClient, token: str):
     assert body["antecedentes_anotaciones"] is False
 
     assert body["antecedentes_score"] >= 70
+
+    assert body["verificado_criptograficamente"] is True
+
+    assert body["entidad_emisora"] == "REGISTRO_CIVIL"
+
+    assert body["sha256_hash"]
 
     assert body["xp"] == antes + reglas.XP_ANTECEDENTES
 

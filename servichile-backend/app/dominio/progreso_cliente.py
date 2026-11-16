@@ -10,6 +10,8 @@ XP_BIOMETRIA = 80
 
 XP_ANTECEDENTES = 60
 
+XP_AVAL = 50
+
 XP_ASISTENCIA = 25
 
 EVENTO_REGISTRO = "registro"
@@ -21,6 +23,8 @@ EVENTO_RUT = "rut_verificado"
 EVENTO_BIOMETRIA = "biometria"
 
 EVENTO_ANTECEDENTES = "antecedentes"
+
+EVENTO_AVAL = "aval"
 
 
 def evento_asistencia(reserva_id: str) -> str:

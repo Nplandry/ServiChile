@@ -2,7 +2,7 @@ import uuid
 
 from collections.abc import Iterator
 
-from datetime import datetime
+from datetime import date, datetime
 
 from functools import lru_cache
 
@@ -64,6 +64,42 @@ class Usuario(Base):
 
     biometria_verificada_en: Mapped[datetime | None] = mapped_column(default=None)
 
+    biometria_ruta: Mapped[str | None] = mapped_column(String(260), default=None)
+
+    biometria_sha256: Mapped[str | None] = mapped_column(String(64), default=None)
+
+    biometria_bytes: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    biometria_ancho: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    biometria_alto: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    biometria_content_type: Mapped[str | None] = mapped_column(String(40), default=None)
+
+    biometria_retener_hasta: Mapped[datetime | None] = mapped_column(default=None)
+
+    cedula_verificada: Mapped[bool] = mapped_column(default=False)
+
+    cedula_verificada_en: Mapped[datetime | None] = mapped_column(default=None)
+
+    cedula_ruta: Mapped[str | None] = mapped_column(String(260), default=None)
+
+    cedula_sha256: Mapped[str | None] = mapped_column(String(64), default=None)
+
+    cedula_bytes: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    cedula_ancho: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    cedula_alto: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    cedula_content_type: Mapped[str | None] = mapped_column(String(40), default=None)
+
+    cedula_retener_hasta: Mapped[datetime | None] = mapped_column(default=None)
+
+    cedula_score: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    cedula_rut_ocr: Mapped[str | None] = mapped_column(String(12), default=None)
+
     antecedentes_verificados: Mapped[bool] = mapped_column(default=False)
 
     antecedentes_verificados_en: Mapped[datetime | None] = mapped_column(default=None)
@@ -71,6 +107,24 @@ class Usuario(Base):
     antecedentes_anotaciones: Mapped[bool | None] = mapped_column(default=None)
 
     antecedentes_score: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    antecedentes_pades: Mapped[bool] = mapped_column(default=False)
+
+    antecedentes_entidad_emisora: Mapped[str | None] = mapped_column(default=None)
+
+    antecedentes_fecha_emision: Mapped[date | None] = mapped_column(default=None)
+
+    antecedentes_sha256: Mapped[str | None] = mapped_column(default=None)
+
+    antecedentes_glosa: Mapped[str | None] = mapped_column(default=None)
+
+    aval_verificado: Mapped[bool] = mapped_column(default=False)
+
+    aval_verificado_en: Mapped[datetime | None] = mapped_column(default=None)
+
+    aval_score: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    aval_tipo: Mapped[str | None] = mapped_column(String(20), default=None)
 
     xp: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -119,10 +173,6 @@ class Perfil(Base):
 
     tipo_cuenta: Mapped[str | None] = mapped_column(String(20))
 
-    preocupacion: Mapped[str | None] = mapped_column(String(20))
-
-    proposito: Mapped[str | None] = mapped_column(String(20))
-
     actualizado_en: Mapped[datetime] = mapped_column(
         default=ahora_utc, onupdate=ahora_utc
     )
@@ -168,6 +218,8 @@ class BusinessEntity(Base):
 
     rut_empresa: Mapped[str | None] = mapped_column(String(12), default=None)
 
+    docs_empresa: Mapped[dict | None] = mapped_column(JSONB, default=dict)
+
     creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
 
     metricas: Mapped["BusinessReputationMetrics | None"] = relationship(
@@ -190,103 +242,17 @@ class BusinessReputationMetrics(Base):
 
     google_reviews_count: Mapped[int] = mapped_column(Integer, default=0)
 
-    google_place_nombre: Mapped[str | None] = mapped_column(String(200), default=None)
+    final_score: Mapped[float] = mapped_column(Float, default=0.0)
 
-    sentiment_positive_ratio: Mapped[float | None] = mapped_column(Float)
+    rater_escaneado_en: Mapped[datetime | None] = mapped_column(default=None)
 
-    response_time_score: Mapped[float | None] = mapped_column(Float)
-
-    final_score: Mapped[float] = mapped_column(Float, default=1.0)
-
-    is_verified_profile: Mapped[bool] = mapped_column(default=False)
-
-    score_ssl_tls: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_email_auth: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_puertos: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_headers_http: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_stack_vulnerable: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_blacklist: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_dnssec: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_subdominios: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_whois: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_uptime: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_cookies: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_politica_privacidad: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_terminos: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_sla: Mapped[float | None] = mapped_column(Float, default=None)
-
-    docs_legales_razones: Mapped[dict | None] = mapped_column(JSONB, default=None)
-
-    score_mercado_publico: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_sii: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_cmf: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_incidentes: Mapped[float | None] = mapped_column(Float, default=None)
-
-    incidentes_razones: Mapped[list | None] = mapped_column(JSONB, default=None)
-
-    score_domicilio: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_huella_digital: Mapped[float | None] = mapped_column(Float, default=None)
-
-    score_persona_juridica: Mapped[float | None] = mapped_column(Float, default=None)
-
-    datalux_razones: Mapped[dict | None] = mapped_column(JSONB, default=None)
-
-    ciber_escaneado_en: Mapped[datetime | None] = mapped_column(default=None)
+    observables: Mapped[list | None] = mapped_column(JSONB, default=None)
 
     actualizado_en: Mapped[datetime] = mapped_column(
         default=ahora_utc, onupdate=ahora_utc
     )
 
     negocio: Mapped[BusinessEntity] = relationship(back_populates="metricas")
-
-
-class CmfInstitucion(Base):
-
-    __tablename__ = "cmf_instituciones"
-
-    rut: Mapped[str] = mapped_column(String(12), primary_key=True)
-
-    codigo: Mapped[str] = mapped_column(String(8))
-
-    nombre: Mapped[str] = mapped_column(String(200), default="")
-
-    direccion: Mapped[str | None] = mapped_column(String(300), default=None)
-
-    web: Mapped[str | None] = mapped_column(String(200), default=None)
-
-    sucursales: Mapped[int | None] = mapped_column(Integer, default=None)
-
-    empleados: Mapped[int | None] = mapped_column(Integer, default=None)
-
-
-class CmfIndiceMeta(Base):
-
-    __tablename__ = "cmf_indice_meta"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-
-    sincronizado_en: Mapped[datetime | None] = mapped_column(default=None)
-
-    filas: Mapped[int] = mapped_column(Integer, default=0)
-
-    fuente: Mapped[str | None] = mapped_column(String(200), default=None)
 
 
 class Reserva(Base):
@@ -312,6 +278,21 @@ class Reserva(Base):
     actualizado_en: Mapped[datetime] = mapped_column(
         default=ahora_utc, onupdate=ahora_utc
     )
+
+
+class PadesDocumentHash(Base):
+    __tablename__ = "pades_document_hashes"
+
+    sha256: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(40))
+    tipo: Mapped[str | None] = mapped_column(String(64), default=None)
+    usuario_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="SET NULL"), default=None
+    )
+    business_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("business_entities.id", ondelete="SET NULL"), default=None
+    )
+    creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
 
 
 @lru_cache
