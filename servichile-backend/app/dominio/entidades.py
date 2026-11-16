@@ -4,7 +4,9 @@ import uuid
 
 from dataclasses import dataclass, field
 
-from datetime import datetime
+from datetime import date, datetime
+
+from app.dominio.docs_empresa import DocsEmpresa
 
 
 @dataclass
@@ -13,10 +15,6 @@ class Perfil:
     edad: int | None = None
 
     tipo_cuenta: str | None = None
-
-    preocupacion: str | None = None
-
-    proposito: str | None = None
 
 
 @dataclass
@@ -42,6 +40,42 @@ class Usuario:
 
     biometria_verificada_en: datetime | None = None
 
+    biometria_ruta: str | None = None
+
+    biometria_sha256: str | None = None
+
+    biometria_bytes: int | None = None
+
+    biometria_ancho: int | None = None
+
+    biometria_alto: int | None = None
+
+    biometria_content_type: str | None = None
+
+    biometria_retener_hasta: datetime | None = None
+
+    cedula_verificada: bool = False
+
+    cedula_verificada_en: datetime | None = None
+
+    cedula_ruta: str | None = None
+
+    cedula_sha256: str | None = None
+
+    cedula_bytes: int | None = None
+
+    cedula_ancho: int | None = None
+
+    cedula_alto: int | None = None
+
+    cedula_content_type: str | None = None
+
+    cedula_retener_hasta: datetime | None = None
+
+    cedula_score: int | None = None
+
+    cedula_rut_ocr: str | None = None
+
     antecedentes_verificados: bool = False
 
     antecedentes_verificados_en: datetime | None = None
@@ -49,6 +83,24 @@ class Usuario:
     antecedentes_anotaciones: bool | None = None
 
     antecedentes_score: int | None = None
+
+    antecedentes_pades: bool = False
+
+    antecedentes_entidad_emisora: str | None = None
+
+    antecedentes_fecha_emision: date | None = None
+
+    antecedentes_sha256: str | None = None
+
+    antecedentes_glosa: str | None = None
+
+    aval_verificado: bool = False
+
+    aval_verificado_en: datetime | None = None
+
+    aval_score: int | None = None
+
+    aval_tipo: str | None = None
 
     xp: int = 0
 
@@ -66,65 +118,12 @@ class Metricas:
 
     google_reviews_count: int = 0
 
-    google_place_nombre: str | None = None
-
-    sentiment_positive_ratio: float | None = None
-
-    response_time_score: float | None = None
-
     final_score: float = 0.0
 
-    is_verified_profile: bool = False
+    rater_escaneado_en: datetime | None = None
 
-    score_ssl_tls: float | None = None
-
-    score_email_auth: float | None = None
-
-    score_puertos: float | None = None
-
-    score_headers_http: float | None = None
-
-    score_stack_vulnerable: float | None = None
-
-    score_blacklist: float | None = None
-
-    score_dnssec: float | None = None
-
-    score_subdominios: float | None = None
-
-    score_whois: float | None = None
-
-    score_uptime: float | None = None
-
-    score_cookies: float | None = None
-
-    score_politica_privacidad: float | None = None
-
-    score_terminos: float | None = None
-
-    score_sla: float | None = None
-
-    docs_legales_razones: dict[str, list[str]] | None = None
-
-    score_mercado_publico: float | None = None
-
-    score_sii: float | None = None
-
-    score_cmf: float | None = None
-
-    score_incidentes: float | None = None
-
-    incidentes_razones: list[str] | None = None
-
-    score_domicilio: float | None = None
-
-    score_huella_digital: float | None = None
-
-    score_persona_juridica: float | None = None
-
-    datalux_razones: dict[str, list[str]] | None = None
-
-    ciber_escaneado_en: datetime | None = None
+    # Snapshot JSON del rater (lista de dicts id/etiqueta/score/…); no se evalúa en vivo.
+    observables: list | None = None
 
     actualizado_en: datetime | None = None
 
@@ -161,6 +160,8 @@ class Negocio:
     sitio_web: str | None = None
 
     rut_empresa: str | None = None
+
+    docs_empresa: DocsEmpresa = field(default_factory=dict)
 
     metricas: Metricas | None = None
 
@@ -204,6 +205,20 @@ class EstadoPasaporte:
 
     biometria_verificada_en: datetime | None = None
 
+    biometria_retener_hasta: datetime | None = None
+
+    biometria_bytes: int | None = None
+
+    cedula_verificada: bool = False
+
+    cedula_verificada_en: datetime | None = None
+
+    cedula_retener_hasta: datetime | None = None
+
+    cedula_bytes: int | None = None
+
+    cedula_score: int | None = None
+
     antecedentes_verificados: bool = False
 
     antecedentes_verificados_en: datetime | None = None
@@ -212,13 +227,21 @@ class EstadoPasaporte:
 
     antecedentes_score: int | None = None
 
+    aval_verificado: bool = False
+
+    aval_verificado_en: datetime | None = None
+
+    aval_score: int | None = None
+
+    aval_tipo: str | None = None
+
     xp: int = 0
 
     nivel_xp: int = 1
 
 
 @dataclass
-class ObservableCiber:
+class ObservableSenal:
 
     id: str
 
@@ -244,39 +267,50 @@ class Reputacion:
 
     categoria: str
 
-    is_verified_profile: bool
-
-    estado_perfil: str
-
     google_rating_avg: float | None
 
     google_reviews_count: int
 
-    sentiment_positive_ratio: float | None
-
-    response_time_score: float | None
-
     indice_transparencia: float
 
-    actualizado_en: datetime | None
+    indice_pct: int = 0
 
-    observables_ciber: list[ObservableCiber] = field(default_factory=list)
+    docs_verificados: int = 0
+
+    docs_total: int = 0
+
+    docs_empresa: DocsEmpresa | None = None
+
+    actualizado_en: datetime | None = None
+
+    observables: list[ObservableSenal] = field(default_factory=list)
 
 
-@dataclass
-class ResultadoReclamo:
+@dataclass(frozen=True)
+class DocEmpresaVerificado:
+    """Resultado de dominio tras validar un PDF de empresa (sin shape HTTP)."""
 
     business_id: uuid.UUID
-
-    is_claimed: bool
-
-    is_verified_profile: bool
-
-    reclamado_por: uuid.UUID
+    tipo: str
+    verificado: bool
+    score: int | None
+    senales: tuple[str, ...]
+    docs_empresa: DocsEmpresa
+    indice_transparencia: float
+    indice_pct: int
+    docs_verificados: int
+    docs_total: int
+    verificado_criptograficamente: bool
+    entidad_emisora: str | None
+    fecha_emision: str | None
+    sha256_hash: str | None
+    glosa: str | None
+    motivo: str
 
 
 @dataclass
 class NegocioEnMapa:
+    """Proyección pública de marketplace (sin datos sensibles del titular)."""
 
     id: uuid.UUID
 
@@ -302,11 +336,54 @@ class NegocioEnMapa:
 
     indice_transparencia: float
 
-    is_verified_profile: bool
+    requiere_nivel: int
+
+    is_claimed: bool = False
+
+    indice_pct: int = 0
+
+
+@dataclass
+class NegocioTitular:
+    """Proyección del titular: mapa + RUT, contacto y docs completos."""
+
+    id: uuid.UUID
+
+    nombre: str
+
+    categoria: str
+
+    latitud: float | None
+
+    longitud: float | None
+
+    direccion: str | None
+
+    descripcion: str | None
+
+    imagen_url: str
+
+    logo_url: str | None
+
+    logo_texto: str
+
+    cta_texto: str
+
+    indice_transparencia: float
 
     requiere_nivel: int
 
     is_claimed: bool = False
+
+    indice_pct: int = 0
+
+    docs_empresa: DocsEmpresa | None = None
+
+    rut_empresa: str | None = None
+
+    telefono: str | None = None
+
+    sitio_web: str | None = None
 
 
 @dataclass

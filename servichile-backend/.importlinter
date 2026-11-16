@@ -4,7 +4,7 @@ include_external_packages = True
 
 # Presentación -> casos de uso -> dominio.
 # La infraestructura es hermana de los servicios: ambos dependen del dominio.
-# El ensamblado concreto vive en app.api.dependencias.
+# El ensamblado concreto vive en app.api.dependencias y app.ensamblado.
 [importlinter:contract:capas]
 name = Capas de la aplicación
 type = layers
@@ -58,6 +58,17 @@ forbidden_modules =
     app.servicios
     app.api
 
+# Ensamblado es raíz de composición: dominio/servicios/infra no lo importan.
+[importlinter:contract:ensamblado-raiz]
+name = El ensamblado no es importado por dominio, servicios ni infraestructura
+type = forbidden
+source_modules =
+    app.dominio
+    app.servicios
+    app.infraestructura
+forbidden_modules =
+    app.ensamblado
+
 # Los routers no tocan la base: solo dependencias.py ensambla persistencia.
 [importlinter:contract:api-sin-base-de-datos]
 name = La API no accede a la base de datos directamente
@@ -67,9 +78,7 @@ source_modules =
 forbidden_modules =
     app.infraestructura.persistencia.modelos
     app.infraestructura.persistencia.repositorios
-    app.infraestructura.cmf.repositorio
 allow_indirect_imports = True
 ignore_imports =
     app.api.dependencias -> app.infraestructura.persistencia.modelos
     app.api.dependencias -> app.infraestructura.persistencia.repositorios
-    app.api.dependencias -> app.infraestructura.cmf.repositorio

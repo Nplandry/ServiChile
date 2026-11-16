@@ -45,6 +45,18 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "028_datalux_domicilio_huella.sql",
     ROOT / "db" / "migrations" / "029_score_persona_juridica.sql",
     ROOT / "db" / "migrations" / "030_indices_listado.sql",
+    ROOT / "db" / "migrations" / "031_biometria_archivo.sql",
+    ROOT / "db" / "migrations" / "032_cedula_archivo.sql",
+    ROOT / "db" / "migrations" / "033_aval.sql",
+    ROOT / "db" / "migrations" / "034_docs_empresa.sql",
+    ROOT / "db" / "migrations" / "035_pades_antecedentes.sql",
+    ROOT / "db" / "migrations" / "036_pades_trust_hashes.sql",
+    ROOT / "db" / "migrations" / "037_observables_json.sql",
+    ROOT / "db" / "migrations" / "038_final_score_permite_cero.sql",
+    ROOT / "db" / "migrations" / "039_drop_is_verified_profile.sql",
+    ROOT / "db" / "migrations" / "040_limpia_legacy_metricas_perfil.sql",
+    ROOT / "db" / "migrations" / "041_hardening_esquema.sql",
+    ROOT / "db" / "migrations" / "042_rename_ciber_a_rater.sql",
 ]
 
 
@@ -143,7 +155,7 @@ def main() -> None:
 
         return "tipo_cuenta" in cols
 
-    def _tiene_ciber() -> bool:
+    def _tiene_metricas_rater() -> bool:
 
         insp = inspect(engine)
 
@@ -153,33 +165,14 @@ def main() -> None:
 
         cols = {c["name"] for c in insp.get_columns("business_reputation_metrics")}
 
-        return {
-            "score_ssl_tls",
-            "score_headers_http",
-            "score_blacklist",
-            "score_whois",
-            "score_email_auth",
-            "score_puertos",
-            "score_stack_vulnerable",
-            "score_dnssec",
-            "score_subdominios",
-            "score_uptime",
-            "score_cookies",
-            "score_politica_privacidad",
-            "score_terminos",
-            "score_sla",
-            "score_mercado_publico",
-            "score_sii",
-            "score_cmf",
-            "score_incidentes",
-        }.issubset(cols)
+        return {"observables", "final_score", "rater_escaneado_en"}.issubset(cols)
 
     necesita_migrar = not args.solo_seed and (
         not _schema_listo(engine)
         or not _tiene_biometria()
         or (not _tiene_xp())
         or (not _tiene_tipo_cuenta())
-        or (not _tiene_ciber())
+        or (not _tiene_metricas_rater())
     )
 
     if necesita_migrar:
@@ -197,12 +190,13 @@ def main() -> None:
                 and _tiene_biometria()
                 and _tiene_xp()
                 and _tiene_tipo_cuenta()
-                and (not _tiene_ciber())
+                and (not _tiene_metricas_rater())
                 and (
                     migracion.name
                     not in (
-                        "013_ciber_observables.sql",
-                        "014_ciber_observables_extra.sql",
+                        "037_observables_ciber_json.sql",
+                        "040_limpia_legacy_metricas_perfil.sql",
+                        "042_rename_ciber_a_rater.sql",
                     )
                 )
             ):
@@ -247,10 +241,12 @@ def main() -> None:
             "Falta tipo_cuenta en perfiles. Aplique db/migrations/009_tipo_cuenta.sql con el usuario dueño de la base."
         )
 
-    if not _tiene_ciber():
+    if not _tiene_metricas_rater():
 
         raise SystemExit(
-            "Faltan columnas ciber en business_reputation_metrics. Aplique 013_ciber_observables.sql y 014_ciber_observables_extra.sql."
+            "Faltan columnas del rater en business_reputation_metrics "
+            "(observables, final_score, rater_escaneado_en). "
+            "Aplique migraciones 037, 040 y 042 (o db/init_script.sql en base nueva)."
         )
 
     with engine.connect() as conn:

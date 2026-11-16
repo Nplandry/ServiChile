@@ -69,7 +69,7 @@
         "url": "{{baseUrl}}/v1/auth/registro",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"{{email}}\",\n  \"nombre\": \"María González\",\n  \"password\": \"{{password}}\",\n  \"perfil\": {\n    \"edad\": 68,\n    \"preocupacion\": \"seguros\",\n    \"proposito\": \"autoinformarse\"\n  }\n}"
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"nombre\": \"María González\",\n  \"password\": \"{{password}}\",\n  \"perfil\": {\n    \"edad\": 68,\n    \"tipo_cuenta\": \"persona\"\n  }\n}"
         }
       }
     },
@@ -133,7 +133,7 @@
       }
     },
     {
-      "name": "4b. Actualizar perfil (PATCH)",
+      "name": "4b. Actualizar perfil teléfono (PATCH)",
       "event": [
         {
           "listen": "test",
@@ -141,7 +141,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('200 OK', () => pm.response.to.have.status(200));",
-              "pm.test('cambió solo el propósito', () => { const p = pm.response.json(); pm.expect(p.proposito).to.eql('asesorar'); pm.expect(p).to.have.property('edad'); });"
+              "pm.test('actualizó teléfono', () => { const p = pm.response.json(); pm.expect(p.telefono).to.eql('+56912345678'); pm.expect(p).to.have.property('edad'); });"
             ]
           }
         }
@@ -167,7 +167,7 @@
         "url": "{{baseUrl}}/v1/perfil",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"proposito\": \"asesorar\"\n}"
+          "raw": "{\n  \"telefono\": \"+56 9 1234 5678\"\n}"
         }
       }
     },

@@ -29,8 +29,7 @@ CREATE TABLE IF NOT EXISTS business_reputation_metrics (
     sentiment_positive_ratio double precision CHECK (sentiment_positive_ratio BETWEEN 0 AND 1),
     response_time_score      double precision CHECK (response_time_score BETWEEN 0 AND 1),
     -- Índice algorítmico de 1.0 a 10.0, no un juicio de valor sobre la calidad del servicio
-    final_score              double precision NOT NULL DEFAULT 1.0 CHECK (final_score BETWEEN 1 AND 10),
-    is_verified_profile      boolean NOT NULL DEFAULT false,
+    final_score              double precision NOT NULL DEFAULT 1.0 CHECK (final_score BETWEEN 0 AND 10),
     actualizado_en           timestamptz NOT NULL DEFAULT now()
 );
 

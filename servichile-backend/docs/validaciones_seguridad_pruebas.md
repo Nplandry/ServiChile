@@ -45,7 +45,7 @@ Las excepciones de negocio viven en `app/dominio/errores.py` **sin conocer FastA
 |---|---|---|
 | Auth | Credenciales inválidas; correo duplicado; contraseña de baja incorrecta | 401 / 409 / 403 |
 | Perfil / pasaporte | RUT inválido; RUT en uso; RUT ya verificado; biometría inválida o muy grande | 422 / 409 / 413 |
-| Autorización de cuenta | Solo proveedor puede crear/reclamar | 403 (`autorizacion.py`) |
+| Autorización de cuenta | Solo proveedor puede crear una empresa | 403 (`autorizacion.py`) |
 | Negocios / reservas | No encontrado; ya reclamado; no titular; nivel insuficiente; reserva cerrada | 404 / 409 / 403 |
 | Reporte (QR) | Payload inválido o expirado | 422 |
 
@@ -93,16 +93,17 @@ El hash vive en `app/infraestructura/seguridad/hasher.py` (**Argon2id**, `argon2
 2. Reputación de negocios entrega métricas agregadas, no textos de reseñas.
 3. Contraseñas solo como hash Argon2id; biometría sin retención de imagen.
 
-### 2.4 Zero-retention de biometría
+### 2.4 Biometría en disco local + metadata
 
-`PasaporteService.procesar_biometria`:
+`PasaporteService.procesar_biometria` + `AlmacenamientoBiometriaLocal`:
 
 1. Valida tamaño (máx. 5 MB) y firma de imagen (JPEG/PNG/WebP/GIF).
-2. Marca `biometria_verificada` / `biometria_verificada_en`.
-3. **Descarta los bytes de la foto**: no se escribe archivo ni columna de imagen.
-4. Otorga XP de biometría si corresponde.
+2. Comprime a JPEG (~máx. 640 px, calidad configurable), sin EXIF.
+3. Escribe en `BIOMETRIA_DIR` (por defecto `var/biometria/<user_id>.jpg`), fuera del web root.
+4. Persiste metadata en Postgres: ruta relativa, sha256, bytes, ancho/alto, `biometria_retener_hasta`.
+5. Al eliminar la cuenta se borra el archivo. La API no expone la ruta ni sirve el binario.
 
-La API responde con `BiometriaOut` y un mensaje que deja explícito que la foto no se almacenó.
+La UI debe informar consentimiento y retención; ya no se promete zero-retention.
 
 ### 2.5 Validación de capas (linting de arquitectura)
 
@@ -173,7 +174,7 @@ Cobertura representativa en `tests/`:
 - `test_autenticacion.py`, `test_cuenta.py`, `test_perfil.py`, `test_pasaporte.py`
 - `test_biometria.py`, `test_progreso_cliente.py`, `test_tipo_cuenta.py`
 - `test_reservas.py`, `test_negocios.py`, `test_ficha_negocio.py`
-- `test_reporte.py`, `test_indicadores.py`, `test_seguridad.py`
+- `test_reporte.py`, `test_reputacion_indice.py`, `test_seguridad.py`
 
 Estas pruebas **no requieren** una instancia activa de PostgreSQL.
 
@@ -202,5 +203,5 @@ TEST_DATABASE_URL=postgresql+psycopg://servichile:CLAVE@localhost:5432/servichil
 ## 4. Resumen
 
 1. **Validación** en el borde con Pydantic; errores claros vía `detail`; dominio → HTTP en routers; rate limits configurables (memoria o Redis).
-2. **Seguridad:** Argon2id, JWT de sesión + token corto de reporte, biometría zero-retention, `import-linter`, respaldos locales con `pg_dump` / scripts SQL versionados.
+2. **Seguridad:** Argon2id, JWT de sesión + token corto de reporte, biometría en disco local cifrado por el SO + metadata, `import-linter`, respaldos locales con `pg_dump` / scripts SQL versionados.
 3. **Pruebas:** `pytest` unitario sin Postgres; integración condicional a `TEST_DATABASE_URL` (skip si no hay instancia).

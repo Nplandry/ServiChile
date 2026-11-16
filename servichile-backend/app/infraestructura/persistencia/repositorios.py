@@ -2,213 +2,19 @@ import uuid
 
 from sqlalchemy import func, select
 
-from sqlalchemy.orm import Session, joinedload, load_only
+from sqlalchemy.orm import Session, joinedload
 
-from app.dominio.entidades import Metricas, Negocio, Perfil, Reserva, Usuario
-
+from app.dominio.docs_empresa import docs_empresa_a_raw
+from app.dominio.entidades import Negocio, Reserva, Usuario
 from app.infraestructura.persistencia import modelos as orm
-
+from app.infraestructura.persistencia.mapeo import (
+    _negocio,
+    _negocio_lista,
+    _opciones_lista,
+    _reserva,
+    _usuario,
+)
 from app.tiempo import ahora_utc
-
-
-def _perfil(p: orm.Perfil | None) -> Perfil | None:
-
-    if p is None:
-
-        return None
-
-    return Perfil(
-        edad=p.edad,
-        tipo_cuenta=p.tipo_cuenta,
-        preocupacion=p.preocupacion,
-        proposito=p.proposito,
-    )
-
-
-def _usuario(u: orm.Usuario) -> Usuario:
-
-    return Usuario(
-        id=u.id,
-        email=u.email,
-        nombre=u.nombre,
-        password_hash=u.password_hash,
-        activo=u.activo,
-        rut=u.rut,
-        rut_verificado=u.rut_verificado,
-        telefono=u.telefono,
-        biometria_verificada=bool(u.biometria_verificada),
-        biometria_verificada_en=u.biometria_verificada_en,
-        antecedentes_verificados=bool(getattr(u, "antecedentes_verificados", False)),
-        antecedentes_verificados_en=getattr(u, "antecedentes_verificados_en", None),
-        antecedentes_anotaciones=getattr(u, "antecedentes_anotaciones", None),
-        antecedentes_score=getattr(u, "antecedentes_score", None),
-        xp=int(u.xp or 0),
-        creado_en=u.creado_en,
-        perfil=_perfil(u.perfil),
-    )
-
-
-def _metricas(m: orm.BusinessReputationMetrics | None) -> Metricas | None:
-
-    if m is None:
-
-        return None
-
-    raw_raz = getattr(m, "incidentes_razones", None)
-
-    razones = [str(x) for x in raw_raz] if isinstance(raw_raz, list) else None
-
-    raw_docs = getattr(m, "docs_legales_razones", None)
-
-    docs_raz = None
-
-    if isinstance(raw_docs, dict):
-
-        docs_raz = {
-            str(k): [str(x) for x in (v or [])]
-            for k, v in raw_docs.items()
-            if isinstance(v, list)
-        }
-
-    return Metricas(
-        business_id=m.business_id,
-        google_rating_avg=m.google_rating_avg,
-        google_reviews_count=m.google_reviews_count or 0,
-        google_place_nombre=getattr(m, "google_place_nombre", None),
-        sentiment_positive_ratio=m.sentiment_positive_ratio,
-        response_time_score=m.response_time_score,
-        final_score=m.final_score,
-        is_verified_profile=m.is_verified_profile,
-        score_ssl_tls=m.score_ssl_tls,
-        score_email_auth=m.score_email_auth,
-        score_puertos=m.score_puertos,
-        score_headers_http=m.score_headers_http,
-        score_stack_vulnerable=m.score_stack_vulnerable,
-        score_blacklist=m.score_blacklist,
-        score_dnssec=m.score_dnssec,
-        score_subdominios=m.score_subdominios,
-        score_whois=m.score_whois,
-        score_uptime=m.score_uptime,
-        score_cookies=getattr(m, "score_cookies", None),
-        score_politica_privacidad=getattr(m, "score_politica_privacidad", None),
-        score_terminos=getattr(m, "score_terminos", None),
-        score_sla=getattr(m, "score_sla", None),
-        docs_legales_razones=docs_raz,
-        score_mercado_publico=getattr(m, "score_mercado_publico", None),
-        score_sii=getattr(m, "score_sii", None),
-        score_cmf=getattr(m, "score_cmf", None),
-        score_incidentes=getattr(m, "score_incidentes", None),
-        incidentes_razones=razones,
-        score_domicilio=getattr(m, "score_domicilio", None),
-        score_huella_digital=getattr(m, "score_huella_digital", None),
-        score_persona_juridica=getattr(m, "score_persona_juridica", None),
-        datalux_razones=(
-            {
-                str(k): [str(x) for x in (v or [])]
-                for k, v in getattr(m, "datalux_razones", None).items()
-                if isinstance(v, list)
-            }
-            if isinstance(getattr(m, "datalux_razones", None), dict)
-            else None
-        ),
-        ciber_escaneado_en=m.ciber_escaneado_en,
-        actualizado_en=m.actualizado_en,
-    )
-
-
-def _negocio_lista(n: orm.BusinessEntity) -> Negocio:
-
-    m = n.metricas
-
-    metricas = None
-
-    if m is not None:
-
-        metricas = Metricas(
-            business_id=m.business_id,
-            google_rating_avg=m.google_rating_avg,
-            google_reviews_count=m.google_reviews_count or 0,
-            final_score=m.final_score,
-            is_verified_profile=m.is_verified_profile,
-            actualizado_en=m.actualizado_en,
-        )
-
-    return Negocio(
-        id=n.id,
-        nombre=n.nombre,
-        categoria=n.categoria,
-        latitud=n.latitud,
-        longitud=n.longitud,
-        direccion=n.direccion,
-        descripcion=n.descripcion,
-        imagen_url=n.imagen_url,
-        logo_url=n.logo_url,
-        requiere_nivel=n.requiere_nivel,
-        is_claimed=n.is_claimed,
-        metricas=metricas,
-    )
-
-
-def _opciones_lista():
-
-    return (
-        load_only(
-            orm.BusinessEntity.id,
-            orm.BusinessEntity.nombre,
-            orm.BusinessEntity.categoria,
-            orm.BusinessEntity.latitud,
-            orm.BusinessEntity.longitud,
-            orm.BusinessEntity.direccion,
-            orm.BusinessEntity.descripcion,
-            orm.BusinessEntity.imagen_url,
-            orm.BusinessEntity.logo_url,
-            orm.BusinessEntity.requiere_nivel,
-            orm.BusinessEntity.is_claimed,
-        ),
-        joinedload(orm.BusinessEntity.metricas).load_only(
-            orm.BusinessReputationMetrics.business_id,
-            orm.BusinessReputationMetrics.google_rating_avg,
-            orm.BusinessReputationMetrics.google_reviews_count,
-            orm.BusinessReputationMetrics.final_score,
-            orm.BusinessReputationMetrics.is_verified_profile,
-            orm.BusinessReputationMetrics.actualizado_en,
-        ),
-    )
-
-
-def _negocio(n: orm.BusinessEntity) -> Negocio:
-
-    return Negocio(
-        id=n.id,
-        nombre=n.nombre,
-        categoria=n.categoria,
-        latitud=n.latitud,
-        longitud=n.longitud,
-        direccion=n.direccion,
-        descripcion=n.descripcion,
-        imagen_url=n.imagen_url,
-        logo_url=n.logo_url,
-        requiere_nivel=n.requiere_nivel,
-        is_claimed=n.is_claimed,
-        reclamado_por=n.reclamado_por,
-        telefono=n.telefono,
-        sitio_web=n.sitio_web,
-        rut_empresa=getattr(n, "rut_empresa", None),
-        metricas=_metricas(n.metricas),
-    )
-
-
-def _reserva(r: orm.Reserva) -> Reserva:
-
-    return Reserva(
-        id=r.id,
-        usuario_id=r.usuario_id,
-        business_id=r.business_id,
-        estado=r.estado,
-        qr_token=r.qr_token,
-        creado_en=r.creado_en,
-        actualizado_en=r.actualizado_en,
-    )
 
 
 class UsuarioRepository:
@@ -216,6 +22,24 @@ class UsuarioRepository:
     def __init__(self, session: Session) -> None:
 
         self.session = session
+
+    def registrar_hash_pades(
+        self,
+        sha256: str,
+        *,
+        scope: str,
+        tipo: str | None = None,
+        usuario_id: uuid.UUID | None = None,
+        business_id: uuid.UUID | None = None,
+    ) -> bool:
+        return registrar_hash_pades(
+            self.session,
+            sha256,
+            scope=scope,
+            tipo=tipo,
+            usuario_id=usuario_id,
+            business_id=business_id,
+        )
 
     def get_by_email(self, email: str) -> Usuario | None:
 
@@ -279,6 +103,42 @@ class UsuarioRepository:
 
         u.biometria_verificada_en = usuario.biometria_verificada_en
 
+        u.biometria_ruta = usuario.biometria_ruta
+
+        u.biometria_sha256 = usuario.biometria_sha256
+
+        u.biometria_bytes = usuario.biometria_bytes
+
+        u.biometria_ancho = usuario.biometria_ancho
+
+        u.biometria_alto = usuario.biometria_alto
+
+        u.biometria_content_type = usuario.biometria_content_type
+
+        u.biometria_retener_hasta = usuario.biometria_retener_hasta
+
+        u.cedula_verificada = bool(usuario.cedula_verificada)
+
+        u.cedula_verificada_en = usuario.cedula_verificada_en
+
+        u.cedula_ruta = usuario.cedula_ruta
+
+        u.cedula_sha256 = usuario.cedula_sha256
+
+        u.cedula_bytes = usuario.cedula_bytes
+
+        u.cedula_ancho = usuario.cedula_ancho
+
+        u.cedula_alto = usuario.cedula_alto
+
+        u.cedula_content_type = usuario.cedula_content_type
+
+        u.cedula_retener_hasta = usuario.cedula_retener_hasta
+
+        u.cedula_score = usuario.cedula_score
+
+        u.cedula_rut_ocr = usuario.cedula_rut_ocr
+
         u.antecedentes_verificados = bool(usuario.antecedentes_verificados)
 
         u.antecedentes_verificados_en = usuario.antecedentes_verificados_en
@@ -286,6 +146,24 @@ class UsuarioRepository:
         u.antecedentes_anotaciones = usuario.antecedentes_anotaciones
 
         u.antecedentes_score = usuario.antecedentes_score
+
+        u.antecedentes_pades = bool(usuario.antecedentes_pades)
+
+        u.antecedentes_entidad_emisora = usuario.antecedentes_entidad_emisora
+
+        u.antecedentes_fecha_emision = usuario.antecedentes_fecha_emision
+
+        u.antecedentes_sha256 = usuario.antecedentes_sha256
+
+        u.antecedentes_glosa = usuario.antecedentes_glosa
+
+        u.aval_verificado = bool(usuario.aval_verificado)
+
+        u.aval_verificado_en = usuario.aval_verificado_en
+
+        u.aval_score = usuario.aval_score
+
+        u.aval_tipo = usuario.aval_tipo
 
         u.xp = int(usuario.xp or 0)
 
@@ -298,10 +176,6 @@ class UsuarioRepository:
             u.perfil.edad = usuario.perfil.edad
 
             u.perfil.tipo_cuenta = usuario.perfil.tipo_cuenta
-
-            u.perfil.preocupacion = usuario.perfil.preocupacion
-
-            u.perfil.proposito = usuario.perfil.proposito
 
         self.session.commit()
 
@@ -356,11 +230,60 @@ class XpRepository:
         return int(u.xp or 0) if u else 0
 
 
+def registrar_hash_pades(
+    session: Session,
+    sha256: str,
+    *,
+    scope: str,
+    tipo: str | None = None,
+    usuario_id: uuid.UUID | None = None,
+    business_id: uuid.UUID | None = None,
+) -> bool:
+    """True si OK; False si el hash ya fue usado por otra cuenta/empresa."""
+    existente = session.get(orm.PadesDocumentHash, sha256)
+    if existente is not None:
+        mismo_usuario = (
+            usuario_id is not None and existente.usuario_id == usuario_id
+        )
+        misma_empresa = (
+            business_id is not None and existente.business_id == business_id
+        )
+        return bool(mismo_usuario or misma_empresa)
+    session.add(
+        orm.PadesDocumentHash(
+            sha256=sha256,
+            scope=scope,
+            tipo=tipo,
+            usuario_id=usuario_id,
+            business_id=business_id,
+        )
+    )
+    return True
+
+
 class NegocioRepository:
 
     def __init__(self, session: Session) -> None:
 
         self.session = session
+
+    def registrar_hash_pades(
+        self,
+        sha256: str,
+        *,
+        scope: str,
+        tipo: str | None = None,
+        usuario_id: uuid.UUID | None = None,
+        business_id: uuid.UUID | None = None,
+    ) -> bool:
+        return registrar_hash_pades(
+            self.session,
+            sha256,
+            scope=scope,
+            tipo=tipo,
+            usuario_id=usuario_id,
+            business_id=business_id,
+        )
 
     def get(self, business_id: uuid.UUID) -> Negocio | None:
 
@@ -395,15 +318,48 @@ class NegocioRepository:
             _negocio_lista(n) for n in self.session.scalars(stmt.limit(limite)).unique()
         ]
 
-    def listar_reclamados_por(self, usuario_id: uuid.UUID) -> list[Negocio]:
-
+    def listar_de(self, usuario_id: uuid.UUID) -> list[Negocio]:
+        """Ficha completa del titular (incluye RUT, teléfono, sitio para editar)."""
         stmt = (
             select(orm.BusinessEntity)
-            .options(*_opciones_lista())
+            .options(joinedload(orm.BusinessEntity.metricas))
             .where(orm.BusinessEntity.reclamado_por == usuario_id)
         )
 
-        return [_negocio_lista(n) for n in self.session.scalars(stmt).unique()]
+        return [_negocio(n) for n in self.session.scalars(stmt).unique()]
+
+    def listar_completos(self, limite: int = 500) -> list[Negocio]:
+        """Listado con ficha completa (RUT, teléfono, sitio) para refrescar el rater."""
+        stmt = (
+            select(orm.BusinessEntity)
+            .options(joinedload(orm.BusinessEntity.metricas))
+            .limit(max(1, min(limite, 2000)))
+        )
+        return [_negocio(n) for n in self.session.scalars(stmt).unique()]
+
+    def eliminar(self, business_id: uuid.UUID) -> None:
+
+        n = self.session.get(orm.BusinessEntity, business_id)
+
+        if n is None:
+
+            return
+
+        self.session.delete(n)
+
+        self.session.commit()
+
+    def eliminar_de(self, usuario_id: uuid.UUID) -> None:
+
+        stmt = select(orm.BusinessEntity).where(
+            orm.BusinessEntity.reclamado_por == usuario_id
+        )
+
+        for n in list(self.session.scalars(stmt)):
+
+            self.session.delete(n)
+
+        self.session.commit()
 
     def guardar(self, negocio: Negocio) -> Negocio:
 
@@ -443,6 +399,12 @@ class NegocioRepository:
 
         n.rut_empresa = negocio.rut_empresa
 
+        n.docs_empresa = (
+            docs_empresa_a_raw(negocio.docs_empresa)
+            if negocio.docs_empresa is not None
+            else {}
+        )
+
         if negocio.metricas is not None:
 
             m = negocio.metricas
@@ -457,69 +419,15 @@ class NegocioRepository:
 
             n.metricas.google_reviews_count = m.google_reviews_count
 
-            n.metricas.google_place_nombre = getattr(m, "google_place_nombre", None)
-
-            n.metricas.sentiment_positive_ratio = m.sentiment_positive_ratio
-
-            n.metricas.response_time_score = m.response_time_score
-
             n.metricas.final_score = m.final_score
 
-            n.metricas.is_verified_profile = m.is_verified_profile
+            n.metricas.rater_escaneado_en = m.rater_escaneado_en
 
-            n.metricas.score_ssl_tls = m.score_ssl_tls
-
-            n.metricas.score_email_auth = m.score_email_auth
-
-            n.metricas.score_puertos = m.score_puertos
-
-            n.metricas.score_headers_http = m.score_headers_http
-
-            n.metricas.score_stack_vulnerable = m.score_stack_vulnerable
-
-            n.metricas.score_blacklist = m.score_blacklist
-
-            n.metricas.score_dnssec = m.score_dnssec
-
-            n.metricas.score_subdominios = m.score_subdominios
-
-            n.metricas.score_whois = m.score_whois
-
-            n.metricas.score_uptime = m.score_uptime
-
-            n.metricas.score_cookies = m.score_cookies
-
-            n.metricas.score_politica_privacidad = getattr(
-                m, "score_politica_privacidad", None
+            n.metricas.observables = (
+                list(m.observables)
+                if isinstance(m.observables, list)
+                else None
             )
-
-            n.metricas.score_terminos = getattr(m, "score_terminos", None)
-
-            n.metricas.score_sla = getattr(m, "score_sla", None)
-
-            n.metricas.docs_legales_razones = getattr(m, "docs_legales_razones", None)
-
-            n.metricas.score_mercado_publico = m.score_mercado_publico
-
-            n.metricas.score_sii = m.score_sii
-
-            n.metricas.score_cmf = m.score_cmf
-
-            n.metricas.score_incidentes = m.score_incidentes
-
-            n.metricas.incidentes_razones = m.incidentes_razones
-
-            n.metricas.score_domicilio = getattr(m, "score_domicilio", None)
-
-            n.metricas.score_huella_digital = getattr(m, "score_huella_digital", None)
-
-            n.metricas.score_persona_juridica = getattr(
-                m, "score_persona_juridica", None
-            )
-
-            n.metricas.datalux_razones = getattr(m, "datalux_razones", None)
-
-            n.metricas.ciber_escaneado_en = m.ciber_escaneado_en
 
         self.session.commit()
 

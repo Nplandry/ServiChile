@@ -2,10 +2,6 @@ class NegocioNoEncontrado(Exception):
     pass
 
 
-class NegocioYaReclamado(Exception):
-    pass
-
-
 class NoEsTitularDelNegocio(Exception):
     pass
 
@@ -73,3 +69,35 @@ class AntecedentesInvalido(PasaporteError):
 
 class AntecedentesMuyGrande(PasaporteError):
     pass
+
+
+class CedulaInvalida(PasaporteError):
+    pass
+
+
+class CedulaMuyGrande(PasaporteError):
+    pass
+
+
+class AvalInvalido(PasaporteError):
+    pass
+
+
+class AvalMuyGrande(PasaporteError):
+    pass
+
+
+class DocEmpresaInvalido(PasaporteError):
+    pass
+
+
+class DocEmpresaMuyGrande(PasaporteError):
+    pass
+
+
+class RaterIndisponible(Exception):
+    def __init__(
+        self, mensaje: str = "No se pudo refrescar el índice de señales."
+    ) -> None:
+        super().__init__(mensaje)
+        self.mensaje = mensaje

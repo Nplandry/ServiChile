@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Fuente: `db/init_script.sql`. Para exportar el diagrama a `db/schema_diagram.png`, pegue el bloque en https://mermaid.live y descargue la imagen.
+Fuente: `db/init_script.sql` (esquema vivo). Bases existentes: migraciones `002`–`042` en `db/migrations/`.
 
 ```mermaid
 erDiagram
@@ -16,28 +16,31 @@ erDiagram
         varchar nombre
         text password_hash
         boolean activo
+        varchar rut UK
+        boolean rut_verificado
+        integer xp
         timestamptz creado_en
     }
     perfiles {
-        uuid usuario_id PK, FK
+        uuid usuario_id PK_FK
         smallint edad
         varchar tipo_cuenta
-        varchar preocupacion
-        varchar proposito
         timestamptz actualizado_en
     }
     business_entities {
         uuid id PK
         varchar nombre
         varchar categoria
+        varchar rut_empresa
+        jsonb docs_empresa
         boolean is_claimed
         uuid reclamado_por FK
     }
     business_reputation_metrics {
-        uuid business_id PK, FK
+        uuid business_id PK_FK
         float final_score
-        float score_ssl_tls
-        float score_cookies
+        jsonb observables
+        timestamptz rater_escaneado_en
     }
     reservas {
         uuid id PK
@@ -46,24 +49,41 @@ erDiagram
         varchar estado
         varchar qr_token UK
     }
+    pades_document_hashes {
+        text sha256 PK
+        text scope
+        uuid usuario_id
+        uuid business_id
+    }
 ```
 
-`perfiles` guarda los datos del onboarding aparte de las credenciales, en relación uno a uno con `usuarios`. Al borrar un usuario se borra su perfil (`ON DELETE CASCADE`). La edad mínima es 14 porque la Ley 21.719 exige consentimiento de los padres para menores de esa edad, y la app no lo gestiona.
+## Separación persona / empresa
 
-## Migraciones
+| Persona (`usuarios` + `perfiles`) | Empresa (`business_entities` + métricas) |
+|---|---|
+| RUT, cédula, biometría, antecedentes, aval, XP | `rut_empresa`, `docs_empresa`, índice rater |
+| Onboarding: `tipo_cuenta`, edad, teléfono | Claim: `reclamado_por` / `is_claimed` |
 
-Las bases nuevas se crean con `db/init_script.sql`, que ya incluye todas las tablas. Las bases existentes se actualizan aplicando en orden los archivos de `db/migrations/`:
+El índice público de empresa vive en `observables` + `final_score` (0–10). No hay columnas `score_*` legacy ni sello `is_verified_profile`.
+
+`perfiles` es 1:1 con `usuarios` (`ON DELETE CASCADE`). Edad mínima 14 (Ley 21.719).
+
+## Migraciones relevantes (bases existentes)
 
 | Archivo | Cambio |
 |---|---|
-| `002_perfiles.sql` | Crea la tabla `perfiles`. Se puede ejecutar más de una vez. |
-| `015_drop_consultas_rag.sql` | Elimina `consultas`, `fragmentos` y `documentos` (stack IA/RAG retirado). |
-| `016_drop_pgvector.sql` | Elimina la extensión `vector` (pgvector). |
-| `017_tipos_cuenta_proveedor.sql` | Tipos `persona` / `contratista` / `proveedor` (migra `empresa` → `proveedor`). |
-| `018_antecedentes.sql` | Flags de certificado de antecedentes verificado + anotaciones (sin guardar PDF). |
-| `019_score_cookies.sql` | Score de consentimiento de cookies (banner / CMP / opción rechazar). |
-| `020_score_mercado_publico.sql` | Score ChileCompra / Mercado Público (ticket + RUT titular). |
-| `021_rut_empresa.sql` | `business_entities.rut_empresa` para consulta ChileCompra. |
-| `022_score_sii.sql` | Score situación tributaria SII (ApiGateway). |
-| `023_cmf_indice.sql` | Score CMF Bancos + tablas índice local (`cmf_instituciones`, `cmf_indice_meta`). |
-| `024_score_incidentes.sql` | Score historial de incidentes públicos (búsqueda web + filtro heurístico, sin LLM). |
+| `002`–`004` | Perfiles y pasaporte (RUT) |
+| `017` | Tipos `persona` / `contratista` / `proveedor` |
+| `021` | `rut_empresa` |
+| `031`–`033` | Biometría archivo, cédula, aval |
+| `034` | `docs_empresa` JSONB |
+| `037` | `observables_ciber` (luego renombrado) |
+| `038` | `final_score` permite 0 |
+| `039` | Drop `is_verified_profile` |
+| `040` | Drop scores legacy, CMF, `preocupacion`/`proposito`, `aval_gemini_usado` |
+| `041` | Índices listado, `final_score` default 0, CHECK+UNIQUE `rut_empresa`, FKs PAdES |
+| `042` | Renombra `observables_ciber`→`observables`, `ciber_escaneado_en`→`rater_escaneado_en` |
+
+`GET /reputation` expone `docs_empresa` solo con flags públicos (`verificado`, `verificado_en`). El titular ve el detalle completo al subir o vía sus endpoints.
+
+Para levantar demo: `python -m scripts.cargar_db_demo` (aplica migraciones en orden).

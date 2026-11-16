@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -9,8 +11,27 @@ from fastapi.middleware.gzip import GZipMiddleware
 from app.api.v1 import autenticacion, negocios, perfil, reporte, reservas
 
 from app.configuracion import get_settings
+from app.ensamblado.arranque import precargar_pades_ca
+from app.ensamblado.rater import bucle_rater
 
 settings = get_settings()
+precargar_pades_ca(settings)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    from contextlib import suppress
+
+    stop = asyncio.Event()
+    tarea = asyncio.create_task(bucle_rater(stop), name="rater-background")
+    try:
+        yield
+    finally:
+        stop.set()
+        tarea.cancel()
+        with suppress(asyncio.CancelledError):
+            await tarea
+
 
 app = FastAPI(
     title="ServiChile API",
@@ -18,6 +39,7 @@ app = FastAPI(
     description="Autenticación, marketplace B2B, Índice de Transparencia y reporte verificable.",
     docs_url=None if settings.app_env == "production" else "/docs",
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -37,8 +59,9 @@ app.include_router(negocios.router)
 
 app.include_router(reservas.router)
 
-app.include_router(reporte.router)
+app.include_router(reservas.titular_router)
 
+app.include_router(reporte.router)
 _RUTAS_SILENCIOSAS = ("GET / ", "GET /json/version ")
 
 

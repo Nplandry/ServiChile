@@ -49,6 +49,10 @@ class XpService:
             usuario_id, reglas.EVENTO_ANTECEDENTES, reglas.XP_ANTECEDENTES
         )
 
+    def por_aval(self, usuario_id: uuid.UUID) -> int:
+
+        return self.xp.otorgar(usuario_id, reglas.EVENTO_AVAL, reglas.XP_AVAL)
+
     def por_asistencia(self, usuario_id: uuid.UUID, reserva_id: uuid.UUID) -> int:
 
         return self.xp.otorgar(

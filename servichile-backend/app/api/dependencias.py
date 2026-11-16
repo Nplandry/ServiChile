@@ -21,14 +21,28 @@ from app.dominio.entidades import Usuario
 from app.dominio.errores import CredencialesInvalidas
 
 from app.dominio.puertos import (
+    AlmacenamientoBiometria,
+    AlmacenamientoCedula,
     AnalizadorAntecedentes,
+    AnalizadorAval,
+    AnalizadorCedula,
+    AnalizadorDocEmpresa,
     EmisorReporte,
     EmisorSesion,
     HasherContrasena,
     VerificadorIdentidad,
 )
 
+from app.infraestructura.biometria_fs import AlmacenamientoBiometriaLocal
+
+from app.infraestructura.cedula_fs import AlmacenamientoCedulaLocal
+
+from app.infraestructura.cedula_ocr import AnalizadorCedulaOcr, LectorOcrTesseract
+from app.infraestructura.cedula_vision import ComparadorRostrosOpenCv
+
 from app.infraestructura.pdf_antecedentes import AnalizadorPdfAntecedentes
+from app.infraestructura.pdf_aval import AnalizadorPdfAval
+from app.infraestructura.pdf_docs_empresa import AnalizadorPdfDocEmpresa
 
 from app.infraestructura.persistencia.modelos import get_session
 
@@ -48,6 +62,8 @@ from app.infraestructura.seguridad.jwt_reporte import JwtReporte
 from app.infraestructura.seguridad.jwt_sesion import JwtSesion
 
 from app.infraestructura.verificacion import build_verificador_rut
+
+from app.ensamblado.rater import armar_negocio_service
 
 from app.servicios.autenticacion import AuthService
 
@@ -123,14 +139,57 @@ def get_verificador_rut() -> VerificadorIdentidad:
 
 @lru_cache
 def get_analizador_antecedentes() -> AnalizadorAntecedentes:
+    settings = get_settings()
+    return AnalizadorPdfAntecedentes(str(settings.pades_ca_ruta()))
 
-    return AnalizadorPdfAntecedentes()
+
+@lru_cache
+def get_almacenamiento_biometria() -> AlmacenamientoBiometria:
+    settings = get_settings()
+    return AlmacenamientoBiometriaLocal(
+        settings.biometria_raiz(),
+        max_lado=settings.biometria_max_lado,
+        jpeg_quality=settings.biometria_jpeg_quality,
+    )
+
+
+@lru_cache
+def get_almacenamiento_cedula() -> AlmacenamientoCedula:
+    settings = get_settings()
+    return AlmacenamientoCedulaLocal(
+        settings.cedula_raiz(),
+        max_lado=settings.cedula_max_lado,
+        jpeg_quality=settings.cedula_jpeg_quality,
+    )
+
+
+@lru_cache
+def get_analizador_cedula() -> AnalizadorCedula:
+    return AnalizadorCedulaOcr(LectorOcrTesseract(), ComparadorRostrosOpenCv())
+
+
+@lru_cache
+def get_analizador_aval() -> AnalizadorAval:
+    return AnalizadorPdfAval()
+
+
+@lru_cache
+def get_analizador_docs_empresa() -> AnalizadorDocEmpresa:
+    settings = get_settings()
+    return AnalizadorPdfDocEmpresa(str(settings.pades_ca_ruta()))
 
 
 def get_pasaporte_service(
     session: SessionDep,
     verificador: Annotated[VerificadorIdentidad, Depends(get_verificador_rut)],
     analizador: Annotated[AnalizadorAntecedentes, Depends(get_analizador_antecedentes)],
+    biometria: Annotated[
+        AlmacenamientoBiometria, Depends(get_almacenamiento_biometria)
+    ],
+    cedula: Annotated[AlmacenamientoCedula, Depends(get_almacenamiento_cedula)],
+    analizador_cedula: Annotated[AnalizadorCedula, Depends(get_analizador_cedula)],
+    analizador_aval: Annotated[AnalizadorAval, Depends(get_analizador_aval)],
+    settings: SettingsDep,
 ) -> PasaporteService:
 
     return PasaporteService(
@@ -139,11 +198,22 @@ def get_pasaporte_service(
         verificador,
         get_xp_service(session),
         analizador,
+        biometria,
+        biometria_retencion_dias=settings.biometria_retencion_dias,
+        cedula=cedula,
+        analizador_cedula=analizador_cedula,
+        cedula_retencion_dias=settings.cedula_retencion_dias,
+        analizador_aval=analizador_aval,
     )
 
-def get_negocio_service(session: SessionDep) -> NegocioService:
 
-    return NegocioService(NegocioRepository(session))
+def get_negocio_service(
+    session: SessionDep,
+    analizador_docs: Annotated[
+        AnalizadorDocEmpresa, Depends(get_analizador_docs_empresa)
+    ],
+) -> NegocioService:
+    return armar_negocio_service(session, analizador_docs)
 
 
 def get_reserva_service(session: SessionDep) -> ReservaService:
@@ -157,28 +227,26 @@ def get_reserva_service(session: SessionDep) -> ReservaService:
 
 def get_reporte_service(
     session: SessionDep,
+    pasaporte: Annotated[PasaporteService, Depends(get_pasaporte_service)],
     emisor: Annotated[EmisorReporte, Depends(get_emisor_reporte)],
 ) -> ReporteService:
 
-    return ReporteService(
-        UsuarioRepository(session),
-        PasaporteService(
-            UsuarioRepository(session),
-            ReservaRepository(session),
-            get_verificador_rut(),
-            get_xp_service(session),
-        ),
-        emisor,
-    )
+    return ReporteService(UsuarioRepository(session), pasaporte, emisor)
 
 
 def get_cuenta_service(
     session: SessionDep,
     negocios: Annotated[NegocioService, Depends(get_negocio_service)],
     hasher: Annotated[HasherContrasena, Depends(get_hasher)],
+    biometria: Annotated[
+        AlmacenamientoBiometria, Depends(get_almacenamiento_biometria)
+    ],
+    cedula: Annotated[AlmacenamientoCedula, Depends(get_almacenamiento_cedula)],
 ) -> CuentaService:
 
-    return CuentaService(UsuarioRepository(session), negocios, hasher)
+    return CuentaService(
+        UsuarioRepository(session), negocios, hasher, biometria, cedula
+    )
 
 
 PasaporteServiceDep = Annotated[PasaporteService, Depends(get_pasaporte_service)]
