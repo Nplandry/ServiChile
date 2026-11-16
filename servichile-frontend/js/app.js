@@ -21,11 +21,11 @@ const Carga = {
   vistas() {
     return Carga.serie([
       'js/vendor/qrcode.min.js?v=69',
-      'js/modules/reporte-persona.js?v=108',
-      'js/modules/reporte-empresa.js?v=119',
+      'js/modules/reporte-persona.js?v=109',
+      'js/modules/reporte-empresa.js?v=132',
       'js/modules/reporte-qr.js?v=107',
-      'js/modules/subir-confianza.js?v=76',
-      'js/modules/perfil-empresa.js?v=111'
+      'js/modules/subir-confianza.js?v=93',
+      'js/modules/perfil-empresa.js?v=121'
     ]);
   }
 };
@@ -74,8 +74,12 @@ const App = {
     App.elements.historyMenu.addEventListener('click', App.handleMenuClick);
     App.elements.perfilForm.addEventListener('submit', App.handlePerfilGuardar);
     App.elements.perfilEdad.addEventListener('input', App.actualizarBotonGuardarPerfil);
+    App.elements.perfilTelefono.addEventListener('focus', App.prefijoTelefonoPerfil);
+    App.elements.perfilTelefono.addEventListener('click', App.protegerPrefijoTelefono);
+    App.elements.perfilTelefono.addEventListener('keydown', App.protegerPrefijoTelefonoTecla);
     App.elements.perfilTelefono.addEventListener('input', App.formatearTelefonoPerfil);
     App.elements.perfilTelefono.addEventListener('blur', App.corregirTelefonoPerfil);
+    App.elements.perfilEdad.addEventListener('blur', App.corregirEdadPerfil);
     App.elements.perfilRut.addEventListener('input', App.formatearRutPerfil);
     App.elements.perfilRut.addEventListener('blur', App.corregirRutPerfil);
     App.elements.perfilLogout.addEventListener('click', App.handleLogout);
@@ -94,7 +98,7 @@ const App = {
     App.closeHistory();
     if (name === 'mapa') { App.showView('mapView'); return Market.init(); }
     if (name === 'perfil') {
-      await Carga.script('js/modules/perfil-empresa.js?v=111');
+      await Carga.script('js/modules/perfil-empresa.js?v=121');
       App.renderPerfil();
       if (typeof PerfilEmpresa !== 'undefined') PerfilEmpresa.init();
       return App.showView('perfilView');
@@ -102,18 +106,19 @@ const App = {
     if (name === 'reportes') {
       await Carga.serie([
         'js/vendor/qrcode.min.js?v=69',
-        'js/modules/reporte-persona.js?v=108',
-        'js/modules/reporte-empresa.js?v=119',
+        'js/modules/reporte-persona.js?v=109',
+        'js/modules/reporte-empresa.js?v=132',
         'js/modules/reporte-qr.js?v=107'
       ]);
       ReporteQr.init();
       return App.showView('verifyView');
     }
     if (name === 'subir-confianza') {
-      await Carga.script('js/modules/subir-confianza.js?v=76');
+      await Carga.script('js/modules/subir-confianza.js?v=93');
       App.actualizarEtiquetasConfianza();
-      SubirConfianza.init();
-      return App.showView('subirConfianzaView');
+      App.showView('subirConfianzaView');
+      await SubirConfianza.init();
+      return;
     }
   },
 
@@ -202,14 +207,75 @@ const App = {
     } catch (_) {}
   },
 
+  PREFIJO_TEL: '+56 9 ',
+
+  _cursorTrasPrefijoTel(input, forzarFinal) {
+    if (!input) return;
+    const min = App.PREFIJO_TEL.length;
+    const colocar = () => {
+      try {
+        const len = input.value.length;
+        if (forzarFinal || len <= min) {
+          input.setSelectionRange(len, len);
+          return;
+        }
+        const start = input.selectionStart == null ? min : input.selectionStart;
+        const end = input.selectionEnd == null ? start : input.selectionEnd;
+        if (start < min || end < min) {
+          input.setSelectionRange(Math.max(min, start), Math.max(min, end));
+        }
+      } catch (_) {}
+    };
+    requestAnimationFrame(() => requestAnimationFrame(colocar));
+    setTimeout(colocar, 0);
+  },
+
+  prefijoTelefonoPerfil() {
+    const input = App.elements.perfilTelefono;
+    if (!input || input.disabled) return;
+    const vacio = !input.value.trim();
+    if (vacio) input.value = App.PREFIJO_TEL;
+    App._cursorTrasPrefijoTel(input, vacio);
+  },
+
+  protegerPrefijoTelefono() {
+    const input = App.elements.perfilTelefono;
+    if (!input || input.disabled) return;
+    if (!input.value.startsWith('+56')) return;
+    App._cursorTrasPrefijoTel(input, false);
+  },
+
+  protegerPrefijoTelefonoTecla(e) {
+    const input = App.elements.perfilTelefono;
+    if (!input || input.disabled) return;
+    const min = App.PREFIJO_TEL.length;
+    if (!input.value.startsWith(App.PREFIJO_TEL.slice(0, 3))) return;
+    const start = input.selectionStart == null ? 0 : input.selectionStart;
+    const end = input.selectionEnd == null ? start : input.selectionEnd;
+    if (
+      (e.key === 'Backspace' && start <= min && start === end) ||
+      (e.key === 'ArrowLeft' && start <= min) ||
+      (e.key === 'Home')
+    ) {
+      e.preventDefault();
+      try {
+        input.setSelectionRange(min, min);
+      } catch (_) {}
+    }
+  },
+
   formatearTelefonoPerfil() {
     const input = App.elements.perfilTelefono;
     if (!input || input.disabled) return;
     if (typeof Security === 'undefined') return;
     const valor = input.value;
-    if (!valor.trim()) {
-      input.setCustomValidity('');
-      input.removeAttribute('aria-invalid');
+    if (!valor.trim() || valor.trim() === '+56' || valor.trim() === '+56 9') {
+      if (valor.trim() === '+56' || valor.trim() === '+56 9') {
+        input.value = valor.trim() === '+56' ? '+56 ' : '+56 9 ';
+      } else {
+        input.setCustomValidity('');
+        input.removeAttribute('aria-invalid');
+      }
       App.actualizarBotonGuardarPerfil();
       return;
     }
@@ -230,15 +296,35 @@ const App = {
     App.formatearTelefonoPerfil();
     const input = App.elements.perfilTelefono;
     if (!input || input.disabled) return;
+    let valor = input.value.trim();
+    if (!valor || valor === '+56' || valor === '+56 9') {
+      input.value = '';
+      input.setCustomValidity('');
+      input.removeAttribute('aria-invalid');
+      App.actualizarBotonGuardarPerfil();
+      return;
+    }
+    if (typeof Security !== 'undefined' && !Security.validateTelefono(valor)) {
+      input.setCustomValidity('El teléfono debe comenzar con +56, p. ej. +56 9 1234 5678');
+      input.setAttribute('aria-invalid', 'true');
+    }
+  },
+
+  corregirEdadPerfil() {
+    const input = App.elements.perfilEdad;
+    if (!input || input.disabled) return;
     const valor = input.value.trim();
     if (!valor) {
       input.setCustomValidity('');
       input.removeAttribute('aria-invalid');
       return;
     }
-    if (typeof Security !== 'undefined' && !Security.validateTelefono(valor)) {
-      input.setCustomValidity('Use un móvil chileno, p. ej. +56 9 1234 5678');
+    if (typeof Security !== 'undefined' && !Security.validateEdad(valor)) {
+      input.setCustomValidity('Ingrese una edad entre 14 y 120 años.');
       input.setAttribute('aria-invalid', 'true');
+    } else {
+      input.setCustomValidity('');
+      input.removeAttribute('aria-invalid');
     }
   },
 
@@ -322,12 +408,20 @@ const App = {
     e.preventDefault();
     App.corregirTelefonoPerfil();
     App.corregirRutPerfil();
+    App.corregirEdadPerfil();
 
+    const edad = App.elements.perfilEdad.value.trim();
     const telefono = App.elements.perfilTelefono.value.trim();
     const rut = App.elements.perfilRut.value.trim();
+    if (edad && typeof Security !== 'undefined' && !Security.validateEdad(edad)) {
+      App.elements.perfilFormStatus.textContent =
+        'Edad inválida. Ingrese un valor entre 14 y 120 años.';
+      App.elements.perfilEdad.focus();
+      return;
+    }
     if (telefono && typeof Security !== 'undefined' && !Security.validateTelefono(telefono)) {
       App.elements.perfilFormStatus.textContent =
-        'Teléfono inválido. Se espera un móvil chileno, p. ej. +56 9 1234 5678.';
+        'Teléfono inválido. Debe comenzar con +56, p. ej. +56 9 1234 5678.';
       App.elements.perfilTelefono.focus();
       return;
     }

@@ -75,7 +75,7 @@ const Auth = {
       return 'Elija si es proveedor, contratista o persona.';
     }
     if (campo === 'telefono') {
-      return 'Ingrese un teléfono válido.';
+      return 'El teléfono debe comenzar con +56, p. ej. +56 9 1234 5678.';
     }
     if (campo === 'rut') {
       return 'Ingrese un RUT válido.';
@@ -185,6 +185,89 @@ const Auth = {
     return { ok: true, antecedentes: data };
   },
 
+  async verificarDocEmpresa(businessId, tipo, archivo) {
+    if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
+    if (!businessId) return { ok: false, error: 'No hay empresa asociada.' };
+    if (!archivo) return { ok: false, error: 'Seleccione el PDF del documento.' };
+    const nombre = String(archivo.name || '');
+    const esPdf =
+      String(archivo.type || '') === 'application/pdf' ||
+      /\.pdf$/i.test(nombre);
+    if (!esPdf) {
+      return {
+        ok: false,
+        error: 'Solo se acepta PDF con texto real. No se admiten fotos ni escaneos.'
+      };
+    }
+    if (archivo.size > 8 * 1024 * 1024) {
+      return { ok: false, error: 'El PDF supera 8 MB.' };
+    }
+    const formulario = new FormData();
+    formulario.append('archivo', archivo, nombre || tipo + '.pdf');
+    formulario.append('nombre_archivo', nombre || tipo + '.pdf');
+    let res;
+    try {
+      res = await fetch(
+        Auth.API_BASE +
+          '/v1/businesses/' +
+          encodeURIComponent(businessId) +
+          '/documentos/' +
+          encodeURIComponent(tipo),
+        {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + Auth.sesion.token },
+          body: formulario
+        }
+      );
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor. Intente de nuevo.' };
+    }
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (!res.ok) return { ok: false, error: Auth.mensajeError(res.status, data) };
+    return { ok: true, documento: data };
+  },
+
+  async verificarAval(archivo) {
+    if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
+    if (!archivo) return { ok: false, error: 'Seleccione el PDF del aval o garantía.' };
+    const nombre = String(archivo.name || '');
+    const esPdf =
+      String(archivo.type || '') === 'application/pdf' ||
+      /\.pdf$/i.test(nombre);
+    if (!esPdf) {
+      return {
+        ok: false,
+        error: 'Solo se acepta PDF con texto real. No se admiten fotos ni escaneos.'
+      };
+    }
+    if (archivo.size > 8 * 1024 * 1024) {
+      return { ok: false, error: 'El PDF supera 8 MB.' };
+    }
+    const formulario = new FormData();
+    formulario.append('archivo', archivo, nombre || 'aval.pdf');
+    formulario.append('nombre_archivo', nombre || 'aval.pdf');
+    let res;
+    try {
+      res = await fetch(Auth.API_BASE + '/v1/perfil/aval', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + Auth.sesion.token },
+        body: formulario
+      });
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor. Intente de nuevo.' };
+    }
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (!res.ok) return { ok: false, error: Auth.mensajeError(res.status, data) };
+    await Auth.verificarSesion();
+    return { ok: true, aval: data };
+  },
+
   async verificarBiometria(archivo) {
     if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
     if (!archivo) return { ok: false, error: 'Seleccione o capture una foto.' };
@@ -213,6 +296,36 @@ const Auth = {
     if (!res.ok) return { ok: false, error: Auth.mensajeError(res.status, data) };
     await Auth.verificarSesion();
     return { ok: true, biometria: data };
+  },
+
+  async verificarCedula(archivo) {
+    if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
+    if (!archivo) return { ok: false, error: 'Seleccione o capture la foto frontal del carnet.' };
+    if (!String(archivo.type || '').startsWith('image/')) {
+      return { ok: false, error: 'Suba una foto (JPEG, PNG o WebP).' };
+    }
+    if (archivo.size > 8 * 1024 * 1024) {
+      return { ok: false, error: 'La foto supera 8 MB. Use una imagen más liviana.' };
+    }
+    const formulario = new FormData();
+    formulario.append('foto', archivo);
+    let res;
+    try {
+      res = await fetch(Auth.API_BASE + '/v1/perfil/cedula', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + Auth.sesion.token },
+        body: formulario
+      });
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor. Intente de nuevo.' };
+    }
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (!res.ok) return { ok: false, error: Auth.mensajeError(res.status, data) };
+    await Auth.verificarSesion();
+    return { ok: true, cedula: data };
   },
 
   async actualizarPerfil(cambios) {

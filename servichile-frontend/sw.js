@@ -1,4 +1,4 @@
-const CACHE_NAME = 'servichile-v120';
+const CACHE_NAME = 'servichile-v133';
 
 self.addEventListener('install', function () {
   self.skipWaiting();
@@ -46,14 +46,14 @@ self.addEventListener('fetch', function (event) {
 
   if (!estatico) return;
 
+  // Red primero: si no, el HTML/JS viejo tapa campos nuevos (p. ej. RUT empresa).
   event.respondWith(
-    caches.match(request).then(function (cached) {
-      const red = fetch(request).then(function (response) {
+    fetch(request)
+      .then(function (response) {
         return guardar(request, response);
-      }).catch(function () {
-        return cached;
-      });
-      return cached || red;
-    })
+      })
+      .catch(function () {
+        return caches.match(request);
+      })
   );
 });

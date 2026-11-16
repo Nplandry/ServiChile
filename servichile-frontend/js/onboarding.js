@@ -1,6 +1,6 @@
 const Onboarding = {
-  VERSION: 55,
-  STORAGE_KEY: 'servichile.onboarding.v55',
+  VERSION: 57,
+  STORAGE_KEY: 'servichile.onboarding.v57',
 
   pasos: [
     {
@@ -22,6 +22,15 @@ const Onboarding = {
       titulo: '¿Cómo te llamas?',
       texto: 'Aparecerá en tu carnet QR al validar una visita o entrega.',
       placeholder: 'Tu nombre',
+      inputType: 'text'
+    },
+    {
+      id: 'rut_responsable',
+      type: 'text',
+      campo: 'rut_responsable',
+      titulo: '¿Cuál es el RUT del responsable?',
+      texto: 'RUT de la persona responsable de la cuenta. Podrá editarlo en Perfil.',
+      placeholder: '12.345.678-9',
       inputType: 'text'
     },
     {
@@ -55,7 +64,7 @@ const Onboarding = {
       id: 'fin',
       type: 'summary',
       titulo: 'Listo para verificar tratos',
-      texto: 'Crearemos tu cuenta. Después podrás subir verificación y usar QR de reporte en visitas o entregas.',
+      texto: 'Crearemos tu cuenta. Después podrás explorar, verificar y usar QR de reporte.',
       cta: 'Crear cuenta y entrar'
     }
   ],
@@ -143,6 +152,9 @@ const Onboarding = {
       if (p.id === 'edad') {
         return prog ? prog.soporta('edad') : !Onboarding.esProveedor();
       }
+      if (p.id === 'rut_responsable') {
+        return Onboarding.esProveedor();
+      }
       return true;
     });
   },
@@ -158,6 +170,13 @@ const Onboarding = {
       return {
         titulo: prog.tituloNombreOnboarding(),
         texto: prog.textoNombreOnboarding()
+      };
+    }
+    if (paso.id === 'fin' && Onboarding.datos.tipo_cuenta === 'proveedor') {
+      return {
+        titulo: 'Listo para explorar',
+        texto:
+          'Crearemos tu cuenta. Entra, mira fichas de otros proveedores y publica la tuya cuando quieras. El pago se pide solo al publicar (demo, sin cobro real).'
       };
     }
     return { titulo: paso.titulo, texto: paso.texto };
@@ -231,6 +250,13 @@ const Onboarding = {
     if (paso.inputType === 'password') {
       input.autocomplete = 'new-password';
     }
+    if (paso.campo === 'rut_responsable' && typeof Security !== 'undefined') {
+      input.maxLength = 12;
+      input.addEventListener('input', () => {
+        input.value = Security.formatRut(input.value);
+      });
+      if (input.value) input.value = Security.formatRut(input.value);
+    }
     field.appendChild(input);
     card.appendChild(field);
 
@@ -255,20 +281,42 @@ const Onboarding = {
     if (!value) {
       return 'Por favor, completa este campo.';
     }
+    if (paso.campo === 'nombre') {
+      if (typeof Security !== 'undefined' && !Security.validateNombre(value)) {
+        return 'Ingrese un nombre válido (solo letras, espacios y . \'-).';
+      }
+      if (String(value).trim().length < 2) {
+        return 'Ingrese un nombre de al menos 2 caracteres.';
+      }
+    }
     if (paso.campo === 'email') {
-
-      if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value)) {
+      if (typeof Security !== 'undefined') {
+        if (!Security.validateEmail(value)) {
+          return 'Ingrese un correo válido, por ejemplo nombre@dominio.cl';
+        }
+      } else if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value)) {
         return 'Ingrese un correo válido, por ejemplo nombre@dominio.cl';
       }
     }
     if (paso.campo === 'edad') {
-      const edad = Number(value);
-      if (!Number.isInteger(edad) || edad < 14 || edad > 120) {
-        return 'Ingrese una edad entre 14 y 120 años.';
+      if (typeof Security !== 'undefined') {
+        if (!Security.validateEdad(value)) {
+          return 'Ingrese una edad entre 14 y 120 años.';
+        }
+      } else {
+        const edad = Number(value);
+        if (!Number.isInteger(edad) || edad < 14 || edad > 120) {
+          return 'Ingrese una edad entre 14 y 120 años.';
+        }
       }
     }
     if (paso.campo === 'password' && value.length < 8) {
       return 'La contraseña debe tener al menos 8 caracteres.';
+    }
+    if (paso.campo === 'rut_responsable') {
+      if (typeof Security !== 'undefined' && !Security.validateRut(value)) {
+        return 'Ingrese un RUT válido, p. ej. 12.345.678-9.';
+      }
     }
     return '';
   },
@@ -314,6 +362,9 @@ const Onboarding = {
     const campos = [
       ['Tipo', Onboarding.etiquetaTipoCuenta(Onboarding.datos.tipo_cuenta)],
       [prog ? prog.labelNombre() : 'Nombre', Onboarding.datos.nombre],
+      Onboarding.esProveedor()
+        ? ['RUT responsable', Onboarding.datos.rut_responsable]
+        : null,
       prog && prog.soporta('edad') ? ['Edad', Onboarding.datos.edad] : null,
       ['Correo', Onboarding.datos.email]
     ].filter(Boolean);
@@ -391,7 +442,20 @@ const Onboarding = {
 
     try {
       localStorage.removeItem(Onboarding.STORAGE_KEY);
+      localStorage.removeItem('servichile.rut_empresa_pendiente');
     } catch {}
+
+    let avisoRut = '';
+    if (Onboarding.esProveedor() && Onboarding.datos.rut_responsable && Auth.actualizarPerfil) {
+      const rutRes = await Auth.actualizarPerfil({
+        rut: String(Onboarding.datos.rut_responsable).trim()
+      });
+      if (!rutRes.ok) {
+        avisoRut =
+          ' La cuenta quedó creada, pero el RUT del responsable no se guardó: ' +
+          (rutRes.error || 'inténtelo en Perfil.');
+      }
+    }
 
     Onboarding.clear(Onboarding.elements.deck);
     const done = document.createElement('article');
@@ -402,7 +466,8 @@ const Onboarding = {
     const text = document.createElement('p');
     text.className = 'onboarding__card-text';
     text.textContent = Onboarding.esProveedor()
-      ? 'Cuenta proveedor lista. Puede publicar en el marketplace y validar con QR.'
+      ? 'Cuenta proveedor lista. Puede publicar en el marketplace y validar con QR.' +
+        avisoRut
       : 'Cuenta lista. Puede explorar proveedores y validar a la otra parte con QR.';
     done.appendChild(title);
     done.appendChild(text);
@@ -411,7 +476,7 @@ const Onboarding = {
 
     setTimeout(() => {
       window.location.href = '../index.html';
-    }, 900);
+    }, avisoRut ? 2200 : 900);
   },
 
   enableSwipe(card) {
