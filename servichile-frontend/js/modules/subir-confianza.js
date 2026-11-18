@@ -1,6 +1,7 @@
 
 const SubirConfianza = {
-  STORAGE_KEY: 'servichile.subirConfianza.mock',
+  STORAGE_KEY: 'servichile.subirConfianza.cache',
+  STORAGE_KEY_LEGACY: 'servichile.subirConfianza.mock',
   carruselIdx: 0,
   tablaAbierta: false,
 
@@ -10,7 +11,7 @@ const SubirConfianza = {
       titulo: 'Nivel 1 · Identidad',
       evalua: 'Que la persona sea real, accesible y localizable',
       requisito: 'Cuenta activa, identidad verificada y datos de contacto con mayoría de edad.',
-      usos: 'Primeros contactos, QR de reporte y encuentros iniciales con baja fricción.',
+      usos: 'Primeros contactos, QR de reporte y primeros trabajos con baja fricción.',
       discriminatorio: false,
       discriminatorioNota: 'NO — base para cualquier trato',
       tareas: [
@@ -34,16 +35,16 @@ const SubirConfianza = {
     {
       id: 2,
       titulo: 'Nivel 2 · Cumplimiento',
-      evalua: 'Que cumpla lo que agenda y mantenga buen historial',
-      requisito: 'Al menos un encuentro cerrado, reputación alta y pocas inasistencias.',
-      usos: 'Visitas, entregas y tratos recurrentes con respaldo de comportamiento.',
+      evalua: 'Que concreté trabajos y mantenga buen historial',
+      requisito: 'Al menos un trabajo concretado, reputación alta y pocos no concretados.',
+      usos: 'Trabajos concretados, entregas y tratos recurrentes con respaldo de comportamiento.',
       discriminatorio: false,
-      discriminatorioNota: 'NO — se gana cumpliendo encuentros',
+      discriminatorioNota: 'NO — se gana concretando trabajos',
       tareas: [
         {
-          id: 'n2-asistencias',
-          label: 'Completar al menos un encuentro',
-          como: 'Se completa cuando existe al menos una visita, turno o entrega cerrada con éxito.'
+          id: 'n2-concretados',
+          label: 'Concretar al menos un trabajo',
+          como: 'Se completa cuando el titular marca al menos un trabajo como concretado.'
         },
         {
           id: 'n2-puntualidad',
@@ -51,9 +52,9 @@ const SubirConfianza = {
           como: 'Se completa cuando el puntaje de confiabilidad alcanza 85% o más.'
         },
         {
-          id: 'n2-noshow',
-          label: 'Mantener pocas inasistencias',
-          como: 'Se completa cuando la tasa de cancelaciones o inasistencias se mantiene bajo 15%.'
+          id: 'n2-no-concretados',
+          label: 'Mantener pocos no concretados',
+          como: 'Se completa cuando la tasa de trabajos no concretados se mantiene bajo 15%.'
         }
       ]
     },
@@ -138,19 +139,31 @@ const SubirConfianza = {
     return SubirConfianza.tieneEmpresa() ? SubirConfianza.empresas[0] : null;
   },
 
-  storageKey() {
+  storageQuien() {
     const user = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
-    const quien = user && user.email ? String(user.email).toLowerCase() : 'anon';
-    return SubirConfianza.STORAGE_KEY + ':' + quien;
+    return user && user.email ? String(user.email).toLowerCase() : 'anon';
+  },
+
+  storageKey() {
+    return SubirConfianza.STORAGE_KEY + ':' + SubirConfianza.storageQuien();
   },
 
   cargar() {
-
     try {
-      localStorage.removeItem(SubirConfianza.STORAGE_KEY);
-    } catch {}
-    try {
-      const raw = localStorage.getItem(SubirConfianza.storageKey());
+      const quien = SubirConfianza.storageQuien();
+      const clave = SubirConfianza.STORAGE_KEY + ':' + quien;
+      const legacy = SubirConfianza.STORAGE_KEY_LEGACY + ':' + quien;
+      let raw = localStorage.getItem(clave);
+      if (!raw) {
+        raw = localStorage.getItem(legacy);
+        if (raw) {
+          localStorage.setItem(clave, raw);
+          localStorage.removeItem(legacy);
+        }
+      }
+      try {
+        localStorage.removeItem(SubirConfianza.STORAGE_KEY_LEGACY);
+      } catch {}
       if (!raw) {
         SubirConfianza.state = { docs: [], biometriaOk: false };
       } else {
@@ -207,7 +220,7 @@ const SubirConfianza = {
       : [];
   },
 
-  fichaEmpresaMock() {
+  fichaEmpresa() {
     const empresa = SubirConfianza.empresaActual();
     const rep = SubirConfianza.reputacionMia;
     if (!empresa) {
@@ -285,13 +298,25 @@ const SubirConfianza = {
     return box;
   },
 
+  docVigente(meta) {
+    if (!meta || !meta.verificado) return false;
+    if (!meta.vence_en) return true;
+    const hasta = Date.parse(meta.vence_en);
+    if (!Number.isFinite(hasta)) return true;
+    return hasta >= Date.now();
+  },
+
   tieneDoc(tipo) {
-    if (SubirConfianza.state.docs.some(d => d.tipo === tipo && d.verificado !== false)) {
+    const local = SubirConfianza.state.docs.find(
+      (d) => d.tipo === tipo && d.verificado !== false && d.caducado !== true
+    );
+    if (local) {
+      if (local.vence_en && Date.parse(local.vence_en) < Date.now()) return false;
       return true;
     }
     const empresa = SubirConfianza.empresaActual();
     const docs = empresa && empresa.docs_empresa;
-    return !!(docs && docs[tipo] && docs[tipo].verificado);
+    return !!(docs && docs[tipo] && SubirConfianza.docVigente(docs[tipo]));
   },
 
   tiposDocEmpresa() {
@@ -331,15 +356,21 @@ const SubirConfianza = {
     const tipos = SubirConfianza.tiposDocEmpresa();
     tipos.forEach((tipo) => {
       const meta = empresa.docs_empresa[tipo];
-      if (!meta || !meta.verificado) return;
+      if (!meta || !meta.verificado) {
+        SubirConfianza.state.docs = SubirConfianza.state.docs.filter((d) => d.tipo !== tipo);
+        return;
+      }
+      const caducado = !SubirConfianza.docVigente(meta);
       SubirConfianza.state.docs = SubirConfianza.state.docs.filter((d) => d.tipo !== tipo);
       SubirConfianza.state.docs.unshift({
         id: 'api-' + tipo,
         tipo,
         nombre: tipo + '.pdf',
         fecha: meta.verificado_en || new Date().toISOString(),
+        vence_en: meta.vence_en || null,
         score: meta.score,
-        verificado: true
+        verificado: true,
+        caducado
       });
     });
     SubirConfianza.guardar();
@@ -352,7 +383,7 @@ const SubirConfianza = {
     return Number.isFinite(n) ? n : null;
   },
 
-  tasaNoShows() {
+  tasaNoConcretados() {
     const score = SubirConfianza.scoreConfiabilidad();
     if (score == null) return null;
     return Math.round((100 - score) * 10) / 10;
@@ -375,7 +406,7 @@ const SubirConfianza = {
   estadoPunto(tareaId) {
     const perfil = SubirConfianza.perfil();
     const score = SubirConfianza.scoreConfiabilidad();
-    const tasa = SubirConfianza.tasaNoShows();
+    const tasa = SubirConfianza.tasaNoConcretados();
 
     switch (tareaId) {
       case 'n1-registro':
@@ -391,14 +422,14 @@ const SubirConfianza = {
         if (edad != null || telOk) return 'progreso';
         return 'pendiente';
       }
-      case 'n2-asistencias':
+      case 'n2-concretados':
 
         return score != null ? 'ok' : 'pendiente';
       case 'n2-puntualidad':
         if (score != null && score >= 85) return 'ok';
         if (score != null) return 'progreso';
         return 'pendiente';
-      case 'n2-noshow':
+      case 'n2-no-concretados':
         if (tasa != null && tasa < 15) return 'ok';
         if (tasa != null) return 'progreso';
         return 'pendiente';
@@ -424,7 +455,7 @@ const SubirConfianza = {
   detallePunto(tareaId) {
     const perfil = SubirConfianza.perfil();
     const score = SubirConfianza.scoreConfiabilidad();
-    const tasa = SubirConfianza.tasaNoShows();
+    const tasa = SubirConfianza.tasaNoConcretados();
     const estado = SubirConfianza.estadoPunto(tareaId);
 
     switch (tareaId) {
@@ -446,18 +477,18 @@ const SubirConfianza = {
         if (telOk) return 'Teléfono completo. Falta declarar la edad.';
         return 'Complete el teléfono móvil y la edad (18 o más).';
       }
-      case 'n2-asistencias':
+      case 'n2-concretados':
         return estado === 'ok'
-          ? 'Ya registra al menos un encuentro cerrado.'
-          : 'Aún no hay visitas, turnos o entregas cerradas.';
+          ? 'Ya registra al menos un trabajo concretado.'
+          : 'Aún no hay trabajos concretados con un proveedor.';
       case 'n2-puntualidad':
         if (score == null) return 'Sin puntaje aún: se calcula con su historial.';
         if (score >= 85) return 'Puntaje de confiabilidad ' + score + '% (meta 85% alcanzada).';
         return 'Puntaje actual ' + score + '%. Debe llegar a 85% o más.';
-      case 'n2-noshow':
-        if (tasa == null) return 'Sin historial aún para medir inasistencias.';
-        if (tasa < 15) return 'Tasa de inasistencias ' + tasa + '% (bajo el 15% exigido).';
-        return 'Tasa de inasistencias ' + tasa + '%. Debe bajar del 15%.';
+      case 'n2-no-concretados':
+        if (tasa == null) return 'Sin historial aún para medir no concretados.';
+        if (tasa < 15) return 'Tasa de no concretados ' + tasa + '% (bajo el 15% exigido).';
+        return 'Tasa de no concretados ' + tasa + '%. Debe bajar del 15%.';
       case 'n3-antecedentes': {
         if (perfil.antecedentes_verificados) {
           const anot =
@@ -558,7 +589,7 @@ const SubirConfianza = {
 
   bloqueDesgloseEmpresa() {
     if (!SubirConfianza.tieneEmpresa()) return null;
-    const ficha = SubirConfianza.fichaEmpresaMock();
+    const ficha = SubirConfianza.fichaEmpresa();
     const rep = SubirConfianza.reputacionMia;
     if (ficha.indice_transparencia == null) return null;
     if (typeof Market === 'undefined' || !Market.bloqueDesgloseIndice) {
@@ -830,7 +861,7 @@ const SubirConfianza = {
     nota.className = 'confianza-docs__nota';
     nota.textContent = prog
       ? prog.notaDocumentos()
-      : 'Zero-Retention (mock): el archivo no se guarda; solo desbloquea el requisito.';
+      : 'El archivo no se guarda (zero-retention): solo se valida y el resultado queda en su cuenta.';
 
     head.append(titulo, nota);
 
@@ -1121,15 +1152,19 @@ const SubirConfianza = {
           docs_verificados: data.docs_verificados,
           docs_total: data.docs_total
         });
+        const metaTipo =
+          (data.docs_empresa && data.docs_empresa[tipo]) || {};
         SubirConfianza.state.docs = SubirConfianza.state.docs.filter((d) => d.tipo !== tipo);
         SubirConfianza.state.docs.unshift({
           id: String(Date.now()),
           tipo,
           nombre: archivo.name,
           tamano: archivo.size,
-          fecha: new Date().toISOString(),
+          fecha: metaTipo.verificado_en || new Date().toISOString(),
+          vence_en: metaTipo.vence_en || null,
           score: data.score,
-          verificado: true
+          verificado: true,
+          caducado: false
         });
         SubirConfianza.guardar();
         SubirConfianza.init();
@@ -1168,6 +1203,7 @@ const SubirConfianza = {
       SubirConfianza.state.docs.forEach(doc => {
         const li = document.createElement('li');
         li.className = 'confianza-docs__item';
+        if (doc.caducado) li.classList.add('confianza-docs__item--caducado');
 
         const icono = document.createElement('span');
         icono.className = 'confianza-docs__item-icono';
@@ -1196,10 +1232,84 @@ const SubirConfianza = {
           if (doc.avalTipo) metaTxt += ' · ' + doc.avalTipo;
           if (doc.score != null) metaTxt += ' · Score ' + doc.score;
         }
+        if (doc.vence_en) {
+          metaTxt +=
+            ' · ' +
+            (doc.caducado ? 'Caducó' : 'Vence') +
+            ' ' +
+            SubirConfianza.formatoFecha(doc.vence_en);
+        }
+        if (doc.caducado) {
+          metaTxt += ' · Revalide subiendo un PDF nuevo';
+        }
         meta.textContent = metaTxt;
 
         cuerpo.append(nombre, meta);
         li.append(icono, cuerpo);
+
+        if (
+          SubirConfianza.tiposDocEmpresa().includes(doc.tipo) &&
+          doc.verificado &&
+          !doc.caducado
+        ) {
+          const btnRev = document.createElement('button');
+          btnRev.type = 'button';
+          btnRev.className = 'history__clear confianza-docs__revocar';
+          btnRev.textContent = 'Revocar';
+          btnRev.addEventListener('click', async () => {
+            const empresa = SubirConfianza.empresaActual();
+            if (!empresa || !empresa.id) {
+              status.textContent = 'No hay empresa asociada.';
+              return;
+            }
+            if (
+              !window.confirm(
+                '¿Revocar «' +
+                  SubirConfianza.etiquetaTipo(doc.tipo) +
+                  '»? Dejará de contar en el índice hasta que revalide.'
+              )
+            ) {
+              return;
+            }
+            btnRev.disabled = true;
+            status.textContent = 'Revocando documento…';
+            const res =
+              typeof Auth !== 'undefined' && Auth.revocarDocEmpresa
+                ? await Auth.revocarDocEmpresa(empresa.id, doc.tipo)
+                : { ok: false, error: 'Sesión no disponible.' };
+            btnRev.disabled = false;
+            if (!res.ok) {
+              status.textContent = res.error || 'No se pudo revocar.';
+              return;
+            }
+            const data = res.documento || {};
+            if (data.docs_empresa) empresa.docs_empresa = data.docs_empresa;
+            if (data.indice_transparencia != null) {
+              empresa.indice_transparencia = data.indice_transparencia;
+            }
+            if (data.indice_pct != null) empresa.indice_pct = data.indice_pct;
+            SubirConfianza.reputacionMia = Object.assign(
+              {},
+              SubirConfianza.reputacionMia || {},
+              {
+                indice_transparencia: data.indice_transparencia,
+                indice_pct: data.indice_pct,
+                docs_verificados: data.docs_verificados,
+                docs_total: data.docs_total,
+                docs_empresa: data.docs_empresa
+              }
+            );
+            SubirConfianza.state.docs = SubirConfianza.state.docs.filter(
+              (d) => d.tipo !== doc.tipo
+            );
+            SubirConfianza.guardar();
+            status.textContent =
+              data.motivo || 'Documento revocado. Puede revalidar subiendo un PDF nuevo.';
+            SubirConfianza.init();
+          });
+          li.appendChild(btnRev);
+        }
+
         lista.appendChild(li);
       });
     }

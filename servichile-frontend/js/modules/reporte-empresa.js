@@ -81,12 +81,14 @@ const ReporteEmpresa = {
     if (typeof ProgresoCuenta !== 'undefined') {
       return ProgresoCuenta.de('proveedor').calcularFicha();
     }
-    const user = ReporteEmpresa.usuario() || {};
     return {
-      id: 'empresa:' + (user.email || 'local'),
-      nombre: user.nombre || 'Mi empresa',
-      indice_transparencia: 4.2,
-      _docsCargados: 0
+      id: null,
+      nombre: 'Sin empresa',
+      indice_transparencia: null,
+      indice_pct: null,
+      _docsCargados: 0,
+      _docsTotal: 0,
+      _sinFicha: true
     };
   },
 

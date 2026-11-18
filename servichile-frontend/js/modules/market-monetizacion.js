@@ -7,6 +7,32 @@ const MarketMonetizacion = {
   PRECIO_PLAN: 89990,
   PRECIO_SELLO: 29990,
 
+  indiceDe(n) {
+    if (n == null || n.indice_transparencia == null || n.indice_transparencia === '') {
+      return {
+        ok: false,
+        nota: null,
+        caso: 'Sin índice de transparencia (la ficha aún no tiene score).'
+      };
+    }
+    const v = Number(n.indice_transparencia);
+    if (!Number.isFinite(v)) {
+      return {
+        ok: false,
+        nota: null,
+        caso: 'Índice de transparencia inválido.'
+      };
+    }
+    if (v === 0) {
+      return {
+        ok: false,
+        nota: '0.0',
+        caso: 'Índice 0 — sin señales o sin puntaje acumulado.'
+      };
+    }
+    return { ok: true, nota: v.toFixed(1), caso: null };
+  },
+
   datosDemo(n) {
     const seed =
       typeof Market !== 'undefined' && Market.hashTexto
@@ -15,7 +41,7 @@ const MarketMonetizacion = {
     const ciber = (38 + (seed % 12)) / 10;
     const legal = (22 + ((seed >> 3) % 18)) / 10;
     const contratos = (32 + ((seed >> 5) % 16)) / 10;
-    const nota = Number(n.indice_transparencia != null ? n.indice_transparencia : 3.6).toFixed(1);
+    const indice = MarketMonetizacion.indiceDe(n);
     const alertas = [
       {
         tipo: 'Legal',
@@ -52,7 +78,9 @@ const MarketMonetizacion = {
         contratos: Math.min(5, Math.round(contratos * 10) / 10)
       },
       alertas,
-      nota,
+      nota: indice.nota,
+      casoIndice: indice.caso,
+      indiceOk: indice.ok,
       alertasCount: alertas.length
     };
   },
@@ -93,9 +121,11 @@ const MarketMonetizacion = {
     }
     const id = String(n.id);
     const prev = mapa[id] || { vistas: 0, nombre: n.nombre };
+    const indice = MarketMonetizacion.indiceDe(n);
     prev.vistas += 1;
     prev.nombre = n.nombre;
-    prev.nota = Number(n.indice_transparencia != null ? n.indice_transparencia : 3.6).toFixed(1);
+    prev.nota = indice.nota;
+    prev.casoIndice = indice.caso;
     prev.alertas = MarketMonetizacion.datosDemo(n).alertasCount;
     mapa[id] = prev;
     localStorage.setItem(MarketMonetizacion.STORAGE_REBOTE, JSON.stringify(mapa));
@@ -106,16 +136,23 @@ const MarketMonetizacion = {
     const demo = MarketMonetizacion.datosDemo(n);
     const wrap = document.createElement('aside');
     wrap.className = 'paywall';
-    wrap.setAttribute('aria-label', 'Informe de riesgo (demo)');
+    wrap.setAttribute(
+      'aria-label',
+      'Radar de riesgo (demo comercial; no forma parte del índice de transparencia)'
+    );
 
     const titulo = document.createElement('h3');
     titulo.className = 'paywall__titulo';
-    titulo.textContent = 'Radar de riesgo';
+    titulo.textContent = 'Radar de riesgo (demo)';
 
     const lead = document.createElement('p');
     lead.className = 'paywall__lead';
-    lead.textContent =
-      'Puntajes y alertas visibles. El detalle accionable se desbloquea con el informe.';
+    lead.textContent = demo.casoIndice
+      ? demo.casoIndice
+      : 'Simulación comercial: no es el Índice de Transparencia. El ★ de la ficha sale del rater + documentos.';
+    if (demo.casoIndice) {
+      lead.classList.add('paywall__lead--aviso');
+    }
 
     const scores = document.createElement('div');
     scores.className = 'paywall__scores';
@@ -457,13 +494,15 @@ const MarketMonetizacion = {
 
   abrirWhatsApp(n, demo, estadoEl, riesgo) {
     MarketMonetizacion.mostrarRebote(n, demo);
-    const nota = demo.nota;
+    const firma = demo.indiceOk
+      ? 'Nota: ' + demo.nota + ' ⭐'
+      : demo.casoIndice || 'Sin índice de transparencia';
     const msg =
       'Hola ' +
       n.nombre +
-      ', te contacto desde ServiChile (Nota: ' +
-      nota +
-      ' ⭐). Quisiera cotizar / evaluar su servicio.';
+      ', te contacto desde ServiChile (' +
+      firma +
+      '). Quisiera cotizar / evaluar su servicio.';
     const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
     window.open(url, '_blank', 'noopener,noreferrer');
     if (estadoEl) {
@@ -489,14 +528,18 @@ const MarketMonetizacion = {
   mostrarRebote(n, demo) {
     const vista = MarketMonetizacion.registrarVistaRebote(n);
     const total = Math.max(3, vista.vistas);
+    const notaTxt =
+      vista.nota != null
+        ? 'Nota actual: ' + vista.nota + ' ⭐'
+        : vista.casoIndice || demo.casoIndice || 'Sin índice de transparencia';
     MarketMonetizacion.toast(
       'Rebote (demo) al titular de ' +
         n.nombre +
         ': «' +
         total +
-        ' empresas revisaron el perfil esta semana (Nota actual: ' +
-        (vista.nota || demo.nota) +
-        ' ⭐). Reclama gratis o publica tu ficha ($' +
+        ' empresas revisaron el perfil esta semana (' +
+        notaTxt +
+        '). Reclama gratis o publica tu ficha ($' +
         MarketMonetizacion.formatoClp(MarketMonetizacion.PRECIO_SELLO) +
         '/mes).»'
     );

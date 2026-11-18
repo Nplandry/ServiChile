@@ -25,7 +25,7 @@ const Carga = {
       'js/modules/reporte-empresa.js?v=132',
       'js/modules/reporte-qr.js?v=107',
       'js/modules/subir-confianza.js?v=93',
-      'js/modules/perfil-empresa.js?v=121'
+      'js/modules/perfil-empresa.js?v=124'
     ]);
   }
 };
@@ -53,7 +53,7 @@ const App = {
       'logoutBtn', 'authGate', 'loginForm', 'loginStatus',
       'historyBtn', 'historyPanel', 'historyOverlay',
       'historyClose', 'historyMenu', 'mapView', 'perfilView', 'perfilStatus',
-      'perfilPasaporte', 'perfilForm', 'perfilNombre', 'perfilCorreo', 'perfilEdad',
+      'perfilReporte', 'perfilForm', 'perfilNombre', 'perfilCorreo', 'perfilEdad',
       'perfilTelefono', 'perfilRut', 'perfilGuardar', 'perfilFormStatus',
       'perfilLogout', 'perfilEliminar',
       'perfilEliminarForm', 'perfilEliminarPass', 'perfilEliminarCancelar',
@@ -98,7 +98,7 @@ const App = {
     App.closeHistory();
     if (name === 'mapa') { App.showView('mapView'); return Market.init(); }
     if (name === 'perfil') {
-      await Carga.script('js/modules/perfil-empresa.js?v=121');
+      await Carga.script('js/modules/perfil-empresa.js?v=124');
       App.renderPerfil();
       if (typeof PerfilEmpresa !== 'undefined') PerfilEmpresa.init();
       return App.showView('perfilView');
@@ -187,7 +187,7 @@ const App = {
     const filas = prog
       ? prog.filasEstado({ origen: 'perfil', perfil })
       : [['Tipo de cuenta', perfil.tipo_cuenta || 'Sin indicar']];
-    App.renderDefinitionList(App.elements.perfilPasaporte, filas);
+    App.renderDefinitionList(App.elements.perfilReporte, filas);
     App.actualizarEtiquetasConfianza();
     App.actualizarBotonGuardarPerfil();
   },
@@ -388,7 +388,7 @@ const App = {
     return cambios;
   },
 
-  etiquetaEstadoPasaporte(estado) {
+  etiquetaEstadoReporte(estado) {
     const mapa = { basico: 'Básico', pendiente: 'En revisión', verificado: 'Verificado', rechazado: 'Rechazado' };
     return mapa[estado] || 'Básico';
   },

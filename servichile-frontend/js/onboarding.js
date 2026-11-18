@@ -20,7 +20,7 @@ const Onboarding = {
       type: 'text',
       campo: 'nombre',
       titulo: '¿Cómo te llamas?',
-      texto: 'Aparecerá en tu carnet QR al validar una visita o entrega.',
+      texto: 'Aparecerá en tu reporte QR al validar una visita o entrega.',
       placeholder: 'Tu nombre',
       inputType: 'text'
     },

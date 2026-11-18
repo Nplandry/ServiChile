@@ -127,7 +127,7 @@ const ProgresoCuenta = {
     },
 
     notaDocumentos() {
-      return 'Zero-Retention (mock): el archivo no se guarda; solo desbloquea la verificación.';
+      return 'El PDF no se guarda (zero-retention): solo se valida y el resultado queda en su perfil.';
     },
 
     tiposDocumento() {
@@ -290,7 +290,7 @@ const ProgresoCuenta = {
     },
 
     filaEstado(src) {
-      return ['Estado', this.etiquetaEstadoPasaporte(src && src.estado_pasaporte)];
+      return ['Estado', this.etiquetaEstadoReporte(src && src.estado_reporte)];
     },
 
     filaRut(src) {
@@ -303,15 +303,15 @@ const ProgresoCuenta = {
       return ['XP', xp + ' · Nivel ' + nivel];
     },
 
-    filaNivelPasaporte(src) {
-      return ['Nivel de verificación', 'Nivel ' + ((src && src.nivel_pasaporte) || 1)];
+    filaNivelReporte(src) {
+      return ['Nivel de verificación', 'Nivel ' + ((src && src.nivel_reporte) || 1)];
     },
 
     filaConfiabilidad(src) {
       const score = src && src.score_confiabilidad;
       return [
         'Confiabilidad',
-        score == null ? 'Sin reservas cerradas' : score + ' / 100'
+        score == null ? 'Sin trabajos cerrados' : score + ' / 100'
       ];
     },
 
@@ -351,7 +351,7 @@ const ProgresoCuenta = {
       return v.toFixed(1) + ' / 10';
     },
 
-    etiquetaEstadoPasaporte(estado) {
+    etiquetaEstadoReporte(estado) {
       return ProgresoCuenta.ESTADOS_PASAPORTE[estado] || 'Básico';
     },
 
@@ -367,7 +367,7 @@ ProgresoCuenta.registrar('persona', {
     xp: true,
     niveles: true,
     biometria: true,
-    pasaporte: true
+    reporte: true
   }),
 
   DOCS: [
@@ -392,7 +392,7 @@ ProgresoCuenta.registrar('persona', {
   },
 
   textoNombreOnboarding() {
-    return 'Aparecerá en su carnet QR al validar visitas o entregas.';
+    return 'Aparecerá en su reporte QR al validar trabajos o entregas.';
   },
 
   snapshot() {
@@ -422,7 +422,7 @@ ProgresoCuenta.registrar('persona', {
 
   filasPerfil(c) {
     return [
-      this.filaNivelPasaporte(c.perfil),
+      this.filaNivelReporte(c.perfil),
       this.filaXp(c.perfil),
       this.filaEstado(c.perfil),
       this.filaConfiabilidad(c.perfil)
@@ -433,7 +433,7 @@ ProgresoCuenta.registrar('persona', {
     return [
       this.filaTitular(c),
       this.filaCorreo(c),
-      this.filaNivelPasaporte(c.datos),
+      this.filaNivelReporte(c.datos),
       this.filaXp(c.datos),
       this.filaEstado(c.datos),
       this.filaConfiabilidad(c.datos),
@@ -461,7 +461,7 @@ ProgresoCuenta.registrar('contratista', {
     xp: true,
     niveles: true,
     biometria: true,
-    pasaporte: true
+    reporte: true
   }),
 
   DOCS: [
@@ -490,7 +490,7 @@ ProgresoCuenta.registrar('contratista', {
   },
 
   textoNombreOnboarding() {
-    return 'Aparecerá en su carnet QR al validar visitas o entregas.';
+    return 'Aparecerá en su reporte QR al validar trabajos o entregas.';
   },
 
   snapshot() {
@@ -567,13 +567,13 @@ ProgresoCuenta.registrar('proveedor', {
   },
 
   notaDocumentos() {
-    return 'Los documentos legales quedan en la ficha; el ★ público lo define el índice global de señales. El archivo no se guarda (zero-retention).';
+    return 'Los documentos legales quedan en la ficha (vigencia 365 días; puede revocar o revalidar). El ★ público lo define el índice global de señales. El PDF no se guarda (zero-retention).';
   },
 
   calcularFicha() {
     const sc = this._sc();
-    if (sc && typeof sc.fichaEmpresaMock === 'function') {
-      return sc.fichaEmpresaMock();
+    if (sc && typeof sc.fichaEmpresa === 'function') {
+      return sc.fichaEmpresa();
     }
     return {
       id: null,

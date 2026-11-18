@@ -230,6 +230,34 @@ const Auth = {
     return { ok: true, documento: data };
   },
 
+  async revocarDocEmpresa(businessId, tipo) {
+    if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
+    if (!businessId) return { ok: false, error: 'No hay empresa asociada.' };
+    if (!tipo) return { ok: false, error: 'Indique el tipo de documento.' };
+    let res;
+    try {
+      res = await fetch(
+        Auth.API_BASE +
+          '/v1/businesses/' +
+          encodeURIComponent(businessId) +
+          '/documentos/' +
+          encodeURIComponent(tipo),
+        {
+          method: 'DELETE',
+          headers: { Authorization: 'Bearer ' + Auth.sesion.token }
+        }
+      );
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor. Intente de nuevo.' };
+    }
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (!res.ok) return { ok: false, error: Auth.mensajeError(res.status, data) };
+    return { ok: true, documento: data };
+  },
+
   async verificarAval(archivo) {
     if (!Auth.sesion) return { ok: false, error: 'Inicie sesión para continuar.' };
     if (!archivo) return { ok: false, error: 'Seleccione el PDF del aval o garantía.' };

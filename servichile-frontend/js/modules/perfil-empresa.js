@@ -3,6 +3,7 @@ const PerfilEmpresa = {
   modo: null,
   editandoId: null,
   PRECIO_PUBLICAR: 29990,
+  PREFIJO_TEL: '+56 9 ',
 
   esProveedor() {
     return typeof ProgresoCuenta !== 'undefined'
@@ -156,6 +157,114 @@ const PerfilEmpresa = {
     });
   },
 
+  _cursorTrasPrefijoTel(input, forzarFinal) {
+    if (!input) return;
+    const min = PerfilEmpresa.PREFIJO_TEL.length;
+    const colocar = () => {
+      try {
+        const len = input.value.length;
+        if (forzarFinal || len <= min) {
+          input.setSelectionRange(len, len);
+          return;
+        }
+        const start = input.selectionStart == null ? min : input.selectionStart;
+        const end = input.selectionEnd == null ? start : input.selectionEnd;
+        if (start < min || end < min) {
+          input.setSelectionRange(Math.max(min, start), Math.max(min, end));
+        }
+      } catch (_) {}
+    };
+    requestAnimationFrame(() => requestAnimationFrame(colocar));
+    setTimeout(colocar, 0);
+  },
+
+  _aplicarFormatoInput(input, formateado, caretAntes, largoAntes) {
+    if (formateado === input.value) return;
+    input.value = formateado;
+    const delta = formateado.length - largoAntes;
+    const next = Math.max(0, (caretAntes || 0) + delta);
+    try {
+      input.setSelectionRange(next, next);
+    } catch (_) {}
+  },
+
+  bindTelefonoInput(input) {
+    if (!input) return;
+    input.setAttribute('inputmode', 'tel');
+    input.setAttribute('autocomplete', 'tel');
+    input.placeholder = '+56 9 1234 5678';
+
+    input.addEventListener('focus', () => {
+      const vacio = !input.value.trim();
+      if (vacio) input.value = PerfilEmpresa.PREFIJO_TEL;
+      PerfilEmpresa._cursorTrasPrefijoTel(input, vacio);
+    });
+
+    input.addEventListener('click', () => {
+      if (!input.value.startsWith('+56')) return;
+      PerfilEmpresa._cursorTrasPrefijoTel(input, false);
+    });
+
+    input.addEventListener('keydown', (e) => {
+      const min = PerfilEmpresa.PREFIJO_TEL.length;
+      if (!input.value.startsWith(PerfilEmpresa.PREFIJO_TEL.slice(0, 3))) return;
+      const start = input.selectionStart == null ? 0 : input.selectionStart;
+      const end = input.selectionEnd == null ? start : input.selectionEnd;
+      if (
+        (e.key === 'Backspace' && start <= min && start === end) ||
+        (e.key === 'ArrowLeft' && start <= min) ||
+        e.key === 'Home'
+      ) {
+        e.preventDefault();
+        try {
+          input.setSelectionRange(min, min);
+        } catch (_) {}
+      }
+    });
+
+    input.addEventListener('input', () => {
+      if (typeof Security === 'undefined') return;
+      const valor = input.value;
+      if (!valor.trim() || valor.trim() === '+56' || valor.trim() === '+56 9') {
+        if (valor.trim() === '+56' || valor.trim() === '+56 9') {
+          input.value = valor.trim() === '+56' ? '+56 ' : '+56 9 ';
+        } else {
+          input.setCustomValidity('');
+          input.removeAttribute('aria-invalid');
+        }
+        return;
+      }
+      const caret = input.selectionStart;
+      const formateado = Security.formatTelefono(valor);
+      PerfilEmpresa._aplicarFormatoInput(input, formateado, caret, valor.length);
+      input.setCustomValidity('');
+      input.removeAttribute('aria-invalid');
+    });
+
+    input.addEventListener('blur', () => {
+      let valor = input.value.trim();
+      if (!valor || valor === '+56' || valor === '+56 9') {
+        input.value = '';
+        input.setCustomValidity('');
+        input.removeAttribute('aria-invalid');
+        return;
+      }
+      if (typeof Security !== 'undefined') {
+        valor = Security.formatTelefono(valor);
+        input.value = valor;
+        if (!Security.validateTelefono(valor)) {
+          input.setCustomValidity(
+            'El teléfono debe comenzar con +56, p. ej. +56 9 1234 5678'
+          );
+          input.setAttribute('aria-invalid', 'true');
+        } else {
+          input.setCustomValidity('');
+          input.removeAttribute('aria-invalid');
+        }
+      }
+    });
+  },
+
   formFicha(negocio) {
     const editando = !!(negocio && negocio.id);
     const form = document.createElement('form');
@@ -191,33 +300,53 @@ const PerfilEmpresa = {
         'text',
         'Calle, número, comuna o ciudad donde opera la empresa.'
       ),
-      PerfilEmpresa.campoTexto('peTelefono', 'Teléfono', false, 30, 'tel'),
-      PerfilEmpresa.campoTexto('peWeb', 'Sitio web', false, 200),
       PerfilEmpresa.campoTexto(
-        'peBanner',
-        'URL del banner (opcional)',
+        'peTelefono',
+        'Teléfono',
         false,
-        500,
-        'url',
-        'Enlace https a la imagen de fondo de la ficha. Si lo deja vacío, se usa una imagen por categoría.'
+        30,
+        'tel',
+        'Móvil chileno con +56, p. ej. +56 9 1234 5678.'
       ),
-      PerfilEmpresa.campoTexto(
+      PerfilEmpresa.campoTexto('peWeb', 'Sitio web', false, 200),
+      PerfilEmpresa.campoRecurso(
+        'peBanner',
+        'peBannerPreview',
+        'URL del banner',
+        false
+      ),
+      PerfilEmpresa.campoRecurso(
         'peLogo',
-        'URL del logo (opcional)',
-        false,
-        500,
-        'url',
-        'Enlace https al logo. Si lo deja vacío, se muestran las iniciales.'
+        'peLogoPreview',
+        'URL del logo',
+        true
       ),
       PerfilEmpresa.campoTextoarea('peDesc', 'Descripción', 2000)
     );
 
     const peRut = campoRut.querySelector('#peRut');
     PerfilEmpresa.bindRutInput(peRut);
+    const peTel = form.querySelector('#peTelefono');
+    PerfilEmpresa.bindTelefonoInput(peTel);
+    PerfilEmpresa.bindUrlPreview(form, 'peBanner', 'peBannerPreview', false);
+    PerfilEmpresa.bindUrlPreview(form, 'peLogo', 'peLogoPreview', true);
+    const peNombre = form.querySelector('#peNombre');
+    if (peNombre) {
+      peNombre.addEventListener('input', () => {
+        const logoInput = form.querySelector('#peLogo');
+        const url = PerfilEmpresa.normalizarUrlRecurso(
+          (logoInput && logoInput.value) || ''
+        );
+        if (url) return;
+        PerfilEmpresa.refrescarPreview(form, 'peLogo', 'peLogoPreview', true);
+      });
+    }
 
     if (editando) {
       PerfilEmpresa.rellenarForm(form, negocio);
     }
+    PerfilEmpresa.refrescarPreview(form, 'peBanner', 'peBannerPreview', false);
+    PerfilEmpresa.refrescarPreview(form, 'peLogo', 'peLogoPreview', true);
 
     const acciones = document.createElement('div');
     acciones.className = 'perfil-empresa__form-acciones';
@@ -256,7 +385,9 @@ const PerfilEmpresa = {
     set('peRut', rut);
     set('peCategoria', n.categoria || '');
     set('peDireccion', n.direccion || '');
-    set('peTelefono', n.telefono || '');
+    let tel = (n.telefono || '').trim();
+    if (tel && typeof Security !== 'undefined') tel = Security.formatTelefono(tel);
+    set('peTelefono', tel);
     set('peWeb', n.sitio_web || '');
     set('peBanner', n.imagen_url || '');
     set('peLogo', n.logo_url || '');
@@ -310,35 +441,252 @@ const PerfilEmpresa = {
       PerfilEmpresa.setStatus('Ingrese la dirección de oficina.');
       return null;
     }
-    let telefono = datos.telefono;
-    if (telefono) {
-      if (typeof Security !== 'undefined') {
-        telefono = Security.formatTelefono(telefono);
-        const peTel = document.getElementById('peTelefono');
-        if (peTel) peTel.value = telefono;
-        if (!Security.validateTelefono(telefono)) {
-          PerfilEmpresa.setStatus(
-            'Teléfono inválido. Debe comenzar con +56, p. ej. +56 9 1234 5678.'
+    let telefono = (datos.telefono || '').trim();
+    if (!telefono || telefono === '+56' || telefono === '+56 9') {
+      telefono = '';
+      const peTelVacio = document.getElementById('peTelefono');
+      if (peTelVacio) {
+        peTelVacio.value = '';
+        peTelVacio.setCustomValidity('');
+        peTelVacio.removeAttribute('aria-invalid');
+      }
+    } else if (typeof Security !== 'undefined') {
+      telefono = Security.formatTelefono(telefono);
+      const peTel = document.getElementById('peTelefono');
+      if (peTel) peTel.value = telefono;
+      if (!Security.validateTelefono(telefono)) {
+        PerfilEmpresa.setStatus(
+          'Teléfono inválido. Debe comenzar con +56, p. ej. +56 9 1234 5678.'
+        );
+        if (peTel) {
+          peTel.setCustomValidity(
+            'El teléfono debe comenzar con +56, p. ej. +56 9 1234 5678'
           );
-          return null;
+          peTel.setAttribute('aria-invalid', 'true');
+          peTel.focus();
         }
-      } else if (!telefono.replace(/\s/g, '').startsWith('+56')) {
-        PerfilEmpresa.setStatus('El teléfono debe comenzar con +56.');
         return null;
       }
-    }
-    if (datos.imagen_url && !/^https?:\/\//i.test(datos.imagen_url)) {
-      PerfilEmpresa.setStatus('La URL del banner debe comenzar con http:// o https://');
+      if (peTel) {
+        peTel.setCustomValidity('');
+        peTel.removeAttribute('aria-invalid');
+      }
+    } else if (!telefono.replace(/\s/g, '').startsWith('+56')) {
+      PerfilEmpresa.setStatus('El teléfono debe comenzar con +56.');
       return null;
     }
-    if (datos.logo_url && !/^https?:\/\//i.test(datos.logo_url)) {
-      PerfilEmpresa.setStatus('La URL del logo debe comenzar con http:// o https://');
+    const banner = PerfilEmpresa.normalizarUrlRecurso(datos.imagen_url);
+    if (datos.imagen_url && !banner) {
+      PerfilEmpresa.setStatus(
+        'La URL del banner debe ser https:// (sin espacios ni esquemas peligrosos).'
+      );
       return null;
+    }
+    const logo = PerfilEmpresa.normalizarUrlRecurso(datos.logo_url);
+    if (datos.logo_url && !logo) {
+      PerfilEmpresa.setStatus(
+        'La URL del logo debe ser https:// (sin espacios ni esquemas peligrosos).'
+      );
+      return null;
+    }
+    if (banner) {
+      const peBanner = document.getElementById('peBanner');
+      if (peBanner) peBanner.value = banner;
+    }
+    if (logo) {
+      const peLogo = document.getElementById('peLogo');
+      if (peLogo) peLogo.value = logo;
     }
     return Object.assign({}, datos, {
       rut_empresa,
-      telefono: telefono || ''
+      telefono: telefono || '',
+      imagen_url: banner || '',
+      logo_url: logo || ''
     });
+  },
+
+  normalizarUrlRecurso(valor) {
+    if (!valor) return '';
+    let url = String(valor).trim();
+    if (!url || url.length > 500 || /\s/.test(url)) return '';
+    const bajo = url.toLowerCase();
+    if (
+      /^(javascript|data|vbscript|file|blob):/.test(bajo)
+    ) {
+      return '';
+    }
+    if (bajo.startsWith('http://')) {
+      url = 'https://' + url.slice(7);
+    } else if (!bajo.startsWith('https://')) {
+      return '';
+    }
+    const host = url.slice(8).split('/')[0] || '';
+    if (!host || host.startsWith('.') || host.endsWith('.')) return '';
+    if (host.toLowerCase() !== 'localhost' && host.indexOf('.') < 0) return '';
+    return url;
+  },
+
+  iconoImagen() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('x', '3');
+    rect.setAttribute('y', '5');
+    rect.setAttribute('width', '18');
+    rect.setAttribute('height', '14');
+    rect.setAttribute('rx', '2');
+    rect.setAttribute('fill', 'none');
+    rect.setAttribute('stroke', 'currentColor');
+    rect.setAttribute('stroke-width', '1.6');
+    const circ = document.createElementNS(ns, 'circle');
+    circ.setAttribute('cx', '9');
+    circ.setAttribute('cy', '10');
+    circ.setAttribute('r', '1.4');
+    circ.setAttribute('fill', 'currentColor');
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', 'M3 16l5-4 3 2.5 3-2.5 7 5');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '1.6');
+    path.setAttribute('stroke-linejoin', 'round');
+    svg.append(rect, circ, path);
+    return svg;
+  },
+
+  inicialesPreview() {
+    const nombre = ((document.getElementById('peNombre') || {}).value || '').trim();
+    const partes = nombre.split(/\s+/).filter(Boolean);
+    if (!partes.length) return 'Logo';
+    return partes
+      .slice(0, 2)
+      .map((parte) => parte.charAt(0))
+      .join('')
+      .toUpperCase();
+  },
+
+  campoPreview(id, logo) {
+    const wrap = document.createElement('div');
+    wrap.className =
+      'perfil-empresa__preview' + (logo ? ' perfil-empresa__preview--logo' : '');
+    wrap.id = id;
+    wrap.setAttribute('aria-live', 'polite');
+    const marco = document.createElement('div');
+    marco.className = 'perfil-empresa__marco';
+    const ph = document.createElement('div');
+    ph.className = 'perfil-empresa__ph';
+    ph.setAttribute('aria-hidden', 'true');
+    if (!logo) ph.append(PerfilEmpresa.iconoImagen());
+    const caption = document.createElement('span');
+    caption.className = 'perfil-empresa__ph-texto';
+    caption.textContent = logo ? 'Logo' : 'Banner';
+    const sub = document.createElement('span');
+    sub.className = 'perfil-empresa__ph-sub';
+    sub.textContent = logo ? 'Iniciales del nombre' : 'Imagen de la ficha';
+    ph.append(caption, sub);
+    const img = document.createElement('img');
+    img.alt = '';
+    img.decoding = 'async';
+    marco.append(ph, img);
+    wrap.append(marco);
+    return wrap;
+  },
+
+  campoRecurso(inputId, previewId, label, logo) {
+    const field = document.createElement('div');
+    field.className = 'field perfil-empresa__recurso';
+    const lab = document.createElement('label');
+    lab.className = 'field__label';
+    lab.htmlFor = inputId;
+    lab.textContent = label;
+    const input = document.createElement('input');
+    input.id = inputId;
+    input.className = 'field__input';
+    input.type = 'url';
+    input.maxLength = 500;
+    input.placeholder = 'https://';
+    field.append(lab, PerfilEmpresa.campoPreview(previewId, logo), input);
+    return field;
+  },
+
+  bindUrlPreview(raiz, inputId, previewId, logo) {
+    const input = raiz && raiz.querySelector('#' + inputId);
+    if (!input) return;
+    const pintar = () =>
+      PerfilEmpresa.refrescarPreview(raiz, inputId, previewId, logo);
+    input.addEventListener('input', pintar);
+    input.addEventListener('change', pintar);
+  },
+
+  refrescarPreview(raiz, inputId, previewId, logo) {
+    const scope = raiz || document;
+    const input =
+      (scope.querySelector && scope.querySelector('#' + inputId)) ||
+      document.getElementById(inputId);
+    const box =
+      (scope.querySelector && scope.querySelector('#' + previewId)) ||
+      document.getElementById(previewId);
+    if (!input || !box) return;
+    const img = box.querySelector('img');
+    if (!img) return;
+    const url = PerfilEmpresa.normalizarUrlRecurso(input.value || '');
+    img.onload = null;
+    img.onerror = null;
+    if (!url) {
+      PerfilEmpresa.pintarPlaceholder(box, logo);
+      return;
+    }
+    box.classList.remove(
+      'perfil-empresa__preview--lista',
+      'perfil-empresa__preview--error'
+    );
+    img.onerror = () => {
+      img.onerror = null;
+      img.removeAttribute('src');
+      box.classList.remove('perfil-empresa__preview--lista');
+      box.classList.add('perfil-empresa__preview--error');
+      const hint = box.querySelector('.field__hint');
+      const sub = box.querySelector('.perfil-empresa__ph-sub');
+      if (hint) {
+        hint.textContent = logo
+          ? 'No se pudo cargar el logo (revise la URL)'
+          : 'No se pudo cargar el banner (revise la URL)';
+      }
+      if (sub) sub.textContent = 'Revisa el enlace https';
+    };
+    img.onload = () => {
+      box.classList.remove('perfil-empresa__preview--error');
+      box.classList.add('perfil-empresa__preview--lista');
+      const hint = box.querySelector('.field__hint');
+      if (hint) {
+        hint.textContent = logo
+          ? 'Vista previa del logo'
+          : 'Vista previa del banner';
+      }
+    };
+    img.src = url;
+  },
+
+  pintarPlaceholder(box, logo) {
+    box.classList.remove(
+      'perfil-empresa__preview--lista',
+      'perfil-empresa__preview--error'
+    );
+    const img = box.querySelector('img');
+    if (img) img.removeAttribute('src');
+    const texto = box.querySelector('.perfil-empresa__ph-texto');
+    const sub = box.querySelector('.perfil-empresa__ph-sub');
+    const hint = box.querySelector('.field__hint');
+    if (logo) {
+      if (texto) texto.textContent = PerfilEmpresa.inicialesPreview();
+      if (sub) sub.textContent = 'Iniciales del nombre';
+      if (hint) hint.textContent = 'Vista previa del logo';
+      return;
+    }
+    if (texto) texto.textContent = 'Banner';
+    if (sub) sub.textContent = 'Imagen de la ficha';
+    if (hint) hint.textContent = 'Vista previa del banner';
   },
 
   cerrarPanel() {
@@ -432,66 +780,44 @@ const PerfilEmpresa = {
     host.appendChild(box);
   },
 
-  async cargarMias() {
-    const host = document.getElementById('perfilEmpresaMias');
-    if (!host || !Auth.isAuthenticated()) return;
-    PerfilEmpresa.pintarCargaMias(host, 'Cargando sus empresas…');
-    const res = await Auth.request('/v1/businesses/mias', { token: Auth.sesion.token });
-    if (!res.ok) {
-      while (host.firstChild) host.removeChild(host.firstChild);
-      const err = document.createElement('p');
-      err.className = 'error-text';
-      err.textContent = res.error || 'No se pudieron cargar sus empresas.';
-      host.appendChild(err);
-      return;
+  etiquetaCategoria(id) {
+    const cats = PerfilEmpresa.categorias();
+    const hit = cats.find((c) => c.id === id);
+    return (hit && hit.label) || id || '';
+  },
+
+  metaEmpresa(n) {
+    const partes = [PerfilEmpresa.etiquetaCategoria(n.categoria || '')];
+    if (n.rater_listo && n.indice_transparencia != null) {
+      partes.push('★ ' + Number(n.indice_transparencia).toFixed(1));
     }
-    const lista = Array.isArray(res.data) ? res.data : [];
+    const rutTxt = (n.rut_empresa || '').trim();
+    partes.push(rutTxt ? 'RUT ' + rutTxt : 'Sin RUT');
+    return partes.filter(Boolean).join(' · ');
+  },
+
+  pintarListaMias(host, lista) {
+    while (host.firstChild) host.removeChild(host.firstChild);
     if (!lista.length) {
-      while (host.firstChild) host.removeChild(host.firstChild);
       const vacio = document.createElement('p');
       vacio.className = 'field__hint';
       vacio.textContent = 'Aún no tiene empresas asociadas a esta cuenta.';
       host.appendChild(vacio);
       return;
     }
-
-    PerfilEmpresa.pintarCargaMias(
-      host,
-      lista.length === 1
-        ? 'Preparando índice de «' + lista[0].nombre + '»…'
-        : 'Preparando índices de ' + lista.length + ' empresas…'
-    );
-    await Promise.all(
-      lista.map((n) =>
-        Auth.request('/v1/businesses/' + encodeURIComponent(n.id) + '/reputation', {
-          token: Auth.sesion.token
-        }).then((r) => {
-          if (r && r.ok && r.data && r.data.indice_transparencia != null) {
-            n.indice_transparencia = r.data.indice_transparencia;
-            n.indice_pct = r.data.indice_pct;
-          }
-        }).catch(() => null)
-      )
-    );
-
-    while (host.firstChild) host.removeChild(host.firstChild);
     const ul = document.createElement('ul');
     ul.className = 'perfil-empresa__lista';
     lista.forEach((n) => {
       const li = document.createElement('li');
       li.className = 'perfil-empresa__item';
+      if (n.id) li.dataset.businessId = String(n.id);
       const texto = document.createElement('div');
       texto.className = 'perfil-empresa__item-texto';
       const nombre = document.createElement('strong');
       nombre.textContent = n.nombre;
       const meta = document.createElement('span');
-      meta.textContent =
-        (n.categoria || '') +
-        ' · ★ ' +
-        (n.indice_transparencia != null ? Number(n.indice_transparencia).toFixed(1) : '—');
-      const rutTxt = (n.rut_empresa || '').trim();
-      meta.textContent =
-        meta.textContent + (rutTxt ? ' · RUT ' + rutTxt : ' · Sin RUT');
+      meta.className = 'perfil-empresa__item-meta';
+      meta.textContent = PerfilEmpresa.metaEmpresa(n);
       texto.append(nombre, meta);
       const accionesItem = document.createElement('div');
       accionesItem.className = 'perfil-empresa__item-acciones';
@@ -507,9 +833,70 @@ const PerfilEmpresa = {
       quitar.addEventListener('click', () => PerfilEmpresa.quitarEmpresa(n.id, n.nombre));
       accionesItem.append(actualizar, quitar);
       li.append(texto, accionesItem);
+      if (typeof Trabajos !== 'undefined' && n.id) {
+        li.appendChild(Trabajos.panelConcretarTitular(n));
+      }
       ul.appendChild(li);
     });
     host.appendChild(ul);
+  },
+
+  actualizarMetaEnLista(n) {
+    const host = document.getElementById('perfilEmpresaMias');
+    if (!host || !n || !n.id) return;
+    const li = host.querySelector(
+      '.perfil-empresa__item[data-business-id="' + String(n.id) + '"]'
+    );
+    if (!li) return;
+    const meta = li.querySelector('.perfil-empresa__item-meta');
+    if (meta) meta.textContent = PerfilEmpresa.metaEmpresa(n);
+  },
+
+  async completarIndicesMias(lista, intentos) {
+    const max = intentos == null ? 8 : intentos;
+    if (!lista || !lista.length || max <= 0) return;
+    const pendientes = lista.filter((n) => n && n.id && !n.rater_listo);
+    if (!pendientes.length) return;
+    await Promise.all(
+      pendientes.map((n) =>
+        Auth.request('/v1/businesses/' + encodeURIComponent(n.id) + '/reputation', {
+          token: Auth.sesion.token
+        })
+          .then((r) => {
+            if (!r || !r.ok || !r.data) return;
+            if (r.data.rater_listo) {
+              n.rater_listo = true;
+              n.indice_transparencia = r.data.indice_transparencia;
+              n.indice_pct = r.data.indice_pct;
+              PerfilEmpresa.actualizarMetaEnLista(n);
+            }
+          })
+          .catch(() => null)
+      )
+    );
+    if (lista.some((n) => n && n.id && !n.rater_listo)) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      return PerfilEmpresa.completarIndicesMias(lista, max - 1);
+    }
+  },
+
+  async cargarMias() {
+    const host = document.getElementById('perfilEmpresaMias');
+    if (!host || !Auth.isAuthenticated()) return;
+    PerfilEmpresa.pintarCargaMias(host, 'Cargando sus empresas…');
+    const res = await Auth.request('/v1/businesses/mias', { token: Auth.sesion.token });
+    if (!res.ok) {
+      while (host.firstChild) host.removeChild(host.firstChild);
+      const err = document.createElement('p');
+      err.className = 'error-text';
+      err.textContent = res.error || 'No se pudieron cargar sus empresas.';
+      host.appendChild(err);
+      return;
+    }
+    const lista = Array.isArray(res.data) ? res.data : [];
+    PerfilEmpresa._mias = lista;
+    PerfilEmpresa.pintarListaMias(host, lista);
+    PerfilEmpresa.completarIndicesMias(lista);
   },
 
   async quitarEmpresa(id, nombre) {
@@ -562,6 +949,25 @@ const PerfilEmpresa = {
       return;
     }
     PerfilEmpresa.setStatus('Activando plan (demo) y publicando…');
+    // Pintar altiro en «Sus empresas» sin ★ (el índice llega en segundo plano).
+    const provisional = {
+      id: null,
+      nombre: datos.nombre,
+      categoria: datos.categoria,
+      rut_empresa: datos.rut_empresa,
+      telefono: datos.telefono || null,
+      sitio_web: datos.sitio_web || null,
+      direccion: datos.direccion,
+      descripcion: datos.descripcion || null,
+      rater_listo: false
+    };
+    const host = document.getElementById('perfilEmpresaMias');
+    const prev = Array.isArray(PerfilEmpresa._mias) ? PerfilEmpresa._mias.slice() : [];
+    const listaOptimistic = [provisional].concat(prev);
+    PerfilEmpresa._mias = listaOptimistic;
+    if (host) PerfilEmpresa.pintarListaMias(host, listaOptimistic);
+    PerfilEmpresa.cerrarPanel();
+
     const res = await Auth.request('/v1/businesses', {
       method: 'POST',
       body: {
@@ -578,15 +984,19 @@ const PerfilEmpresa = {
       token: Auth.sesion.token
     });
     if (!res.ok) {
+      PerfilEmpresa._mias = prev;
+      if (host) PerfilEmpresa.pintarListaMias(host, prev);
       PerfilEmpresa.setStatus(res.error || 'No se pudo crear la empresa.');
       return;
     }
+    const creado = res.data || {};
+    Object.assign(provisional, creado, { rater_listo: !!creado.rater_listo });
+    if (host) PerfilEmpresa.pintarListaMias(host, PerfilEmpresa._mias);
     PerfilEmpresa.setStatus(
       'Empresa publicada (demo · $' +
         PerfilEmpresa.formatoClp(PerfilEmpresa.PRECIO_PUBLICAR) +
         '/mes).'
     );
-    PerfilEmpresa.cerrarPanel();
     if (typeof SubirConfianza !== 'undefined') {
       SubirConfianza.empresas = null;
       SubirConfianza.reputacionMia = null;
@@ -595,7 +1005,7 @@ const PerfilEmpresa = {
       Market._cache = null;
       Market._firma = '';
     }
-    PerfilEmpresa.cargarMias();
+    PerfilEmpresa.completarIndicesMias(PerfilEmpresa._mias);
   },
 
   async enviarActualizar() {

@@ -317,8 +317,8 @@ const ReporteQr = {
     sub.className = 'reporte-qr__sub';
     if (propio) {
       sub.textContent = tipoTxt
-        ? 'Carnet de confianza · ' + tipoTxt
-        : 'Carnet de confianza';
+        ? 'Reporte de confianza · ' + tipoTxt
+        : 'Reporte de confianza';
     } else if (d.es_propio) {
       sub.textContent = 'Es su propio reporte';
     } else {
@@ -355,7 +355,7 @@ const ReporteQr = {
         : [
             ['Tipo', tipoTxt || 'Sin indicar'],
             ['Titular', d.nombre],
-            ['Estado', ReporteQr.etiquetaEstado(d.estado_pasaporte)],
+            ['Estado', ReporteQr.etiquetaEstado(d.estado_reporte)],
             ['RUT', d.rut_verificado ? 'Verificado' : 'Sin verificar']
           ];
 
@@ -558,7 +558,7 @@ const ReporteQr = {
       ['Tipo de cuenta', tipoTxt],
       ['Titular', d.nombre || 'Sin nombre'],
       ['RUT', d.rut_verificado ? 'Verificado' : 'Sin verificar'],
-      ['Estado', ReporteQr.etiquetaEstado(d.estado_pasaporte)]
+      ['Estado', ReporteQr.etiquetaEstado(d.estado_reporte)]
     ];
     if (tipo === 'proveedor') {
       filas.push(['Contexto', 'Proveedor · reporte de transparencia']);
