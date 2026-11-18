@@ -350,7 +350,9 @@ const Market = {
     const foto = document.createElement('img');
     foto.className = 'market__foto';
     if (n.imagen_url) {
-      foto.src = n.imagen_url;
+      Market.asignarImagenExterna(foto, n.imagen_url, () => {
+        foto.classList.add('market__foto--rota');
+      });
       foto.width = 480;
       foto.height = 300;
     }
@@ -444,8 +446,14 @@ const Market = {
     media.className = 'market-detalle__media';
     const foto = document.createElement('img');
     foto.className = 'market-detalle__foto';
-    foto.src = n.imagen_url || '';
     foto.alt = n.nombre;
+    if (n.imagen_url) {
+      Market.asignarImagenExterna(foto, n.imagen_url, () => {
+        foto.classList.add('market-detalle__foto--rota');
+      });
+    } else {
+      foto.classList.add('market-detalle__foto--rota');
+    }
     media.appendChild(foto);
 
     const chips = document.createElement('div');
@@ -576,6 +584,9 @@ const Market = {
       'Use el QR del reporte para verificar identidad en terreno, entregas o reuniones de due diligence.';
 
     sticky.append(cta, estado, tipQr);
+    if (typeof Trabajos !== 'undefined' && !bloqueado) {
+      sticky.appendChild(Trabajos.panelTrabajoContratista(n, estado));
+    }
     colDer.appendChild(sticky);
     cuerpo.append(colIzq, colDer);
     raiz.appendChild(cuerpo);
@@ -616,32 +627,64 @@ const Market = {
     return cat;
   },
 
+  asignarImagenExterna(img, url, alFallar) {
+    if (!img || !url) {
+      if (typeof alFallar === 'function') alFallar();
+      return;
+    }
+    img.onerror = () => {
+      img.onerror = null;
+      img.removeAttribute('src');
+      if (typeof alFallar === 'function') alFallar();
+    };
+    img.src = url;
+  },
+
+  logoIniciales(n) {
+    const logo = document.createElement('span');
+    logo.className = 'market__logo';
+    logo.setAttribute('aria-hidden', 'true');
+    logo.textContent = (n && n.logo_texto) || 'S';
+    logo.title = (n && n.nombre) || '';
+    return logo;
+  },
+
   logoMarca(n) {
     if (n.logo_url) {
       const img = document.createElement('img');
       img.className = 'market__logo market__logo--img';
-      img.src = n.logo_url;
       img.alt = n.nombre;
       img.loading = 'lazy';
+      Market.asignarImagenExterna(img, n.logo_url, () => {
+        if (img.parentNode) img.replaceWith(Market.logoIniciales(n));
+      });
       return img;
     }
-    const logo = document.createElement('span');
-    logo.className = 'market__logo';
-    logo.setAttribute('aria-hidden', 'true');
-    logo.textContent = n.logo_texto || 'S';
-    logo.title = n.nombre;
-    return logo;
+    return Market.logoIniciales(n);
   },
 
   bloqueIndice(n, grande) {
     const score = document.createElement('div');
     score.className = 'market__card-score' + (grande ? ' market__card-score--detalle' : '');
     const num = document.createElement('strong');
-    const indice = Number(n.indice_transparencia);
-    num.textContent = '★ ' + (Number.isFinite(indice) ? indice.toFixed(1) : '0.0');
     const lbl = document.createElement('span');
     lbl.className = 'market__card-score-lbl';
-    lbl.textContent = ' Índice global';
+    if (n.indice_transparencia == null || n.indice_transparencia === '') {
+      num.textContent = '—';
+      lbl.textContent = ' Sin índice';
+    } else {
+      const indice = Number(n.indice_transparencia);
+      if (!Number.isFinite(indice)) {
+        num.textContent = '—';
+        lbl.textContent = ' Índice inválido';
+      } else if (indice === 0) {
+        num.textContent = '★ 0.0';
+        lbl.textContent = ' Índice 0';
+      } else {
+        num.textContent = '★ ' + indice.toFixed(1);
+        lbl.textContent = ' Índice global';
+      }
+    }
     score.append(num, lbl);
     return score;
   },
@@ -689,7 +732,7 @@ const Market = {
 
   nivelUsuario() {
     const sesion = Auth.getCurrentUser();
-    return sesion && sesion.perfil ? (sesion.perfil.nivel_pasaporte || 1) : 1;
+    return sesion && sesion.perfil ? (sesion.perfil.nivel_reporte || 1) : 1;
   },
 
   etiquetaDe(cat) {

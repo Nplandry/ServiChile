@@ -191,7 +191,7 @@ const ReportePersona = {
       ],
       [
         'Estado de verificación',
-        perfil.estado_pasaporte === 'verificado' ? 'Verificado' : 'Básico'
+        perfil.estado_reporte === 'verificado' ? 'Verificado' : 'Básico'
       ],
       [
         'Teléfono',

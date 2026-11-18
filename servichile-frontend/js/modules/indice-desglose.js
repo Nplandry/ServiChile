@@ -27,7 +27,7 @@ const IndiceDesglose = {
     return Math.round((avg / 10) * 10) / 10;
   },
 
-  factoresIndiceMock(n, rep, indiceValor, verificado) {
+  factoresIndice(n, rep, indiceValor, verificado) {
     const items = IndiceDesglose.factoresDesdeObservables(rep);
     const indice = IndiceDesglose.indiceGlobal(n, rep, indiceValor);
     const pct =
@@ -60,7 +60,7 @@ const IndiceDesglose = {
   },
 
   bloqueDesgloseIndice(n, rep, indiceValor, verificado) {
-    const factores = IndiceDesglose.factoresIndiceMock(n, rep, indiceValor, verificado);
+    const factores = IndiceDesglose.factoresIndice(n, rep, indiceValor, verificado);
     const detalleFactores = factores.filter((f) => f.grupo !== 'resumen');
     const estado = {
       todos: true,
