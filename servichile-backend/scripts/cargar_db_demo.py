@@ -10,7 +10,7 @@ from pathlib import Path
 
 from sqlalchemy import inspect, text
 
-from app.infraestructura.persistencia.modelos import get_engine
+from app.infraestructura.persistencia.modelos import obtener_motor
 
 from scripts.sembrar_negocios import sembrar
 
@@ -57,6 +57,7 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "040_limpia_legacy_metricas_perfil.sql",
     ROOT / "db" / "migrations" / "041_hardening_esquema.sql",
     ROOT / "db" / "migrations" / "042_rename_ciber_a_rater.sql",
+    ROOT / "db" / "migrations" / "043_trabajos_concretados.sql",
 ]
 
 
@@ -115,7 +116,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    engine = get_engine()
+    engine = obtener_motor()
 
     database_url = str(engine.url)
 
@@ -244,7 +245,7 @@ def main() -> None:
     if not _tiene_metricas_rater():
 
         raise SystemExit(
-            "Faltan columnas del rater en business_reputation_metrics "
+            "Faltan columnas del evaluador en business_reputation_metrics "
             "(observables, final_score, rater_escaneado_en). "
             "Aplique migraciones 037, 040 y 042 (o db/init_script.sql en base nueva)."
         )

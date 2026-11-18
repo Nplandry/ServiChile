@@ -8,7 +8,7 @@ Documento de apoyo al informe técnico del backend ServiChile.
 
 ### 1.1 Validadores de entrada (Pydantic)
 
-La capa API define contratos de entrada y salida en `app/api/esquemas.py` con **Pydantic v2**. FastAPI valida automáticamente el cuerpo JSON, query params y path params antes de ejecutar el caso de uso.
+La capa API define contratos de entrada y salida en `app/api/esquemas/` con **Pydantic v2**. FastAPI valida automáticamente el cuerpo JSON, query params y path params antes de ejecutar el caso de uso.
 
 Ejemplos de reglas aplicadas:
 
@@ -17,7 +17,7 @@ Ejemplos de reglas aplicadas:
 3. Patrones (`pattern`) para teléfono.
 4. Validadores custom (`@field_validator`) para normalizar o rechazar valores (p. ej. nombre vacío tras `strip`).
 5. Campos desconocidos en modelos estrictos → **422**.
-6. Uploads (biometría): tipo y tamaño validados en el servicio de pasaporte además del borde HTTP.
+6. Uploads (biometría): tipo y tamaño validados en el servicio de reporte además del borde HTTP.
 
 Si la validación falla, FastAPI responde **422** con `detail` como lista de errores por campo (formato estándar de validación).
 
@@ -44,9 +44,9 @@ Las excepciones de negocio viven en `app/dominio/errores.py` **sin conocer FastA
 | Ámbito | Ejemplos de error de dominio | HTTP típico |
 |---|---|---|
 | Auth | Credenciales inválidas; correo duplicado; contraseña de baja incorrecta | 401 / 409 / 403 |
-| Perfil / pasaporte | RUT inválido; RUT en uso; RUT ya verificado; biometría inválida o muy grande | 422 / 409 / 413 |
+| Perfil / reporte | RUT inválido; RUT en uso; RUT ya verificado; biometría inválida o muy grande | 422 / 409 / 413 |
 | Autorización de cuenta | Solo proveedor puede crear una empresa | 403 (`autorizacion.py`) |
-| Negocios / reservas | No encontrado; ya reclamado; no titular; nivel insuficiente; reserva cerrada | 404 / 409 / 403 |
+| Negocios / trabajos | No encontrado; ya reclamado; no titular; nivel insuficiente; trabajo cerrado | 404 / 409 / 403 |
 | Reporte (QR) | Payload inválido o expirado | 422 |
 
 Principio: **el servicio lanza error de negocio; el router decide el status code**. Así no hay lógica HTTP dentro de la capa de casos de uso.
@@ -74,7 +74,7 @@ Respuesta al exceder: **429** + `Retry-After`. `TRUST_PROXY` solo debe ser `true
 
 ### 2.1 Hashing de contraseñas
 
-El hash vive en `app/infraestructura/seguridad/hasher.py` (**Argon2id**, `argon2-cffi`). El servicio de autenticación solo llama al puerto `HasherContrasena`.
+El hash vive en `app/infraestructura/seguridad/hasheador.py` (**Argon2id**, `argon2-cffi`). El servicio de autenticación solo llama al puerto `HasheadorContrasena`.
 
 1. Al registrar: se guarda solo el hash, nunca la contraseña en claro.
 2. Al login o al borrar cuenta: `verify` contra el hash; fallos de verificación → credenciales inválidas / 403 según el flujo.
@@ -95,7 +95,7 @@ El hash vive en `app/infraestructura/seguridad/hasher.py` (**Argon2id**, `argon2
 
 ### 2.4 Biometría en disco local + metadata
 
-`PasaporteService.procesar_biometria` + `AlmacenamientoBiometriaLocal`:
+`ReporteIdentidadService.procesar_biometria` + `AlmacenamientoBiometriaLocal`:
 
 1. Valida tamaño (máx. 5 MB) y firma de imagen (JPEG/PNG/WebP/GIF).
 2. Comprime a JPEG (~máx. 640 px, calidad configurable), sin EXIF.
@@ -171,9 +171,9 @@ pytest -v
 
 Cobertura representativa en `tests/`:
 
-- `test_autenticacion.py`, `test_cuenta.py`, `test_perfil.py`, `test_pasaporte.py`
+- `test_autenticacion.py`, `test_cuenta.py`, `test_perfil.py`, `test_rut.py`, `test_reporte_estado.py`
 - `test_biometria.py`, `test_progreso_cliente.py`, `test_tipo_cuenta.py`
-- `test_reservas.py`, `test_negocios.py`, `test_ficha_negocio.py`
+- `test_trabajos.py`, `test_negocios.py`, `test_ficha_negocio.py`
 - `test_reporte.py`, `test_reputacion_indice.py`, `test_seguridad.py`
 
 Estas pruebas **no requieren** una instancia activa de PostgreSQL.

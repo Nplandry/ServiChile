@@ -24,12 +24,12 @@ class AlmacenamientoBiometriaLocal:
         raiz: Path,
         *,
         max_lado: int = BIOMETRIA_MAX_LADO_DEFAULT,
-        jpeg_quality: int = BIOMETRIA_JPEG_QUALITY_DEFAULT,
+        calidad_jpeg: int = BIOMETRIA_JPEG_QUALITY_DEFAULT,
     ) -> None:
         self.raiz = Path(raiz)
         self.raiz.mkdir(parents=True, exist_ok=True)
         self.max_lado = max(64, int(max_lado))
-        self.jpeg_quality = min(95, max(40, int(jpeg_quality)))
+        self.calidad_jpeg = min(95, max(40, int(calidad_jpeg)))
 
     def guardar(self, usuario_id: uuid.UUID, contenido: bytes) -> MetaBiometria:
         jpeg, ancho, alto = self._comprimir(contenido)
@@ -95,7 +95,7 @@ class AlmacenamientoBiometriaLocal:
         img.save(
             buf,
             format="JPEG",
-            quality=self.jpeg_quality,
+            quality=self.calidad_jpeg,
             optimize=True,
             progressive=True,
         )

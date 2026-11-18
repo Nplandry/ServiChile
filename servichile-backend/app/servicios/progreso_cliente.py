@@ -11,7 +11,7 @@ from app.dominio.entidades import Usuario
 from app.dominio.puertos import RepositorioXp
 
 
-class XpService:
+class ServicioProgresoCliente:
 
     def __init__(self, xp: RepositorioXp) -> None:
 
@@ -53,10 +53,14 @@ class XpService:
 
         return self.xp.otorgar(usuario_id, reglas.EVENTO_AVAL, reglas.XP_AVAL)
 
-    def por_asistencia(self, usuario_id: uuid.UUID, reserva_id: uuid.UUID) -> int:
+    def por_trabajo_concretado(
+        self, usuario_id: uuid.UUID, trabajo_id: uuid.UUID
+    ) -> int:
 
         return self.xp.otorgar(
-            usuario_id, reglas.evento_asistencia(str(reserva_id)), reglas.XP_ASISTENCIA
+            usuario_id,
+            reglas.evento_trabajo_concretado(str(trabajo_id)),
+            reglas.XP_TRABAJO_CONCRETADO,
         )
 
     def total(self, usuario_id: uuid.UUID) -> int:

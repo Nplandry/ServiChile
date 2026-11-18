@@ -1,12 +1,12 @@
 # Modelo de datos
 
-Fuente: `db/init_script.sql` (esquema vivo). Bases existentes: migraciones `002`–`042` en `db/migrations/`.
+Fuente: `db/init_script.sql` (esquema vivo). Bases existentes: migraciones `002`–`043` en `db/migrations/`.
 
 ```mermaid
 erDiagram
     usuarios ||--o| perfiles : tiene
     usuarios ||--o{ usuario_xp_eventos : acumula
-    usuarios ||--o{ reservas : hace
+    usuarios ||--o{ trabajos : abre
     usuarios ||--o{ business_entities : reclama
     business_entities ||--o| business_reputation_metrics : mide
 
@@ -42,7 +42,7 @@ erDiagram
         jsonb observables
         timestamptz rater_escaneado_en
     }
-    reservas {
+    trabajos {
         uuid id PK
         uuid usuario_id FK
         uuid business_id FK
@@ -72,7 +72,7 @@ El índice público de empresa vive en `observables` + `final_score` (0–10). N
 
 | Archivo | Cambio |
 |---|---|
-| `002`–`004` | Perfiles y pasaporte (RUT) |
+| `002`–`004` | Perfiles y reporte de confianza (RUT) |
 | `017` | Tipos `persona` / `contratista` / `proveedor` |
 | `021` | `rut_empresa` |
 | `031`–`033` | Biometría archivo, cédula, aval |
@@ -83,6 +83,7 @@ El índice público de empresa vive en `observables` + `final_score` (0–10). N
 | `040` | Drop scores legacy, CMF, `preocupacion`/`proposito`, `aval_gemini_usado` |
 | `041` | Índices listado, `final_score` default 0, CHECK+UNIQUE `rut_empresa`, FKs PAdES |
 | `042` | Renombra `observables_ciber`→`observables`, `ciber_escaneado_en`→`rater_escaneado_en` |
+| `043` | Renombra `reservas`→`trabajos` y estados a abierto/concretado/no_concretado/cancelado |
 
 `GET /reputation` expone `docs_empresa` solo con flags públicos (`verificado`, `verificado_en`). El titular ve el detalle completo al subir o vía sus endpoints.
 

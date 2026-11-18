@@ -2,26 +2,36 @@ import uuid
 
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from starlette.concurrency import run_in_threadpool
 
 from app.api.autorizacion import exige_cuenta_proveedor
 
 from app.api.dependencias import (
-    CurrentUserDep,
-    NegocioServiceDep,
-    RateLimiterDep,
+    UsuarioActualDep,
+    ServicioNegocioDep,
+    LimiteSolicitudesDep,
     demasiadas_solicitudes,
 )
+from app.ensamblado.evaluador import encolar_evaluador
 
 from app.api.esquemas import (
-    DocEmpresaOut,
-    NegocioActualizarIn,
-    NegocioCrearIn,
-    NegocioEnMapaOut,
-    NegocioRutIn,
-    NegocioTitularOut,
-    ReputacionOut,
+    DocEmpresaSalida,
+    NegocioActualizarEntrada,
+    NegocioCrearEntrada,
+    NegocioEnMapaSalida,
+    NegocioRutEntrada,
+    NegocioTitularSalida,
+    ReputacionSalida,
 )
 from app.api.mapeos import to_doc_empresa_out
 
@@ -31,7 +41,7 @@ from app.dominio.errores import (
     DocEmpresaMuyGrande,
     NegocioNoEncontrado,
     NoEsTitularDelNegocio,
-    RaterIndisponible,
+    EvaluadorIndisponible,
 )
 
 router = APIRouter(prefix="/v1/businesses", tags=["Negocios"])
@@ -47,9 +57,9 @@ NO_TITULAR = "Solo el titular de la empresa puede realizar esta acción."
 NO_TITULAR_ELIMINAR = "Solo quien creó la empresa puede eliminarla."
 
 
-@router.get("", response_model=list[NegocioEnMapaOut])
+@router.get("", response_model=list[NegocioEnMapaSalida])
 def listar(
-    servicio: NegocioServiceDep,
+    servicio: ServicioNegocioDep,
     categoria: CategoriaQuery = None,
     q: BusquedaQuery = None,
 ):
@@ -57,18 +67,23 @@ def listar(
     return servicio.listar_para_mapa(categoria, q)
 
 
-@router.get("/mias", response_model=list[NegocioTitularOut])
-def listar_mias(usuario: CurrentUserDep, servicio: NegocioServiceDep):
+@router.get("/mias", response_model=list[NegocioTitularSalida])
+def listar_mias(usuario: UsuarioActualDep, servicio: ServicioNegocioDep):
 
     return servicio.listar_mios(usuario.id)
 
 
-@router.post("", response_model=NegocioTitularOut, status_code=status.HTTP_201_CREATED)
-def crear(datos: NegocioCrearIn, usuario: CurrentUserDep, servicio: NegocioServiceDep):
+@router.post("", response_model=NegocioTitularSalida, status_code=status.HTTP_201_CREATED)
+def crear(
+    datos: NegocioCrearEntrada,
+    usuario: UsuarioActualDep,
+    servicio: ServicioNegocioDep,
+    background_tasks: BackgroundTasks,
+):
 
     exige_cuenta_proveedor(usuario)
 
-    return servicio.crear(
+    creado = servicio.crear(
         usuario.id,
         nombre=datos.nombre,
         categoria=datos.categoria,
@@ -80,6 +95,7 @@ def crear(datos: NegocioCrearIn, usuario: CurrentUserDep, servicio: NegocioServi
         logo_url=datos.logo_url,
         rut_empresa=datos.rut_empresa,
     )
+    return encolar_evaluador(background_tasks, creado.id, servicio=servicio) or creado
 
 
 DOCS_EMPRESA_POR_MINUTO = 10
@@ -87,15 +103,15 @@ DOCS_EMPRESA_POR_MINUTO = 10
 
 @router.post(
     "/{business_id}/documentos/{tipo}",
-    response_model=DocEmpresaOut,
+    response_model=DocEmpresaSalida,
     status_code=status.HTTP_201_CREATED,
 )
 async def verificar_doc_empresa(
     business_id: uuid.UUID,
     tipo: str,
-    usuario: CurrentUserDep,
-    servicio: NegocioServiceDep,
-    limiter: RateLimiterDep,
+    usuario: UsuarioActualDep,
+    servicio: ServicioNegocioDep,
+    limiter: LimiteSolicitudesDep,
     archivo: Annotated[
         UploadFile,
         File(
@@ -115,7 +131,7 @@ async def verificar_doc_empresa(
             "Tipo PDF inválido. Documentos Grupo 1/2: "
             + ", ".join(sorted(TIPOS_PDF)),
         )
-    if not limiter.allow(
+    if not limiter.permitir(
         f"docs_empresa:{usuario.id}:{business_id}", DOCS_EMPRESA_POR_MINUTO
     ):
         raise demasiadas_solicitudes()
@@ -152,8 +168,48 @@ async def verificar_doc_empresa(
     )
 
 
-@router.get("/{business_id}/reputation", response_model=ReputacionOut)
-def reputacion(business_id: uuid.UUID, servicio: NegocioServiceDep):
+@router.delete(
+    "/{business_id}/documentos/{tipo}",
+    response_model=DocEmpresaSalida,
+)
+def revocar_doc_empresa(
+    business_id: uuid.UUID,
+    tipo: str,
+    usuario: UsuarioActualDep,
+    servicio: ServicioNegocioDep,
+):
+    """Revoca un documento verificado (el titular debe revalidar subiendo otro PDF)."""
+    exige_cuenta_proveedor(usuario)
+    tipo_norm = (tipo or "").strip().lower()
+    if tipo_norm not in TIPOS_PDF:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Tipo PDF inválido. Documentos Grupo 1/2: "
+            + ", ".join(sorted(TIPOS_PDF)),
+        )
+    try:
+        actualizado = servicio.revocar_doc_empresa(
+            business_id, usuario.id, tipo_norm
+        )
+    except DocEmpresaInvalido as error:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, error.mensaje
+        ) from None
+    except NegocioNoEncontrado:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
+    except NoEsTitularDelNegocio:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Solo el titular de la empresa puede revocar documentos legales.",
+        ) from None
+
+    return to_doc_empresa_out(
+        servicio.respuesta_doc_revocado(actualizado, tipo_norm)
+    )
+
+
+@router.get("/{business_id}/reputation", response_model=ReputacionSalida)
+def reputacion(business_id: uuid.UUID, servicio: ServicioNegocioDep):
 
     try:
 
@@ -164,20 +220,20 @@ def reputacion(business_id: uuid.UUID, servicio: NegocioServiceDep):
         raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
 
 
-RATER_REFRESH_POR_MINUTO = 5
+REFRESCO_EVALUADOR_POR_MINUTO = 5
 
 
-@router.post("/{business_id}/rater-refresh", response_model=ReputacionOut)
-def rater_refresh(
+@router.post("/{business_id}/rater-refresh", response_model=ReputacionSalida)
+def refrescar_evaluador(
     business_id: uuid.UUID,
-    usuario: CurrentUserDep,
-    servicio: NegocioServiceDep,
-    limiter: RateLimiterDep,
+    usuario: UsuarioActualDep,
+    servicio: ServicioNegocioDep,
+    limiter: LimiteSolicitudesDep,
 ):
-    """Re-evalúa Places / crawler / ChileCompra y persiste el índice."""
+    """Re-evalúa Places / rastreador_web / ChileCompra y persiste el índice."""
     exige_cuenta_proveedor(usuario)
-    if not limiter.allow(
-        f"rater_refresh:{usuario.id}:{business_id}", RATER_REFRESH_POR_MINUTO
+    if not limiter.permitir(
+        f"refresco_evaluador:{usuario.id}:{business_id}", REFRESCO_EVALUADOR_POR_MINUTO
     ):
         raise demasiadas_solicitudes()
     try:
@@ -186,22 +242,23 @@ def rater_refresh(
         raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
     except NoEsTitularDelNegocio:
         raise HTTPException(status.HTTP_403_FORBIDDEN, NO_TITULAR) from None
-    except RaterIndisponible as error:
+    except EvaluadorIndisponible as error:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, error.mensaje
         ) from None
 
 
-@router.patch("/{business_id}/rut", response_model=NegocioTitularOut)
+@router.patch("/{business_id}/rut", response_model=NegocioTitularSalida)
 def actualizar_rut(
     business_id: uuid.UUID,
-    datos: NegocioRutIn,
-    usuario: CurrentUserDep,
-    servicio: NegocioServiceDep,
+    datos: NegocioRutEntrada,
+    usuario: UsuarioActualDep,
+    servicio: ServicioNegocioDep,
+    background_tasks: BackgroundTasks,
 ):
     exige_cuenta_proveedor(usuario)
     try:
-        return servicio.actualizar_rut_empresa(
+        titular, pendiente = servicio.actualizar_rut_empresa(
             business_id, usuario.id, datos.rut_empresa
         )
     except DocEmpresaInvalido as error:
@@ -212,18 +269,22 @@ def actualizar_rut(
         raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
     except NoEsTitularDelNegocio:
         raise HTTPException(status.HTTP_403_FORBIDDEN, NO_TITULAR) from None
+    if pendiente:
+        return encolar_evaluador(background_tasks, business_id, servicio=servicio) or titular
+    return titular
 
 
-@router.patch("/{business_id}", response_model=NegocioTitularOut)
+@router.patch("/{business_id}", response_model=NegocioTitularSalida)
 def actualizar(
     business_id: uuid.UUID,
-    datos: NegocioActualizarIn,
-    usuario: CurrentUserDep,
-    servicio: NegocioServiceDep,
+    datos: NegocioActualizarEntrada,
+    usuario: UsuarioActualDep,
+    servicio: ServicioNegocioDep,
+    background_tasks: BackgroundTasks,
 ):
     exige_cuenta_proveedor(usuario)
     try:
-        return servicio.actualizar(
+        titular, pendiente = servicio.actualizar(
             business_id,
             usuario.id,
             nombre=datos.nombre,
@@ -244,11 +305,14 @@ def actualizar(
         raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
     except NoEsTitularDelNegocio:
         raise HTTPException(status.HTTP_403_FORBIDDEN, NO_TITULAR) from None
+    if pendiente:
+        return encolar_evaluador(background_tasks, business_id, servicio=servicio) or titular
+    return titular
 
 
 @router.delete("/{business_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar(
-    business_id: uuid.UUID, usuario: CurrentUserDep, servicio: NegocioServiceDep
+    business_id: uuid.UUID, usuario: UsuarioActualDep, servicio: ServicioNegocioDep
 ):
 
     try:

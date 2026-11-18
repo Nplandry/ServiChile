@@ -32,8 +32,8 @@ def cargar_certificados(pem_path: str) -> tuple:
 
 
 @lru_cache(maxsize=8)
-def obtener_validation_context(pem_path: str):
-    """Contexto offline: sin OCSP/CRL fetch; confianza solo contra el PEM maestro."""
+def obtener_contexto_validacion(pem_path: str):
+    """Contexto offline: sin OCSP/CRL en red; confianza solo contra el PEM maestro."""
     from pyhanko_certvalidator import ValidationContext
 
     roots = list(cargar_certificados(pem_path))
@@ -46,4 +46,4 @@ def obtener_validation_context(pem_path: str):
 
 def invalidar_cache_confianza() -> None:
     cargar_certificados.cache_clear()
-    obtener_validation_context.cache_clear()
+    obtener_contexto_validacion.cache_clear()

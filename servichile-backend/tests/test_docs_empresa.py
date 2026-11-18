@@ -134,7 +134,7 @@ def test_endpoint_doc_empresa_patente(client: TestClient):
     assert body["docs_empresa"]["patente"]["verificado"] is True
     assert body["docs_verificados"] == 1
     assert body["docs_total"] == 11
-    # El ★ público es el índice global del rater, no el % de documentos.
+    # El ★ público es el índice global del evaluador, no el % de documentos.
     assert 0.0 <= float(body["indice_transparencia"]) <= 10.0
     assert 0 <= int(body["indice_pct"]) <= 100
 
@@ -204,4 +204,32 @@ def test_endpoint_inicio_actividades_pades_ok(client: TestClient, vault_pades):
     assert body["verificado_criptograficamente"] is True
     assert body["entidad_emisora"] == "SII"
     assert body["sha256_hash"]
+
+
+def test_endpoint_revocar_doc_empresa(client: TestClient):
+    token, business_id = _crear_proveedor(client)
+    h = {"Authorization": f"Bearer {token}"}
+    pdf = _pdf_texto(_TEXTO_PATENTE)
+    up = client.post(
+        f"/v1/businesses/{business_id}/documentos/patente",
+        headers=h,
+        files={"archivo": ("patente.pdf", pdf, "application/pdf")},
+    )
+    assert up.status_code == 201, up.text
+    assert up.json()["docs_empresa"]["patente"]["vence_en"]
+
+    rev = client.delete(
+        f"/v1/businesses/{business_id}/documentos/patente",
+        headers=h,
+    )
+    assert rev.status_code == 200, rev.text
+    body = rev.json()
+    assert body["verificado"] is False
+    assert "patente" not in (body.get("docs_empresa") or {})
+    assert body["docs_verificados"] == 0
+    assert "revocado" in body["motivo"].lower()
+
+    rep = client.get(f"/v1/businesses/{business_id}/reputation")
+    assert rep.status_code == 200
+    assert "patente" not in (rep.json().get("docs_empresa") or {})
 

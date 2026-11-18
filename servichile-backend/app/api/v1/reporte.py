@@ -1,13 +1,13 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencias import (
-    CurrentUserDep,
-    RateLimiterDep,
-    ReporteServiceDep,
+    UsuarioActualDep,
+    LimiteSolicitudesDep,
+    ServicioReporteDep,
     demasiadas_solicitudes,
 )
 
-from app.api.esquemas import ReporteOut, ReporteValidacionOut, ReporteValidarIn
+from app.api.esquemas import ReporteSalida, ReporteValidacionSalida, ReporteValidarEntrada
 
 from app.dominio.errores import ReporteInvalido
 
@@ -16,20 +16,20 @@ router = APIRouter(prefix="/v1/reporte", tags=["Reporte"])
 VALIDAR_POR_MINUTO = 30
 
 
-@router.get("", response_model=ReporteOut)
-def emitir_reporte(usuario: CurrentUserDep, servicio: ReporteServiceDep):
+@router.get("", response_model=ReporteSalida)
+def emitir_reporte(usuario: UsuarioActualDep, servicio: ServicioReporteDep):
 
     emitido = servicio.emitir(usuario)
 
-    return ReporteOut(
+    return ReporteSalida(
         payload=emitido.payload,
         token=emitido.token,
         expires_in=emitido.expires_in,
         expires_at=emitido.expires_at,
         nombre=emitido.nombre,
         email=emitido.email,
-        nivel_pasaporte=emitido.nivel_pasaporte,
-        estado_pasaporte=emitido.estado_pasaporte,
+        nivel_reporte=emitido.nivel_reporte,
+        estado_reporte=emitido.estado_reporte,
         score_confiabilidad=emitido.score_confiabilidad,
         rut_verificado=emitido.rut_verificado,
         xp=emitido.xp,
@@ -40,15 +40,15 @@ def emitir_reporte(usuario: CurrentUserDep, servicio: ReporteServiceDep):
     )
 
 
-@router.post("/validar", response_model=ReporteValidacionOut)
+@router.post("/validar", response_model=ReporteValidacionSalida)
 def validar_reporte(
-    datos: ReporteValidarIn,
-    usuario: CurrentUserDep,
-    servicio: ReporteServiceDep,
-    limiter: RateLimiterDep,
+    datos: ReporteValidarEntrada,
+    usuario: UsuarioActualDep,
+    servicio: ServicioReporteDep,
+    limiter: LimiteSolicitudesDep,
 ):
 
-    if not limiter.allow(f"reporte-validar:{usuario.id}", VALIDAR_POR_MINUTO):
+    if not limiter.permitir(f"reporte-validar:{usuario.id}", VALIDAR_POR_MINUTO):
 
         raise demasiadas_solicitudes()
 
@@ -62,11 +62,11 @@ def validar_reporte(
             status.HTTP_422_UNPROCESSABLE_CONTENT, error.mensaje
         ) from None
 
-    return ReporteValidacionOut(
+    return ReporteValidacionSalida(
         es_propio=validado.es_propio,
         nombre=validado.nombre,
-        nivel_pasaporte=validado.nivel_pasaporte,
-        estado_pasaporte=validado.estado_pasaporte,
+        nivel_reporte=validado.nivel_reporte,
+        estado_reporte=validado.estado_reporte,
         score_confiabilidad=validado.score_confiabilidad,
         rut_verificado=validado.rut_verificado,
         expires_at=validado.expires_at,

@@ -1,8 +1,8 @@
-"""Valores fijos cuando no hay API key, modo muestra o APP_ENV=test."""
+"""Valores fijos temporales para Places/ChileCompra sin API key (y APP_ENV=test)."""
 
 from __future__ import annotations
 
-# Scores 0–100 estables para demos/tests (no inventan datos reales de APIs).
+# Scores 0–100 estables mientras falta key o en tests.
 HINTS_FIJOS: dict[str, float] = {
     "cyb_https": 100.0,
     "cyb_hsts": 70.0,

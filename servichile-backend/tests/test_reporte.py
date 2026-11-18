@@ -4,7 +4,7 @@ import jwt
 
 from fastapi.testclient import TestClient
 
-from app.configuracion import get_settings
+from app.configuracion import obtener_configuracion
 
 
 def _cuenta(
@@ -52,9 +52,9 @@ def test_emitir_reporte_devuelve_payload_firmado(client: TestClient, token: str)
 
     assert body["email"].lower() == "maria@servichile.cl"
 
-    assert body["nivel_pasaporte"] in (1, 2)
+    assert body["nivel_reporte"] in (1, 2)
 
-    assert body["estado_pasaporte"] in (
+    assert body["estado_reporte"] in (
         "basico",
         "pendiente",
         "verificado",
@@ -88,7 +88,7 @@ def test_validar_qr_de_otro_usuario(client: TestClient, token: str):
 
     assert "rut" not in body
 
-    assert body["nivel_pasaporte"] in (1, 2)
+    assert body["nivel_reporte"] in (1, 2)
 
     assert body["tipo_cuenta"] == "persona"
 
@@ -204,7 +204,7 @@ def test_token_de_sesion_no_sirve_como_reporte(client: TestClient, token: str):
 
 def test_qr_expirado_da_422(client: TestClient, token: str):
 
-    settings = get_settings()
+    settings = obtener_configuracion()
 
     yo = client.get("/v1/auth/yo", headers={"Authorization": f"Bearer {token}"}).json()
 

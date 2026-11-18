@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.api.esquemas.comunes import TipoCuenta
 
 
-class ReporteOut(BaseModel):
+class ReporteSalida(BaseModel):
 
     payload: str
 
@@ -24,9 +24,9 @@ class ReporteOut(BaseModel):
 
     email: EmailStr
 
-    nivel_pasaporte: Literal[1] = 1
+    nivel_reporte: Literal[1] = 1
 
-    estado_pasaporte: Literal["basico", "pendiente", "verificado", "rechazado"]
+    estado_reporte: Literal["basico", "pendiente", "verificado", "rechazado"]
 
     score_confiabilidad: float | None = None
 
@@ -43,22 +43,22 @@ class ReporteOut(BaseModel):
     antecedentes_anotaciones: bool | None = None
 
 
-class ReporteValidarIn(BaseModel):
+class ReporteValidarEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
     payload: str = Field(min_length=10, max_length=2048)
 
 
-class ReporteValidacionOut(BaseModel):
+class ReporteValidacionSalida(BaseModel):
 
     es_propio: bool
 
     nombre: str
 
-    nivel_pasaporte: Literal[1] = 1
+    nivel_reporte: Literal[1] = 1
 
-    estado_pasaporte: Literal["basico", "pendiente", "verificado", "rechazado"]
+    estado_reporte: Literal["basico", "pendiente", "verificado", "rechazado"]
 
     score_confiabilidad: float | None = None
 

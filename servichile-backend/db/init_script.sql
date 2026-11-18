@@ -119,12 +119,12 @@ CREATE TABLE business_reputation_metrics (
     actualizado_en       timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE reservas (
+CREATE TABLE trabajos (
     id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id     uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     business_id    uuid NOT NULL REFERENCES business_entities(id) ON DELETE CASCADE,
-    estado         varchar(20) NOT NULL DEFAULT 'reservada'
-                     CHECK (estado IN ('reservada', 'asistido', 'no_show', 'cancelada')),
+    estado         varchar(20) NOT NULL DEFAULT 'abierto'
+                     CHECK (estado IN ('abierto', 'concretado', 'no_concretado', 'cancelado')),
     qr_token       varchar(64) NOT NULL UNIQUE,
     creado_en      timestamptz NOT NULL DEFAULT now(),
     actualizado_en timestamptz NOT NULL DEFAULT now()
@@ -143,7 +143,7 @@ CREATE INDEX idx_pades_hashes_business ON pades_document_hashes (business_id);
 
 CREATE INDEX business_entities_categoria_nombre_idx ON business_entities (categoria, nombre);
 CREATE INDEX business_entities_reclamado_por_idx ON business_entities (reclamado_por);
-CREATE INDEX reservas_usuario_idx ON reservas (usuario_id, creado_en DESC);
-CREATE INDEX reservas_negocio_idx ON reservas (business_id);
+CREATE INDEX trabajos_usuario_idx ON trabajos (usuario_id, creado_en DESC);
+CREATE INDEX trabajos_negocio_idx ON trabajos (business_id);
 
 COMMIT;

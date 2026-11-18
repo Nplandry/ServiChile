@@ -1,8 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from app.dominio.biometria import (
@@ -17,7 +17,7 @@ from app.dominio.cedula import (
 )
 
 
-class Settings(BaseSettings):
+class Configuracion(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
@@ -37,7 +37,8 @@ class Settings(BaseSettings):
 
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5500"]
 
-    rut_verifier: Literal["muestra"] = "muestra"
+    # Se deriva al cargar (no configurar en .env salvo override de depuración).
+    rut_verifier: Literal["muestra", "estricto", "chilecompra"] = "estricto"
 
     redis_url: str | None = None
 
@@ -84,22 +85,14 @@ class Settings(BaseSettings):
     # PAdES: bóveda CA Chile (pem maestro). En tests se puede apuntar a un PEM temporal.
     pades_ca_pem: str = "app/infraestructura/certs/ca_chile.pem"
 
-    # Rater empresa (Places + ChileCompra + crawler). En test → scores fijos.
-    # Places/ChileCompra: sin key/ticket → muestra; con key/ticket → produccion.
-    rater_mode: Literal["muestra", "produccion"] = "muestra"
-    rater_budget_seconds: float = Field(default=2.0, ge=0.5, le=30.0)
-    # Refresco en background (minutos). 0 = desactivado. En APP_ENV=test no arranca.
+    # Evaluador fijo en producción: sin GOOGLE_PLACES_API_KEY / CHILECOMPRA_TICKET
+    # se simulan solo esas fuentes (HINTS_FIJOS). El rastreador_web no requiere key.
+    # 4s: rastreador_web (home + rutas legales) + Places + ChileCompra en paralelo.
+    rater_budget_seconds: float = Field(default=4.0, ge=0.5, le=30.0)
+    # Refresco en segundo plano (minutos). 0 = desactivado. En APP_ENV=test no arranca.
     rater_refresh_minutes: float = Field(default=30.0, ge=0.0, le=24 * 60)
     chilecompra_ticket: str = ""
     google_places_api_key: str = ""
-
-    @property
-    def chilecompra_mode(self) -> Literal["muestra", "produccion"]:
-        return "produccion" if (self.chilecompra_ticket or "").strip() else "muestra"
-
-    @property
-    def places_mode(self) -> Literal["muestra", "produccion"]:
-        return "produccion" if (self.google_places_api_key or "").strip() else "muestra"
 
     def pades_ca_ruta(self) -> Path:
         ruta = Path(self.pades_ca_pem)
@@ -123,8 +116,19 @@ class Settings(BaseSettings):
 
         return value
 
+    @model_validator(mode="after")
+    def _derivar_rut_verifier(self) -> Self:
+        """test→muestra; con ticket ChileCompra→chilecompra; si no→estricto."""
+        if self.app_env == "test":
+            self.rut_verifier = "muestra"
+        elif (self.chilecompra_ticket or "").strip():
+            self.rut_verifier = "chilecompra"
+        else:
+            self.rut_verifier = "estricto"
+        return self
+
 
 @lru_cache
-def get_settings() -> Settings:
+def obtener_configuracion() -> Configuracion:
 
-    return Settings()
+    return Configuracion()

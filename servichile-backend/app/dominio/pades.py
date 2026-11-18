@@ -432,7 +432,7 @@ def rut_coincide_con_empresa(texto: str, rut_empresa: str | None) -> str | None:
         return None
     if not rut_empresa:
         return ruts[0]
-    from app.dominio.pasaporte import RutInvalido, normalizar_rut
+    from app.dominio.rut import RutInvalido, normalizar_rut
 
     try:
         perfil = normalizar_rut(rut_empresa)

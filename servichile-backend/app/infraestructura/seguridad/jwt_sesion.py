@@ -30,12 +30,12 @@ class JwtSesion:
 
     def sujeto(self, token: str) -> uuid.UUID:
         try:
-            payload = jwt.decode(
+            datos = jwt.decode(
                 token,
                 self.secreto,
                 algorithms=[_ALGORITHM],
                 options={"require": ["sub", "exp"]},
             )
-            return uuid.UUID(payload["sub"])
+            return uuid.UUID(datos["sub"])
         except (jwt.PyJWTError, ValueError, TypeError) as error:
             raise ValueError("token de sesión inválido") from error

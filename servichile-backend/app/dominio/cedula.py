@@ -7,7 +7,7 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
-from app.dominio.pasaporte import RutInvalido, normalizar_rut
+from app.dominio.rut import RutInvalido, normalizar_rut
 
 CEDULA_MAX_BYTES = 8 * 1024 * 1024
 CEDULA_MAX_LADO_DEFAULT = 1600

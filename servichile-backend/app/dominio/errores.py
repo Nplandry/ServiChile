@@ -6,11 +6,11 @@ class NoEsTitularDelNegocio(Exception):
     pass
 
 
-class ReservaNoEncontrada(Exception):
+class TrabajoNoEncontrado(Exception):
     pass
 
 
-class ReservaYaCerrada(Exception):
+class TrabajoYaCerrado(Exception):
     pass
 
 
@@ -37,65 +37,65 @@ class ReporteInvalido(Exception):
         self.mensaje = mensaje
 
 
-class PasaporteError(Exception):
+class ReporteError(Exception):
     def __init__(self, mensaje: str) -> None:
         super().__init__(mensaje)
         self.mensaje = mensaje
 
 
-class RutRechazado(PasaporteError):
+class RutRechazado(ReporteError):
     pass
 
 
-class RutEnUso(PasaporteError):
+class RutEnUso(ReporteError):
     pass
 
 
-class RutYaVerificado(PasaporteError):
+class RutYaVerificado(ReporteError):
     pass
 
 
-class BiometriaInvalida(PasaporteError):
+class BiometriaInvalida(ReporteError):
     pass
 
 
-class BiometriaMuyGrande(PasaporteError):
+class BiometriaMuyGrande(ReporteError):
     pass
 
 
-class AntecedentesInvalido(PasaporteError):
+class AntecedentesInvalido(ReporteError):
     pass
 
 
-class AntecedentesMuyGrande(PasaporteError):
+class AntecedentesMuyGrande(ReporteError):
     pass
 
 
-class CedulaInvalida(PasaporteError):
+class CedulaInvalida(ReporteError):
     pass
 
 
-class CedulaMuyGrande(PasaporteError):
+class CedulaMuyGrande(ReporteError):
     pass
 
 
-class AvalInvalido(PasaporteError):
+class AvalInvalido(ReporteError):
     pass
 
 
-class AvalMuyGrande(PasaporteError):
+class AvalMuyGrande(ReporteError):
     pass
 
 
-class DocEmpresaInvalido(PasaporteError):
+class DocEmpresaInvalido(ReporteError):
     pass
 
 
-class DocEmpresaMuyGrande(PasaporteError):
+class DocEmpresaMuyGrande(ReporteError):
     pass
 
 
-class RaterIndisponible(Exception):
+class EvaluadorIndisponible(Exception):
     def __init__(
         self, mensaje: str = "No se pudo refrescar el índice de señales."
     ) -> None:

@@ -30,7 +30,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
-from app.configuracion import get_settings
+from app.configuracion import obtener_configuracion
 
 from app.tiempo import ahora_utc
 
@@ -180,7 +180,7 @@ class Perfil(Base):
     usuario: Mapped[Usuario] = relationship(back_populates="perfil")
 
 
-class BusinessEntity(Base):
+class EntidadNegocio(Base):
 
     __tablename__ = "business_entities"
 
@@ -222,7 +222,7 @@ class BusinessEntity(Base):
 
     creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
 
-    metricas: Mapped["BusinessReputationMetrics | None"] = relationship(
+    metricas: Mapped["MetricasReputacionNegocio | None"] = relationship(
         back_populates="negocio",
         uselist=False,
         cascade="all, delete-orphan",
@@ -230,7 +230,7 @@ class BusinessEntity(Base):
     )
 
 
-class BusinessReputationMetrics(Base):
+class MetricasReputacionNegocio(Base):
 
     __tablename__ = "business_reputation_metrics"
 
@@ -252,12 +252,12 @@ class BusinessReputationMetrics(Base):
         default=ahora_utc, onupdate=ahora_utc
     )
 
-    negocio: Mapped[BusinessEntity] = relationship(back_populates="metricas")
+    negocio: Mapped[EntidadNegocio] = relationship(back_populates="metricas")
 
 
-class Reserva(Base):
+class Trabajo(Base):
 
-    __tablename__ = "reservas"
+    __tablename__ = "trabajos"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
 
@@ -269,7 +269,7 @@ class Reserva(Base):
         ForeignKey("business_entities.id", ondelete="CASCADE")
     )
 
-    estado: Mapped[str] = mapped_column(String(20), default="reservada")
+    estado: Mapped[str] = mapped_column(String(20), default="abierto")
 
     qr_token: Mapped[str] = mapped_column(String(64), unique=True)
 
@@ -280,7 +280,7 @@ class Reserva(Base):
     )
 
 
-class PadesDocumentHash(Base):
+class HashDocumentoPades(Base):
     __tablename__ = "pades_document_hashes"
 
     sha256: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -296,10 +296,10 @@ class PadesDocumentHash(Base):
 
 
 @lru_cache
-def get_engine() -> Engine:
+def obtener_motor() -> Engine:
 
     return create_engine(
-        get_settings().database_url,
+        obtener_configuracion().database_url,
         pool_pre_ping=True,
         pool_size=5,
         max_overflow=10,
@@ -307,14 +307,14 @@ def get_engine() -> Engine:
 
 
 @lru_cache
-def get_sessionmaker() -> sessionmaker[Session]:
+def obtener_sessionmaker() -> sessionmaker[Session]:
 
-    return sessionmaker(bind=get_engine(), expire_on_commit=False)
+    return sessionmaker(bind=obtener_motor(), expire_on_commit=False)
 
 
-def get_session() -> Iterator[Session]:
+def obtener_sesion() -> Iterator[Session]:
 
-    session = get_sessionmaker()()
+    session = obtener_sessionmaker()()
 
     try:
 

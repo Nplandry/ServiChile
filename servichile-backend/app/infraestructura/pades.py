@@ -12,7 +12,7 @@ from app.dominio.pades import (
     sha256_hex,
 )
 from app.infraestructura.trust_vault import (
-    obtener_validation_context,
+    obtener_contexto_validacion,
     ruta_ca_default,
 )
 
@@ -98,7 +98,7 @@ def verificar_firma_pades(
 
     pem = ca_pem_path or str(ruta_ca_default())
     try:
-        vc = obtener_validation_context(pem)
+        vc = obtener_contexto_validacion(pem)
     except Exception as error:
         logger.exception("No se pudo cargar bóveda CA: %s", error)
         return ResultadoPades(

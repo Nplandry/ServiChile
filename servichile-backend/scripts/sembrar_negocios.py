@@ -10,9 +10,13 @@ from sqlalchemy.orm import sessionmaker
 
 from app.dominio.ficha_negocio import IMAGEN_POR_CATEGORIA
 
-from app.dominio.transparencia.rating import calcular_indice
+from app.dominio.transparencia.valoracion import calcular_indice
 
-from app.infraestructura.persistencia.modelos import BusinessEntity, BusinessReputationMetrics, get_engine
+from app.infraestructura.persistencia.modelos import (
+    EntidadNegocio,
+    MetricasReputacionNegocio,
+    obtener_motor,
+)
 
 from app.tiempo import ahora_utc
 
@@ -225,7 +229,7 @@ def _indice(n: dict) -> float:
     return calcular_indice(docs=None)
 
 
-def _aplicar_negocio(negocio: BusinessEntity, n: dict) -> None:
+def _aplicar_negocio(negocio: EntidadNegocio, n: dict) -> None:
 
     negocio.nombre = n["nombre"]
 
@@ -246,11 +250,11 @@ def _aplicar_negocio(negocio: BusinessEntity, n: dict) -> None:
     negocio.requiere_nivel = n["requiere_nivel"]
 
 
-def _aplicar_metricas(negocio: BusinessEntity, n: dict) -> None:
+def _aplicar_metricas(negocio: EntidadNegocio, n: dict) -> None:
 
     if negocio.metricas is None:
 
-        negocio.metricas = BusinessReputationMetrics(business_id=negocio.id)
+        negocio.metricas = MetricasReputacionNegocio(business_id=negocio.id)
 
     negocio.metricas.google_rating_avg = n["google_rating_avg"]
 
@@ -292,7 +296,7 @@ def _verificar_esquema(engine) -> None:
 
 def sembrar(reset: bool, purge_all: bool = False) -> None:
 
-    engine = get_engine()
+    engine = obtener_motor()
 
     _verificar_esquema(engine)
 
@@ -313,7 +317,7 @@ def sembrar(reset: bool, purge_all: bool = False) -> None:
         if reset and (not purge_all):
 
             for negocio in session.scalars(
-                select(BusinessEntity).where(BusinessEntity.external_ref.in_(refs))
+                select(EntidadNegocio).where(EntidadNegocio.external_ref.in_(refs))
             ):
 
                 session.delete(negocio)
@@ -323,7 +327,7 @@ def sembrar(reset: bool, purge_all: bool = False) -> None:
         existentes = {
             row.external_ref: row
             for row in session.scalars(
-                select(BusinessEntity).where(BusinessEntity.external_ref.in_(refs))
+                select(EntidadNegocio).where(EntidadNegocio.external_ref.in_(refs))
             )
         }
 
@@ -337,7 +341,7 @@ def sembrar(reset: bool, purge_all: bool = False) -> None:
 
             if actual is None:
 
-                negocio = BusinessEntity(external_ref=n["external_ref"])
+                negocio = EntidadNegocio(external_ref=n["external_ref"])
 
                 _aplicar_negocio(negocio, n)
 

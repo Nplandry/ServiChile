@@ -27,7 +27,7 @@ def _registrar(
     return {"Authorization": f"Bearer {t['access_token']}"}
 
 
-def test_perfil_nuevo_es_pasaporte_nivel_1_basico(client: TestClient):
+def test_perfil_nuevo_es_reporte_nivel_1_basico(client: TestClient):
 
     h = _registrar(client, perfil={"edad": 68})
 
@@ -39,9 +39,9 @@ def test_perfil_nuevo_es_pasaporte_nivel_1_basico(client: TestClient):
 
     assert cuerpo["telefono"] is None
 
-    assert cuerpo["nivel_pasaporte"] == 1
+    assert cuerpo["nivel_reporte"] == 1
 
-    assert cuerpo["estado_pasaporte"] == "basico"
+    assert cuerpo["estado_reporte"] == "basico"
 
     assert cuerpo["score_confiabilidad"] is None
 
@@ -252,15 +252,15 @@ def test_perfil_es_privado(client: TestClient):
     assert client.get("/v1/perfil", headers=h1).json()["edad"] == 70
 
 
-def test_yo_incluye_el_pasaporte(client: TestClient):
+def test_yo_incluye_el_reporte(client: TestClient):
 
     h = _registrar(client, perfil={"edad": 70})
 
     cuerpo = client.get("/v1/auth/yo", headers=h).json()
 
-    assert cuerpo["perfil"]["nivel_pasaporte"] == 1
+    assert cuerpo["perfil"]["nivel_reporte"] == 1
 
-    assert cuerpo["perfil"]["estado_pasaporte"] == "basico"
+    assert cuerpo["perfil"]["estado_reporte"] == "basico"
 
     assert "password_hash" not in cuerpo
 

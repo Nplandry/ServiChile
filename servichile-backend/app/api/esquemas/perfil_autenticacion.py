@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.api.esquemas.comunes import TipoCuenta, _NOMBRE_OK, telefono_opcional
 
-class PerfilIn(BaseModel):
+class PerfilEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
@@ -29,7 +29,7 @@ class PerfilIn(BaseModel):
         return telefono_opcional(value)
 
 
-class PerfilRegistroIn(BaseModel):
+class PerfilRegistroEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
@@ -38,7 +38,7 @@ class PerfilRegistroIn(BaseModel):
     edad: int | None = Field(default=None, ge=14, le=120)
 
 
-class PerfilOut(BaseModel):
+class PerfilSalida(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -46,9 +46,9 @@ class PerfilOut(BaseModel):
 
     telefono: str | None = None
 
-    nivel_pasaporte: Literal[1] = 1
+    nivel_reporte: Literal[1] = 1
 
-    estado_pasaporte: Literal["basico", "pendiente", "verificado", "rechazado"] = (
+    estado_reporte: Literal["basico", "pendiente", "verificado", "rechazado"] = (
         "basico"
     )
 
@@ -97,7 +97,7 @@ class PerfilOut(BaseModel):
     tipo_cuenta: TipoCuenta | None = None
 
 
-class BiometriaOut(BaseModel):
+class BiometriaSalida(BaseModel):
 
     biometria_verificada: bool
 
@@ -117,7 +117,7 @@ class BiometriaOut(BaseModel):
     )
 
 
-class CedulaOut(BaseModel):
+class CedulaSalida(BaseModel):
 
     cedula_verificada: bool
 
@@ -144,7 +144,7 @@ class CedulaOut(BaseModel):
     )
 
 
-class AntecedentesOut(BaseModel):
+class AntecedentesSalida(BaseModel):
 
     antecedentes_verificados: bool
 
@@ -173,7 +173,7 @@ class AntecedentesOut(BaseModel):
     motivo: str = "Certificado de antecedentes validado. El PDF no se almacenó."
 
 
-class AvalOut(BaseModel):
+class AvalSalida(BaseModel):
 
     aval_verificado: bool
 
@@ -192,7 +192,7 @@ class AvalOut(BaseModel):
     motivo: str = "Aval/garantía validado. El PDF no se almacenó."
 
 
-class RegistroIn(BaseModel):
+class RegistroEntrada(BaseModel):
 
     email: EmailStr
 
@@ -200,7 +200,7 @@ class RegistroIn(BaseModel):
 
     password: str = Field(min_length=8, max_length=128)
 
-    perfil: PerfilRegistroIn
+    perfil: PerfilRegistroEntrada
 
     @field_validator("nombre")
     @classmethod
@@ -227,14 +227,14 @@ class RegistroIn(BaseModel):
         return str(value).strip().lower()
 
 
-class LoginIn(BaseModel):
+class LoginEntrada(BaseModel):
 
     email: EmailStr
 
     password: str = Field(min_length=1, max_length=128)
 
 
-class TokenOut(BaseModel):
+class TokenSalida(BaseModel):
 
     access_token: str
 
@@ -243,7 +243,7 @@ class TokenOut(BaseModel):
     expires_in: int
 
 
-class UsuarioOut(BaseModel):
+class UsuarioSalida(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -255,12 +255,12 @@ class UsuarioOut(BaseModel):
 
     creado_en: datetime
 
-    perfil: PerfilOut = Field(default_factory=PerfilOut)
+    perfil: PerfilSalida = Field(default_factory=PerfilSalida)
 
     @field_validator("perfil", mode="before")
     @classmethod
     def _perfil_vacio(cls, value: object) -> object:
 
-        return PerfilOut() if value is None else value
+        return PerfilSalida() if value is None else value
 
 

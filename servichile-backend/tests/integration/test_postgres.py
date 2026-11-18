@@ -14,9 +14,9 @@ from sqlalchemy.orm import sessionmaker
 
 from app.api import dependencias
 
-from app.infraestructura.persistencia.modelos import get_session
+from app.infraestructura.persistencia.modelos import obtener_sesion
 
-from app.infraestructura.limite_solicitudes import MemoryRateLimiter
+from app.infraestructura.limite_solicitudes import LimiteSolicitudesMemoria
 
 from app.principal import app
 
@@ -27,7 +27,7 @@ pytestmark = pytest.mark.skipif(not URL, reason="TEST_DATABASE_URL no definido")
 INIT_SQL = pathlib.Path(__file__).resolve().parents[2] / "db" / "init_script.sql"
 
 TABLAS = (
-    "reservas",
+    "trabajos",
     "business_reputation_metrics",
     "business_entities",
     "usuario_xp_eventos",
@@ -93,11 +93,11 @@ def client(db):
 
             yield s
 
-    limiter = MemoryRateLimiter()
+    limiter = LimiteSolicitudesMemoria()
 
-    app.dependency_overrides[get_session] = _session
+    app.dependency_overrides[obtener_sesion] = _session
 
-    app.dependency_overrides[dependencias.get_rate_limiter] = lambda: limiter
+    app.dependency_overrides[dependencias.obtener_limite_solicitudes] = lambda: limiter
 
     with TestClient(app) as c:
 
