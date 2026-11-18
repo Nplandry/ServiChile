@@ -24,12 +24,12 @@ class AlmacenamientoCedulaLocal:
         raiz: Path,
         *,
         max_lado: int = CEDULA_MAX_LADO_DEFAULT,
-        jpeg_quality: int = CEDULA_JPEG_QUALITY_DEFAULT,
+        calidad_jpeg: int = CEDULA_JPEG_QUALITY_DEFAULT,
     ) -> None:
         self.raiz = Path(raiz)
         self.raiz.mkdir(parents=True, exist_ok=True)
         self.max_lado = max(400, int(max_lado))
-        self.jpeg_quality = min(95, max(50, int(jpeg_quality)))
+        self.calidad_jpeg = min(95, max(50, int(calidad_jpeg)))
 
     def preparar_en_memoria(self, contenido: bytes) -> tuple[bytes, MetaCedula]:
         """Comprime sin tocar disco (flujo zero-retention)."""
@@ -98,7 +98,7 @@ class AlmacenamientoCedulaLocal:
         img.save(
             buf,
             format="JPEG",
-            quality=self.jpeg_quality,
+            quality=self.calidad_jpeg,
             optimize=True,
         )
         data = buf.getvalue()

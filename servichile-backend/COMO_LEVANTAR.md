@@ -28,7 +28,7 @@ python -m scripts.cargar_db_demo
 uvicorn app.principal:app --reload
 ```
 
-`init_script.sql` incluye el esquema completo (usuarios/pasaporte, marketplace, métricas rater, docs_empresa, PAdES). Bases existentes: migraciones hasta `042`.  
+`init_script.sql` incluye el esquema completo (usuarios/reporte, marketplace, métricas rater, docs_empresa, PAdES). Bases existentes: migraciones hasta `043`.  
 `cargar_db_demo` siembra/actualiza los 6 negocios `seed:*` (fotos Unsplash, índices, niveles) y aplica migraciones pendientes (incl. biometría, XP y 041–042).
 
 Biometría: `POST /v1/perfil/biometria` con foto; JPEG comprimido en `BIOMETRIA_DIR` (`var/biometria/`) + metadata en Postgres. No se sirve al público; se borra al eliminar la cuenta.
@@ -44,14 +44,15 @@ Bóveda: `app/infraestructura/certs/ca_chile.pem`. Migraciones: `034`, `035`, `0
 
 Antecedentes (persona): PDF textual + PAdES confiable (CA Chile). Anti-replay por `sha256`.
 
-Rater empresa (`observables` en reputation; **no** se calcula en vivo en el GET):
-- Se ejecuta al **crear** la empresa (y al guardar/actualizar RUT) y se refresca en background cada `RATER_REFRESH_MINUTES` (default 30).
-- Fuentes: crawler del `sitio_web` (cabeceras), Google Places, ChileCompra (RUT).
-- Sin dirección / teléfono / RUT / sitio en la ficha → esos indicadores quedan en **0**.
-- `RATER_MODE=muestra` / `APP_ENV=test` → valores fijos (no llama APIs). En `test` el loop background no arranca.
-- Places: `GOOGLE_PLACES_API_KEY` vacío → muestra; con key → produccion.
-- ChileCompra: `CHILECOMPRA_TICKET` vacío → muestra; con ticket → produccion.
-- Migraciones: `037` (JSON observables) + `042` (renombre a `observables` / `rater_escaneado_en`).
+Evaluador de empresa (`observables` en reputation; **no** se calcula en vivo en el GET):
+- Al **crear** / **actualizar** ficha o RUT: responde altiro (`rater_listo=false`); el índice corre en background. El loop cada `RATER_REFRESH_MINUTES` (default 30) prioriza pendientes sin `rater_escaneado_en`.
+- El FE / clientes deben usar `rater_listo` y no mostrar ★ hasta que sea true (o `POST .../rater-refresh`).
+- Fuentes: `rastreador_web` del `sitio_web`, Google Places (nombre y/o dominio), ChileCompra (RUT).
+- Sin dirección / teléfono / RUT / sitio → esos indicadores medidos quedan en **0**; si el rastreador falla no se pisan señales previas.
+- Places: sin `GOOGLE_PLACES_API_KEY` → simula; con key → red (+ caché local ante 429).
+- ChileCompra: sin ticket → simula; con ticket → red. `RUT_VERIFIER` se deriva (no va en `.env`).
+- `APP_ENV=test` → evaluador síncrono en el request; fijos en rastreador; sin loop background.
+- Migraciones: `037` (JSON observables) + `042` (`observables` / `rater_escaneado_en`).
 
 ### Base ya existente (solo migrar + seed)
 

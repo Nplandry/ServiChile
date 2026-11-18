@@ -1,22 +1,22 @@
 """Pasa entidades del dominio a las respuestas JSON de la API."""
 
 from app.api.esquemas import (
-    DocEmpresaMetaOut,
-    DocEmpresaOut,
-    PerfilOut,
-    UsuarioOut,
+    DocEmpresaMetaSalida,
+    DocEmpresaSalida,
+    PerfilSalida,
+    UsuarioSalida,
 )
 
-from app.dominio.entidades import DocEmpresaVerificado, EstadoPasaporte, Usuario
+from app.dominio.entidades import DocEmpresaVerificado, EstadoReporte, Usuario
 
 
-def to_perfil_out(estado: EstadoPasaporte) -> PerfilOut:
+def to_perfil_out(estado: EstadoReporte) -> PerfilSalida:
 
-    return PerfilOut(
+    return PerfilSalida(
         rut_verificado=estado.rut_verificado,
         telefono=estado.telefono,
-        nivel_pasaporte=estado.nivel_pasaporte,
-        estado_pasaporte=estado.estado_pasaporte,
+        nivel_reporte=estado.nivel_reporte,
+        estado_reporte=estado.estado_reporte,
         score_confiabilidad=estado.score_confiabilidad,
         biometria_verificada=estado.biometria_verificada,
         biometria_verificada_en=estado.biometria_verificada_en,
@@ -42,9 +42,9 @@ def to_perfil_out(estado: EstadoPasaporte) -> PerfilOut:
     )
 
 
-def to_usuario_out(usuario: Usuario, estado: EstadoPasaporte) -> UsuarioOut:
+def to_usuario_out(usuario: Usuario, estado: EstadoReporte) -> UsuarioSalida:
 
-    return UsuarioOut(
+    return UsuarioSalida(
         id=usuario.id,
         email=usuario.email,
         nombre=usuario.nombre,
@@ -53,14 +53,14 @@ def to_usuario_out(usuario: Usuario, estado: EstadoPasaporte) -> UsuarioOut:
     )
 
 
-def to_doc_empresa_out(resultado: DocEmpresaVerificado) -> DocEmpresaOut:
+def to_doc_empresa_out(resultado: DocEmpresaVerificado) -> DocEmpresaSalida:
     from app.dominio.docs_empresa import MetaDocEmpresa
 
-    docs: dict[str, DocEmpresaMetaOut] = {}
+    docs: dict[str, DocEmpresaMetaSalida] = {}
     for tipo, meta in (resultado.docs_empresa or {}).items():
         if isinstance(meta, MetaDocEmpresa):
-            docs[str(tipo)] = DocEmpresaMetaOut.model_validate(meta.a_dict())
-    return DocEmpresaOut(
+            docs[str(tipo)] = DocEmpresaMetaSalida.model_validate(meta.a_dict())
+    return DocEmpresaSalida(
         business_id=resultado.business_id,
         tipo=resultado.tipo,
         verificado=resultado.verificado,

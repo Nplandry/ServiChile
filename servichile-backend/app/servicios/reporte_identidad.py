@@ -1,40 +1,35 @@
-from app.dominio.entidades import EstadoPasaporte, Usuario
+from app.dominio.entidades import EstadoReporte, Usuario
 from app.dominio import progreso_cliente as reglas_xp
 from app.dominio.errores import (
     RutEnUso,
     RutRechazado,
     RutYaVerificado,
 )
-from app.dominio.pasaporte import (
-    RutInvalido,
-    estado_pasaporte,
-    nivel_pasaporte,
-    normalizar_rut,
-    score_confiabilidad,
-)
+from app.dominio.reporte_estado import estado_reporte, nivel_reporte, score_confiabilidad
+from app.dominio.rut import RutInvalido, normalizar_rut
 from app.dominio.puertos import (
     AlmacenamientoBiometria,
     AlmacenamientoCedula,
     AnalizadorAntecedentes,
     AnalizadorAval,
     AnalizadorCedula,
-    RepositorioReservas,
+    RepositorioTrabajos,
     RepositorioUsuarios,
     VerificadorIdentidad,
 )
-from app.servicios.pasaporte_evidencias import PasaporteEvidenciasMixin
+from app.servicios.reporte_evidencias import MezclaReporteEvidencias
 from app.servicios.perfil import aplicar_perfil
-from app.servicios.progreso_cliente import XpService
+from app.servicios.progreso_cliente import ServicioProgresoCliente
 from app.tiempo import ahora_utc
 
 
-class PasaporteService(PasaporteEvidenciasMixin):
+class ServicioReporteIdentidad(MezclaReporteEvidencias):
     def __init__(
         self,
         usuarios: RepositorioUsuarios,
-        reservas: RepositorioReservas,
+        trabajos: RepositorioTrabajos,
         verificador: VerificadorIdentidad,
-        xp: XpService | None = None,
+        xp: ServicioProgresoCliente | None = None,
         analizador: AnalizadorAntecedentes | None = None,
         biometria: AlmacenamientoBiometria | None = None,
         biometria_retencion_dias: int = 180,
@@ -44,7 +39,7 @@ class PasaporteService(PasaporteEvidenciasMixin):
         analizador_aval: AnalizadorAval | None = None,
     ) -> None:
         self.usuarios = usuarios
-        self.reservas = reservas
+        self.trabajos = trabajos
         self.verificador = verificador
         self.xp = xp
         self.analizador = analizador
@@ -55,18 +50,18 @@ class PasaporteService(PasaporteEvidenciasMixin):
         self.cedula_retencion_dias = cedula_retencion_dias
         self.analizador_aval = analizador_aval
 
-    def estado(self, usuario: Usuario) -> EstadoPasaporte:
+    def estado(self, usuario: Usuario) -> EstadoReporte:
         usuario = self._aplicar_retencion_biometria(usuario)
         usuario = self._aplicar_retencion_cedula(usuario)
-        conteo = self.reservas.contar_por_estado(usuario.id)
+        conteo = self.trabajos.contar_por_estado(usuario.id)
         xp = self.xp.total(usuario.id) if self.xp is not None else int(usuario.xp or 0)
-        return EstadoPasaporte(
+        return EstadoReporte(
             rut_verificado=usuario.rut_verificado,
             telefono=usuario.telefono,
-            nivel_pasaporte=nivel_pasaporte(),
-            estado_pasaporte=estado_pasaporte(usuario.rut_verificado),
+            nivel_reporte=nivel_reporte(),
+            estado_reporte=estado_reporte(usuario.rut_verificado),
             score_confiabilidad=score_confiabilidad(
-                conteo.get("asistido", 0), conteo.get("no_show", 0)
+                conteo.get("concretado", 0), conteo.get("no_concretado", 0)
             ),
             edad=usuario.perfil.edad if usuario.perfil else None,
             tipo_cuenta=usuario.perfil.tipo_cuenta if usuario.perfil else None,
@@ -116,11 +111,15 @@ class PasaporteService(PasaporteEvidenciasMixin):
             if usuario.rut == rut:
                 return
             raise RutYaVerificado("El RUT ya fue verificado y no se puede cambiar.")
-        otro = self.usuarios.get_by_rut(rut)
+        otro = self.usuarios.obtener_por_rut(rut)
         if otro is not None and otro.id != usuario.id:
             raise RutEnUso("Este RUT ya está registrado en otra cuenta.")
         if not self.verificador.existe_y_activo(rut):
-            raise RutRechazado("No se pudo verificar el RUT.")
+            raise RutRechazado(
+                "No se pudo verificar el RUT ante una fuente oficial. "
+                "Complete la verificación con cédula en Verificación, "
+                "o configure CHILECOMPRA_TICKET para cruzar Mercado Público."
+            )
         usuario.rut = rut
         usuario.rut_verificado = True
 

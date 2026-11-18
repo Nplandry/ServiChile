@@ -5,16 +5,16 @@ from typing import Any
 import httpx
 
 
-def get_json(
+def obtener_json(
     url: str,
     *,
     params: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
-    timeout: float = 2.0,
+    tiempo_espera: float = 2.0,
 ) -> tuple[bool, Any, str | None]:
     try:
-        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
-            r = client.get(url, params=params, headers=headers)
+        with httpx.Client(timeout=tiempo_espera, follow_redirects=True) as cliente:
+            r = cliente.get(url, params=params, headers=headers)
             r.raise_for_status()
             ctype = r.headers.get("content-type", "")
             if "json" in ctype:
@@ -24,16 +24,16 @@ def get_json(
         return False, None, str(exc) or type(exc).__name__
 
 
-def post_json(
+def enviar_json(
     url: str,
-    payload: dict[str, Any],
+    carga: dict[str, Any],
     *,
     headers: dict[str, str] | None = None,
-    timeout: float = 2.0,
+    tiempo_espera: float = 2.0,
 ) -> tuple[bool, Any, str | None]:
     try:
-        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
-            r = client.post(url, json=payload, headers=headers)
+        with httpx.Client(timeout=tiempo_espera, follow_redirects=True) as cliente:
+            r = cliente.post(url, json=carga, headers=headers)
             r.raise_for_status()
             return True, r.json(), None
     except Exception as exc:  # noqa: BLE001

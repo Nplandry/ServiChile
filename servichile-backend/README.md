@@ -1,6 +1,6 @@
 # ServiChile API
 
-Backend de ServiChile: autenticación, Pasaporte de Confianza, marketplace B2B e Índice de Transparencia.
+Backend de ServiChile: autenticación, Reporte de Confianza, marketplace B2B e Índice de Transparencia.
 
 Stack: Python 3.12, FastAPI, SQLAlchemy 2, PostgreSQL.
 
@@ -13,27 +13,27 @@ servichile-backend/
 │   ├── configuracion.py         # Variables de entorno (Pydantic Settings)
 │   ├── tiempo.py                # Reloj UTC
 │   ├── dominio/                 # Núcleo: entidades, reglas y puertos (sin SQLAlchemy, FastAPI ni Pydantic)
-│   │   ├── entidades.py         # Usuario, Negocio, Reserva y resultados de servicio
+│   │   ├── entidades.py         # Usuario, Negocio, Trabajo y resultados de servicio
 │   │   ├── errores.py           # Excepciones de negocio
 │   │   ├── puertos.py           # Contratos (repositorios y proveedores). Los servicios solo hablan esto
-│   │   ├── pasaporte.py         # RUT módulo 11 y score de confiabilidad
-│   │   ├── ficha_negocio.py     # Cómo se muestra un negocio en el mapa (foto, logo, botón)
-│   │   └── transparencia/       # Índice unificado (rater + documentos)
+│   │   ├── rut.py / reporte_estado.py  # RUT módulo 11 y estado del reporte
+│   │   ├── ficha_negocio.py     # Banner/logo por URL https + fallback por categoría / iniciales
+│   │   └── transparencia/       # Índice unificado (evaluador + documentos)
 │   ├── servicios/               # Casos de uso: reutilizables, sin ORM, HTTP, JWT ni Argon2
 │   │   ├── autenticacion.py     # Registro y login
-│   │   └── pasaporte.py, reserva.py, negocio.py, negocio_reputacion.py, …
+│   │   └── reporte_identidad.py, reporte.py, trabajo.py, negocio.py, …
 │   ├── infraestructura/         # Adaptadores que implementan los puertos
 │   │   ├── persistencia/        # Modelos ORM y repositorios SQL
-│   │   ├── rater/               # Places, ChileCompra, crawler y AdaptadorRater
+│   │   ├── evaluador/           # Places, ChileCompra, rastreador_web y AdaptadorEvaluador
 │   │   ├── seguridad/           # Hash Argon2 y tokens JWT
 │   │   └── limite_solicitudes.py
 │   ├── ensamblado/              # Factory y loops de proceso (fuera de servicios)
 │   └── api/                     # Presentación REST: sin reglas de negocio ni consultas
-│       ├── esquemas.py          # Contratos de entrada y salida (Pydantic)
+│       ├── esquemas/            # Contratos de entrada y salida (Pydantic)
 │       ├── mapeos.py            # Entidades y resultados -> respuestas
 │       ├── dependencias.py      # Ensambla servicios, repositorios y APIs externas
 │       ├── autorizacion.py      # Quién puede crear un negocio
-│       └── v1/                  # Routers: autenticacion, perfil, negocios, reservas, reporte
+│       └── v1/                  # Routers: autenticacion, perfil, negocios, trabajos, reporte
 ├── db/init_script.sql           # Crea el esquema completo desde cero
 ├── docs/
 │   ├── api_interface_table.md   # Tabla de la interfaz de programación
@@ -41,7 +41,7 @@ servichile-backend/
 └── tests/                       # Pruebas pytest y colección Postman
 ```
 
-Las reglas de capas se verifican con `import-linter` (`lint-imports`, ver `.importlinter`): el dominio no depende de frameworks, los servicios no importan infraestructura ni API, y los routers no acceden a la base. `app.api.dependencias` y `app.ensamblado` ensamblan repositorios, rater y loops de background.
+Las reglas de capas se verifican con `import-linter` (`lint-imports`, ver `.importlinter`): el dominio no depende de frameworks, los servicios no importan infraestructura ni API, y los routers no acceden a la base. `app.api.dependencias` y `app.ensamblado` ensamblan repositorios, evaluador y loops de background.
 
 ## Endpoints y estado de desarrollo
 
@@ -53,19 +53,19 @@ Los tests de integración con PostgreSQL (`tests/integration/`) se omiten sin `T
 | POST | `/v1/auth/registro` | No | Registra usuario (201) | `app/api/v1/autenticacion.py` | Implementado y probado |
 | POST | `/v1/auth/login` | No | Login → `TokenOut` (JWT) | `app/api/v1/autenticacion.py` | Implementado y probado |
 | GET | `/v1/auth/yo` | Sí | Datos del usuario autenticado | `app/api/v1/autenticacion.py` | Implementado y probado |
-| GET | `/v1/perfil` | Sí | Estado del Pasaporte de Confianza (nivel, score de confiabilidad) | `app/api/v1/perfil.py` | Implementado y probado |
+| GET | `/v1/perfil` | Sí | Estado del Reporte de Confianza (nivel, score de confiabilidad) | `app/api/v1/perfil.py` | Implementado y probado |
 | PATCH | `/v1/perfil` | Sí | Actualiza edad, teléfono y verifica el RUT | `app/api/v1/perfil.py` | Implementado y probado |
 | POST | `/v1/perfil/biometria` | Sí | Verificación biométrica; JPEG comprimido en disco local + metadata (201) | `app/api/v1/perfil.py` | Implementado y probado |
-| GET | `/v1/reservas` | Sí | Reservas del usuario con su código QR | `app/api/v1/reservas.py` | Implementado y probado |
-| POST | `/v1/reservas` | Sí | Reserva un cupo en un comercio (201) | `app/api/v1/reservas.py` | Implementado y probado |
-| DELETE | `/v1/reservas/{id}` | Sí | Cancela una reserva propia que siga activa | `app/api/v1/reservas.py` | Implementado y probado |
+| GET | `/v1/trabajos` | Sí | Trabajos del usuario con su código QR | `app/api/v1/trabajos.py` | Implementado y probado |
+| POST | `/v1/trabajos` | Sí | Abre un trabajo con un proveedor (201) | `app/api/v1/trabajos.py` | Implementado y probado |
+| DELETE | `/v1/trabajos/{id}` | Sí | Cancela un trabajo propio que siga abierto | `app/api/v1/trabajos.py` | Implementado y probado |
 | DELETE | `/v1/auth/yo` | Sí | Elimina la cuenta, con confirmación por contraseña (204) | `app/api/v1/autenticacion.py` | Implementado y probado |
 | GET | `/v1/businesses` | No | Marketplace público (`NegocioEnMapaOut`) | `app/api/v1/negocios.py` | Implementado y probado |
 | POST | `/v1/businesses` | Sí (proveedor) | Crea empresa (`NegocioTitularOut`) | `app/api/v1/negocios.py` | Implementado y probado |
 | GET | `/v1/businesses/mias` | Sí | Empresas del titular | `app/api/v1/negocios.py` | Implementado y probado |
-| POST | `/v1/businesses/{id}/rater-refresh` | Sí (titular) | Re-evalúa rater e índice | `app/api/v1/negocios.py` | Implementado y probado |
-| POST | `/v1/businesses/{id}/checkin` | Sí (titular) | Asistencia con QR | `app/api/v1/reservas.py` | Implementado y probado |
-| POST | `/v1/businesses/{id}/reservas/{reserva_id}/no-show` | Sí (titular) | Marca no-show | `app/api/v1/reservas.py` | Implementado y probado |
+| POST | `/v1/businesses/{id}/rater-refresh` | Sí (titular) | Re-evalúa evaluador e índice | `app/api/v1/negocios.py` | Implementado y probado |
+| POST | `/v1/businesses/{id}/trabajos/concretar` | Sí (titular) | Marca trabajo concretado con QR | `app/api/v1/trabajos.py` | Implementado y probado |
+| POST | `/v1/businesses/{id}/trabajos/{id}/no-concretado` | Sí (titular) | Marca no concretado | `app/api/v1/trabajos.py` | Implementado y probado |
 | GET | `/v1/businesses/{id}/reputation` | No | Índice de Transparencia | `app/api/v1/negocios.py` | Implementado y probado |
 | DELETE | `/v1/businesses/{id}` | Sí (creador) | Elimina la empresa (204) | `app/api/v1/negocios.py` | Implementado y probado |
 
@@ -74,11 +74,11 @@ Los endpoints marcados con "Sí" en Sesión requieren la cabecera `Authorization
 ### Pendientes (no implementados)
 
 - Endpoints B2B y webhook de WhatsApp.
-- Pasaporte de Confianza en producción: verificador de RUT real (hoy `MuestraVerificadorRut` acepta cualquier RUT con DV válido).
+- Reporte de Confianza en producción: verificador de RUT real (hoy `MuestraVerificadorRut` acepta cualquier RUT con DV válido).
 
 ### Índice de transparencia (empresa)
 
-- El rater corre al crear/actualizar empresa (y RUT) y se refresca en background cada `RATER_REFRESH_MINUTES` (default 30); el titular puede forzar con `POST …/rater-refresh`.
+- El evaluador corre al crear/actualizar empresa (y RUT) y se refresca en background cada `RATER_REFRESH_MINUTES` (default 30); el titular puede forzar con `POST …/rater-refresh`.
 - Persistencia viva: `observables` + `final_score` (★ = overall/10). API: `indice_transparencia`, `indice_pct`, `observables`.
 - Alta/edición usa `rut_empresa` (no hay sello de perfil verificado de empresa).
 
@@ -102,8 +102,9 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 
 cp .env.example .env
-# Edite .env: DATABASE_URL con la clave de su base y JWT_SECRET con un valor aleatorio:
+# .env mínimo: DATABASE_URL, JWT_SECRET, CORS_ORIGINS y keys opcionales (Places/ChileCompra).
 python -c "import secrets; print(secrets.token_urlsafe(48))"
+# Pegue el valor en JWT_SECRET
 
 psql "postgresql://servichile:servichile@localhost:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
 
@@ -137,7 +138,31 @@ gcloud run deploy servichile-api \
 - Con más de una instancia, configure `REDIS_URL` (Memorystore). El límite en memoria no se comparte entre instancias.
 - `TRUST_PROXY=true` solo es seguro detrás de Cloud Run. Con `true` en un servidor expuesto directamente, cualquiera puede falsear su IP y evadir el límite por IP.
 
+## Configuración
+
+El `.env` solo lleva secretos y claves. Defaults de producto (retención, rates, evaluador, paths) viven en `app/configuracion.py`.
+
+| Variable | Obligatoria | Notas |
+|----------|-------------|--------|
+| `APP_ENV` | sí | `local` / `test` (pytest) / `production` |
+| `DATABASE_URL` | sí | Postgres |
+| `JWT_SECRET` | sí | ≥ 32 chars |
+| `CORS_ORIGINS` | sí en prod | coma-separados; en prod no puede ser solo localhost |
+| `CHILECOMPRA_TICKET` | no | vacío → simula solo ChileCompra; con ticket → API + RUT vía Mercado Público |
+| `GOOGLE_PLACES_API_KEY` | no | vacío → simula solo Places |
+| `REDIS_URL` / `TRUST_PROXY` | no | multi-instancia / detrás de proxy |
+
+Verificador RUT: **no** va en `.env`. Se deriva (`test`→muestra, con ticket→chilecompra, si no→estricto/cédula).
+
 ## Pendiente (fases siguientes)
 
 - Endpoints B2B y webhook de WhatsApp.
-- Conectar el frontend: hoy `js/core/auth.js` guarda usuarios y contraseñas en `localStorage` y debe reemplazarse por llamadas a `/v1/auth`.
+- Verificador de RUT civil (Registro Civil). Hoy: cédula o ChileCompra.
+- El frontend PWA ya autentica contra `/v1/auth` (JWT en sesión); no usa usuarios/contraseñas en `localStorage`.
+
+## Señales e índice
+
+- Crawler del sitio siempre por red (no requiere API key).
+- Sin `GOOGLE_PLACES_API_KEY` / `CHILECOMPRA_TICKET` → se simulan solo esas fuentes.
+- `APP_ENV=test` (pytest) → fijos también en rastreador_web; no usa keys del `.env`.
+- Direcciones de ficha se geocodifican (Nominatim Chile) al crear/actualizar.

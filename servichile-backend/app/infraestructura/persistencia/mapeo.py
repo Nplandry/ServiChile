@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy.orm import joinedload, load_only
 
 from app.dominio.docs_empresa import docs_empresa_desde_raw
-from app.dominio.entidades import Metricas, Negocio, Perfil, Reserva, Usuario
+from app.dominio.entidades import Metricas, Negocio, Perfil, Trabajo, Usuario
 from app.infraestructura.persistencia import modelos as orm
 
 
@@ -71,7 +71,7 @@ def _usuario(u: orm.Usuario) -> Usuario:
     )
 
 
-def _metricas(m: orm.BusinessReputationMetrics | None) -> Metricas | None:
+def _metricas(m: orm.MetricasReputacionNegocio | None) -> Metricas | None:
 
     if m is None:
 
@@ -92,7 +92,7 @@ def _metricas(m: orm.BusinessReputationMetrics | None) -> Metricas | None:
     )
 
 
-def _negocio_lista(n: orm.BusinessEntity) -> Negocio:
+def _negocio_lista(n: orm.EntidadNegocio) -> Negocio:
 
     m = n.metricas
 
@@ -130,31 +130,31 @@ def _opciones_lista():
 
     return (
         load_only(
-            orm.BusinessEntity.id,
-            orm.BusinessEntity.nombre,
-            orm.BusinessEntity.categoria,
-            orm.BusinessEntity.latitud,
-            orm.BusinessEntity.longitud,
-            orm.BusinessEntity.direccion,
-            orm.BusinessEntity.descripcion,
-            orm.BusinessEntity.imagen_url,
-            orm.BusinessEntity.logo_url,
-            orm.BusinessEntity.requiere_nivel,
-            orm.BusinessEntity.is_claimed,
-            orm.BusinessEntity.rut_empresa,
-            orm.BusinessEntity.docs_empresa,
+            orm.EntidadNegocio.id,
+            orm.EntidadNegocio.nombre,
+            orm.EntidadNegocio.categoria,
+            orm.EntidadNegocio.latitud,
+            orm.EntidadNegocio.longitud,
+            orm.EntidadNegocio.direccion,
+            orm.EntidadNegocio.descripcion,
+            orm.EntidadNegocio.imagen_url,
+            orm.EntidadNegocio.logo_url,
+            orm.EntidadNegocio.requiere_nivel,
+            orm.EntidadNegocio.is_claimed,
+            orm.EntidadNegocio.rut_empresa,
+            orm.EntidadNegocio.docs_empresa,
         ),
-        joinedload(orm.BusinessEntity.metricas).load_only(
-            orm.BusinessReputationMetrics.business_id,
-            orm.BusinessReputationMetrics.google_rating_avg,
-            orm.BusinessReputationMetrics.google_reviews_count,
-            orm.BusinessReputationMetrics.final_score,
-            orm.BusinessReputationMetrics.actualizado_en,
+        joinedload(orm.EntidadNegocio.metricas).load_only(
+            orm.MetricasReputacionNegocio.business_id,
+            orm.MetricasReputacionNegocio.google_rating_avg,
+            orm.MetricasReputacionNegocio.google_reviews_count,
+            orm.MetricasReputacionNegocio.final_score,
+            orm.MetricasReputacionNegocio.actualizado_en,
         ),
     )
 
 
-def _negocio(n: orm.BusinessEntity) -> Negocio:
+def _negocio(n: orm.EntidadNegocio) -> Negocio:
 
     return Negocio(
         id=n.id,
@@ -177,9 +177,9 @@ def _negocio(n: orm.BusinessEntity) -> Negocio:
     )
 
 
-def _reserva(r: orm.Reserva) -> Reserva:
+def _trabajo(r: orm.Trabajo) -> Trabajo:
 
-    return Reserva(
+    return Trabajo(
         id=r.id,
         usuario_id=r.usuario_id,
         business_id=r.business_id,

@@ -1,11 +1,11 @@
-"""Catálogo de parámetros del rater empresarial (25+)."""
+"""Catálogo de parámetros del evaluador empresarial (25+)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Literal
 
-CategoriaRater = Literal[
+CategoriaEvaluador = Literal[
     "ciberseguridad",
     "contractual_datos",
     "fisica_reputacional",
@@ -14,8 +14,8 @@ CategoriaRater = Literal[
 ]
 
 # Mapeo a grupos del desglose FE / ObservableSenal.grupo.
-# "ciber" = segmento ciberseguridad (no confundir con el índice/rater).
-GRUPO_FE: dict[CategoriaRater, str] = {
+# "ciber" = segmento ciberseguridad (no confundir con el evaluador del índice).
+GRUPO_FE: dict[CategoriaEvaluador, str] = {
     "ciberseguridad": "ciber",
     "contractual_datos": "contractual",
     "fisica_reputacional": "operativa",
@@ -28,7 +28,7 @@ GRUPO_FE: dict[CategoriaRater, str] = {
 class ParametroDef:
     id: str
     nombre: str
-    categoria: CategoriaRater
+    categoria: CategoriaEvaluador
     peso: float = 1.0
     descripcion: str = ""
 
@@ -100,13 +100,13 @@ IDS_SITIO = (
 )
 
 
-def grade_from_score(score: float) -> str:
-    if score >= 85:
+def nota_desde_puntaje(puntaje: float) -> str:
+    if puntaje >= 85:
         return "A"
-    if score >= 70:
+    if puntaje >= 70:
         return "B"
-    if score >= 55:
+    if puntaje >= 55:
         return "C"
-    if score >= 40:
+    if puntaje >= 40:
         return "D"
     return "F"

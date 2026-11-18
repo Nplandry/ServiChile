@@ -5,19 +5,19 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.dominio.docs_empresa import docs_empresa_a_raw
-from app.dominio.entidades import Negocio, Reserva, Usuario
+from app.dominio.entidades import Negocio, Trabajo, Usuario
 from app.infraestructura.persistencia import modelos as orm
 from app.infraestructura.persistencia.mapeo import (
     _negocio,
     _negocio_lista,
     _opciones_lista,
-    _reserva,
+    _trabajo,
     _usuario,
 )
 from app.tiempo import ahora_utc
 
 
-class UsuarioRepository:
+class RepositorioUsuario:
 
     def __init__(self, session: Session) -> None:
 
@@ -41,28 +41,28 @@ class UsuarioRepository:
             business_id=business_id,
         )
 
-    def get_by_email(self, email: str) -> Usuario | None:
+    def obtener_por_email(self, email: str) -> Usuario | None:
 
         u = self.session.scalar(select(orm.Usuario).where(orm.Usuario.email == email))
 
         return _usuario(u) if u else None
 
-    def get(self, usuario_id: uuid.UUID) -> Usuario | None:
+    def obtener(self, usuario_id: uuid.UUID) -> Usuario | None:
 
         u = self.session.get(orm.Usuario, usuario_id)
 
         return _usuario(u) if u else None
 
-    def get_by_rut(self, rut: str) -> Usuario | None:
+    def obtener_por_rut(self, rut: str) -> Usuario | None:
 
         u = self.session.scalar(select(orm.Usuario).where(orm.Usuario.rut == rut))
 
         return _usuario(u) if u else None
 
-    def crear(self, email: str, nombre: str, password_hash: str) -> Usuario:
+    def crear(self, email: str, nombre: str, hash_contrasena: str) -> Usuario:
 
         return Usuario(
-            id=uuid.uuid4(), email=email, nombre=nombre, password_hash=password_hash
+            id=uuid.uuid4(), email=email, nombre=nombre, password_hash=hash_contrasena
         )
 
     def eliminar(self, usuario_id: uuid.UUID) -> None:
@@ -184,7 +184,7 @@ class UsuarioRepository:
         return _usuario(u)
 
 
-class XpRepository:
+class RepositorioXp:
 
     def __init__(self, session: Session) -> None:
 
@@ -240,7 +240,7 @@ def registrar_hash_pades(
     business_id: uuid.UUID | None = None,
 ) -> bool:
     """True si OK; False si el hash ya fue usado por otra cuenta/empresa."""
-    existente = session.get(orm.PadesDocumentHash, sha256)
+    existente = session.get(orm.HashDocumentoPades, sha256)
     if existente is not None:
         mismo_usuario = (
             usuario_id is not None and existente.usuario_id == usuario_id
@@ -250,7 +250,7 @@ def registrar_hash_pades(
         )
         return bool(mismo_usuario or misma_empresa)
     session.add(
-        orm.PadesDocumentHash(
+        orm.HashDocumentoPades(
             sha256=sha256,
             scope=scope,
             tipo=tipo,
@@ -261,7 +261,7 @@ def registrar_hash_pades(
     return True
 
 
-class NegocioRepository:
+class RepositorioNegocio:
 
     def __init__(self, session: Session) -> None:
 
@@ -285,9 +285,9 @@ class NegocioRepository:
             business_id=business_id,
         )
 
-    def get(self, business_id: uuid.UUID) -> Negocio | None:
+    def obtener(self, negocio_id: uuid.UUID) -> Negocio | None:
 
-        n = self.session.get(orm.BusinessEntity, business_id)
+        n = self.session.get(orm.EntidadNegocio, negocio_id)
 
         return _negocio(n) if n else None
 
@@ -296,22 +296,22 @@ class NegocioRepository:
     ) -> list[Negocio]:
 
         stmt = (
-            select(orm.BusinessEntity)
+            select(orm.EntidadNegocio)
             .options(*_opciones_lista())
-            .order_by(orm.BusinessEntity.nombre)
+            .order_by(orm.EntidadNegocio.nombre)
         )
 
         if categoria:
 
-            stmt = stmt.where(orm.BusinessEntity.categoria == categoria)
+            stmt = stmt.where(orm.EntidadNegocio.categoria == categoria)
 
         if q:
 
             patron = f"%{q.strip()}%"
 
             stmt = stmt.where(
-                orm.BusinessEntity.nombre.ilike(patron)
-                | orm.BusinessEntity.direccion.ilike(patron)
+                orm.EntidadNegocio.nombre.ilike(patron)
+                | orm.EntidadNegocio.direccion.ilike(patron)
             )
 
         return [
@@ -321,25 +321,30 @@ class NegocioRepository:
     def listar_de(self, usuario_id: uuid.UUID) -> list[Negocio]:
         """Ficha completa del titular (incluye RUT, teléfono, sitio para editar)."""
         stmt = (
-            select(orm.BusinessEntity)
-            .options(joinedload(orm.BusinessEntity.metricas))
-            .where(orm.BusinessEntity.reclamado_por == usuario_id)
+            select(orm.EntidadNegocio)
+            .options(joinedload(orm.EntidadNegocio.metricas))
+            .where(orm.EntidadNegocio.reclamado_por == usuario_id)
         )
 
         return [_negocio(n) for n in self.session.scalars(stmt).unique()]
 
     def listar_completos(self, limite: int = 500) -> list[Negocio]:
-        """Listado con ficha completa (RUT, teléfono, sitio) para refrescar el rater."""
+        """Listado para refrescar el evaluador: primero pendientes (sin escaneo)."""
         stmt = (
-            select(orm.BusinessEntity)
-            .options(joinedload(orm.BusinessEntity.metricas))
+            select(orm.EntidadNegocio)
+            .outerjoin(orm.MetricasReputacionNegocio)
+            .options(joinedload(orm.EntidadNegocio.metricas))
+            .order_by(
+                orm.MetricasReputacionNegocio.rater_escaneado_en.is_(None).desc(),
+                orm.EntidadNegocio.nombre,
+            )
             .limit(max(1, min(limite, 2000)))
         )
         return [_negocio(n) for n in self.session.scalars(stmt).unique()]
 
-    def eliminar(self, business_id: uuid.UUID) -> None:
+    def eliminar(self, negocio_id: uuid.UUID) -> None:
 
-        n = self.session.get(orm.BusinessEntity, business_id)
+        n = self.session.get(orm.EntidadNegocio, negocio_id)
 
         if n is None:
 
@@ -351,8 +356,8 @@ class NegocioRepository:
 
     def eliminar_de(self, usuario_id: uuid.UUID) -> None:
 
-        stmt = select(orm.BusinessEntity).where(
-            orm.BusinessEntity.reclamado_por == usuario_id
+        stmt = select(orm.EntidadNegocio).where(
+            orm.EntidadNegocio.reclamado_por == usuario_id
         )
 
         for n in list(self.session.scalars(stmt)):
@@ -363,11 +368,11 @@ class NegocioRepository:
 
     def guardar(self, negocio: Negocio) -> Negocio:
 
-        n = self.session.get(orm.BusinessEntity, negocio.id)
+        n = self.session.get(orm.EntidadNegocio, negocio.id)
 
         if n is None:
 
-            n = orm.BusinessEntity(id=negocio.id)
+            n = orm.EntidadNegocio(id=negocio.id)
 
             self.session.add(n)
 
@@ -411,7 +416,7 @@ class NegocioRepository:
 
             if n.metricas is None:
 
-                n.metricas = orm.BusinessReputationMetrics(
+                n.metricas = orm.MetricasReputacionNegocio(
                     business_id=negocio.id, actualizado_en=ahora_utc()
                 )
 
@@ -436,21 +441,21 @@ class NegocioRepository:
         return _negocio(n)
 
 
-class ReservaRepository:
+class RepositorioTrabajo:
 
     def __init__(self, session: Session) -> None:
 
         self.session = session
 
     def crear(
-        self, usuario_id: uuid.UUID, business_id: uuid.UUID, qr_token: str
-    ) -> Reserva:
+        self, usuario_id: uuid.UUID, negocio_id: uuid.UUID, token_qr: str
+    ) -> Trabajo:
 
-        r = orm.Reserva(
+        r = orm.Trabajo(
             usuario_id=usuario_id,
-            business_id=business_id,
-            estado="reservada",
-            qr_token=qr_token,
+            business_id=negocio_id,
+            estado="abierto",
+            qr_token=token_qr,
         )
 
         self.session.add(r)
@@ -459,54 +464,62 @@ class ReservaRepository:
 
         self.session.refresh(r)
 
-        return _reserva(r)
+        return _trabajo(r)
 
-    def get(self, reserva_id: uuid.UUID) -> Reserva | None:
+    def obtener(self, trabajo_id: uuid.UUID) -> Trabajo | None:
 
-        r = self.session.get(orm.Reserva, reserva_id)
+        r = self.session.get(orm.Trabajo, trabajo_id)
 
-        return _reserva(r) if r else None
+        return _trabajo(r) if r else None
 
-    def get_por_qr(self, business_id: uuid.UUID, qr_token: str) -> Reserva | None:
+    def obtener_por_qr(self, negocio_id: uuid.UUID, token_qr: str) -> Trabajo | None:
 
-        stmt = select(orm.Reserva).where(
-            orm.Reserva.business_id == business_id, orm.Reserva.qr_token == qr_token
+        stmt = select(orm.Trabajo).where(
+            orm.Trabajo.business_id == negocio_id, orm.Trabajo.qr_token == token_qr
         )
 
         r = self.session.scalar(stmt)
 
-        return _reserva(r) if r else None
+        return _trabajo(r) if r else None
 
-    def listar_por_usuario(self, usuario_id: uuid.UUID) -> list[Reserva]:
+    def listar_por_usuario(self, usuario_id: uuid.UUID) -> list[Trabajo]:
 
         stmt = (
-            select(orm.Reserva)
-            .where(orm.Reserva.usuario_id == usuario_id)
-            .order_by(orm.Reserva.creado_en.desc())
+            select(orm.Trabajo)
+            .where(orm.Trabajo.usuario_id == usuario_id)
+            .order_by(orm.Trabajo.creado_en.desc())
         )
 
-        return [_reserva(r) for r in self.session.scalars(stmt)]
+        return [_trabajo(r) for r in self.session.scalars(stmt)]
+
+    def listar_por_negocio(self, negocio_id: uuid.UUID) -> list[Trabajo]:
+        stmt = (
+            select(orm.Trabajo)
+            .where(orm.Trabajo.business_id == negocio_id)
+            .order_by(orm.Trabajo.creado_en.desc())
+        )
+        return [_trabajo(r) for r in self.session.scalars(stmt)]
 
     def contar_por_estado(self, usuario_id: uuid.UUID) -> dict[str, int]:
 
         stmt = (
-            select(orm.Reserva.estado, func.count())
-            .where(orm.Reserva.usuario_id == usuario_id)
-            .group_by(orm.Reserva.estado)
+            select(orm.Trabajo.estado, func.count())
+            .where(orm.Trabajo.usuario_id == usuario_id)
+            .group_by(orm.Trabajo.estado)
         )
 
         return {
             estado: cantidad for estado, cantidad in self.session.execute(stmt).all()
         }
 
-    def guardar(self, reserva: Reserva) -> Reserva:
+    def guardar(self, trabajo: Trabajo) -> Trabajo:
 
-        r = self.session.get(orm.Reserva, reserva.id)
+        r = self.session.get(orm.Trabajo, trabajo.id)
 
-        r.estado = reserva.estado
+        r.estado = trabajo.estado
 
         self.session.commit()
 
         self.session.refresh(r)
 
-        return _reserva(r)
+        return _trabajo(r)

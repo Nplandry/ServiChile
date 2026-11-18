@@ -122,7 +122,7 @@ class Metricas:
 
     rater_escaneado_en: datetime | None = None
 
-    # Snapshot JSON del rater (lista de dicts id/etiqueta/score/…); no se evalúa en vivo.
+    # Snapshot JSON del evaluador (lista de dicts id/etiqueta/score/…); no se evalúa en vivo.
     observables: list | None = None
 
     actualizado_en: datetime | None = None
@@ -167,7 +167,12 @@ class Negocio:
 
 
 @dataclass
-class Reserva:
+class Trabajo:
+    """Encargo B2B entre contratista/persona y un proveedor (ficha).
+
+    Estados: abierto → concretado | no_concretado | cancelado.
+    El qr_token lo muestra quien abre el trabajo; el titular confirma concreción.
+    """
 
     id: uuid.UUID
 
@@ -185,15 +190,15 @@ class Reserva:
 
 
 @dataclass
-class EstadoPasaporte:
+class EstadoReporte:
 
     rut_verificado: bool
 
     telefono: str | None
 
-    nivel_pasaporte: int
+    nivel_reporte: int
 
-    estado_pasaporte: str
+    estado_reporte: str
 
     score_confiabilidad: float | None
 
@@ -284,6 +289,13 @@ class Reputacion:
     actualizado_en: datetime | None = None
 
     observables: list[ObservableSenal] = field(default_factory=list)
+
+    rater_listo: bool = False
+
+    descargo: str = (
+        "Índice global a partir de señales públicas (ficha, sitio, "
+        "compras públicas, etc.). No constituye un juicio sobre la calidad del servicio."
+    )
 
 
 @dataclass(frozen=True)
@@ -385,6 +397,8 @@ class NegocioTitular:
 
     sitio_web: str | None = None
 
+    rater_listo: bool = False
+
 
 @dataclass
 class TokenEmitido:
@@ -409,9 +423,9 @@ class ReporteEmitido:
 
     email: str
 
-    nivel_pasaporte: int
+    nivel_reporte: int
 
-    estado_pasaporte: str
+    estado_reporte: str
 
     score_confiabilidad: float | None
 
@@ -435,9 +449,9 @@ class ReporteValidado:
 
     nombre: str
 
-    nivel_pasaporte: int
+    nivel_reporte: int
 
-    estado_pasaporte: str
+    estado_reporte: str
 
     score_confiabilidad: float | None
 

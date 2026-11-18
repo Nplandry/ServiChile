@@ -4,31 +4,33 @@ import uuid
 
 from app.dominio.entidades import TokenEmitido, Usuario
 from app.dominio.errores import CredencialesInvalidas, EmailYaRegistrado
-from app.dominio.puertos import EmisorSesion, HasherContrasena, RepositorioUsuarios
+from app.dominio.puertos import EmisorSesion, HasheadorContrasena, RepositorioUsuarios
 from app.servicios.perfil import aplicar_perfil
-from app.servicios.progreso_cliente import XpService
+from app.servicios.progreso_cliente import ServicioProgresoCliente
 
 
-class AuthService:
+class ServicioAutenticacion:
     def __init__(
         self,
         usuarios: RepositorioUsuarios,
-        hasher: HasherContrasena,
+        hasheador: HasheadorContrasena,
         sesion: EmisorSesion,
-        xp: XpService | None = None,
+        xp: ServicioProgresoCliente | None = None,
     ) -> None:
         self.usuarios = usuarios
-        self.hasher = hasher
+        self.hasheador = hasheador
         self.sesion = sesion
         self.xp = xp
 
     def registrar(
-        self, email: str, nombre: str, password: str, perfil: dict | None
+        self, email: str, nombre: str, contrasena: str, perfil: dict | None
     ) -> Usuario:
         email = email.lower()
-        if self.usuarios.get_by_email(email):
+        if self.usuarios.obtener_por_email(email):
             raise EmailYaRegistrado()
-        usuario = self.usuarios.crear(email, nombre, self.hasher.hash(password))
+        usuario = self.usuarios.crear(
+            email, nombre, self.hasheador.hashear(contrasena)
+        )
         if perfil:
             aplicar_perfil(usuario, perfil)
         usuario = self.usuarios.guardar(usuario)
@@ -38,10 +40,10 @@ class AuthService:
             usuario.xp = self.xp.total(usuario.id)
         return usuario
 
-    def login(self, email: str, password: str) -> TokenEmitido:
-        usuario = self.usuarios.get_by_email(email.lower())
-        if not self.hasher.verificar(
-            usuario.password_hash if usuario else None, password
+    def login(self, email: str, contrasena: str) -> TokenEmitido:
+        usuario = self.usuarios.obtener_por_email(email.lower())
+        if not self.hasheador.verificar(
+            usuario.password_hash if usuario else None, contrasena
         ):
             raise CredencialesInvalidas()
         if not usuario or not usuario.activo:
@@ -50,7 +52,7 @@ class AuthService:
 
     def usuario_desde_token(self, token: str) -> Usuario:
         try:
-            usuario = self.usuarios.get(self.sesion.sujeto(token))
+            usuario = self.usuarios.obtener(self.sesion.sujeto(token))
         except ValueError as error:
             raise CredencialesInvalidas() from error
         if not usuario or not usuario.activo:

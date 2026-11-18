@@ -3,16 +3,16 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from app.dominio.transparencia.rater.ficha import (
-    FichaAssessment,
-    brand_tokens,
-    domain_stem,
-    pick_reliable_place,
+from app.dominio.transparencia.evaluador.ficha import (
+    EvaluacionFicha,
+    elegir_lugar_confiable,
+    raiz_dominio,
+    tokens_marca,
 )
-from app.infraestructura.rater.http_sync import post_json
+from app.infraestructura.evaluador.http_sync import enviar_json
 
 
-class GooglePlacesCliente:
+class ClienteGooglePlaces:
     def __init__(self, api_key: str, *, base: str | None = None) -> None:
         self.api_key = (api_key or "").strip()
         self.base = (base or "https://places.googleapis.com/v1").rstrip("/")
@@ -21,24 +21,24 @@ class GooglePlacesCliente:
     def configurado(self) -> bool:
         return bool(self.api_key)
 
-    def _queries(
+    def _consultas(
         self,
-        name: str | None,
-        domain: str,
+        nombre: str | None,
+        dominio: str,
         comuna: str | None,
         ciudad: str | None,
     ) -> list[str]:
-        brand = (brand_tokens(name, domain) or [domain_stem(domain) or ""])[0]
+        marca = (tokens_marca(nombre, dominio) or [raiz_dominio(dominio) or ""])[0]
         loc = " ".join(p for p in [comuna, ciudad] if p)
-        queries: list[str] = [f"{domain} Chile"]
-        if brand and brand not in domain:
-            queries.append(f"{brand} {domain} Chile")
-        if name:
-            queries.append(f'"{name}" {loc} Chile' if loc else f'"{name}" Chile')
-        if brand and loc:
-            queries.append(f"{brand} {loc} Chile")
-        elif brand:
-            queries.append(f"{brand} Chile")
+        queries: list[str] = [f"{dominio} Chile"]
+        if marca and marca not in dominio:
+            queries.append(f"{marca} {dominio} Chile")
+        if nombre:
+            queries.append(f'"{nombre}" {loc} Chile' if loc else f'"{nombre}" Chile')
+        if marca and loc:
+            queries.append(f"{marca} {loc} Chile")
+        elif marca:
+            queries.append(f"{marca} Chile")
         seen: set[str] = set()
         out: list[str] = []
         for q in queries:
@@ -48,8 +48,8 @@ class GooglePlacesCliente:
                 out.append(qn)
         return out[:2]
 
-    def text_search(
-        self, query: str, *, timeout: float = 2.0, max_results: int = 3
+    def buscar_texto(
+        self, query: str, *, tiempo_espera: float = 2.0, max_resultados: int = 3
     ) -> tuple[bool, dict[str, Any] | None, str | None]:
         if not self.configurado:
             return False, None, "GOOGLE_PLACES_API_KEY no configurado"
@@ -64,31 +64,31 @@ class GooglePlacesCliente:
                 "places.location,places.googleMapsUri"
             ),
         }
-        payload = {
+        carga = {
             "textQuery": query,
             "regionCode": "CL",
             "languageCode": "es",
-            "maxResultCount": max_results,
+            "maxResultCount": max_resultados,
         }
-        return post_json(url, payload, headers=headers, timeout=timeout)
+        return enviar_json(url, carga, headers=headers, tiempo_espera=tiempo_espera)
 
-    def find_business(
+    def buscar_negocio(
         self,
-        name: str | None,
-        domain: str,
+        nombre: str | None,
+        dominio: str,
         comuna: str | None = None,
         ciudad: str | None = None,
         *,
-        timeout: float = 2.0,
+        tiempo_espera: float = 2.0,
     ) -> tuple[bool, dict[str, Any] | None, str | None]:
-        queries = self._queries(name, domain, comuna, ciudad)
+        queries = self._consultas(nombre, dominio, comuna, ciudad)
         places: list[dict[str, Any]] = []
         errors: list[str] = []
         if queries:
             with ThreadPoolExecutor(max_workers=len(queries)) as pool:
                 futs = [
                     pool.submit(
-                        lambda q=q: self.text_search(q, timeout=timeout)
+                        lambda q=q: self.buscar_texto(q, tiempo_espera=tiempo_espera)
                     )
                     for q in queries
                 ]
@@ -98,7 +98,6 @@ class GooglePlacesCliente:
                         places.extend(data.get("places") or [])
                     elif err:
                         errors.append(err)
-        # dedup
         merged: list[dict[str, Any]] = []
         seen: set[str] = set()
         for p in places:
@@ -107,25 +106,25 @@ class GooglePlacesCliente:
                 continue
             seen.add(key)
             merged.append(p)
-        place, assessment = pick_reliable_place(
+        lugar, evaluacion = elegir_lugar_confiable(
             merged,
-            company_name=name,
-            domain=domain,
+            nombre_empresa=nombre,
+            dominio=dominio,
             comuna=comuna,
             ciudad=ciudad,
         )
-        payload: dict[str, Any] = {
-            "ficha_assessment": assessment.to_dict(),
-            "candidates_considered": len(merged),
+        carga: dict[str, Any] = {
+            "ficha_assessment": evaluacion.a_dict(),
+            "candidatos_considerados": len(merged),
         }
-        if place is None or not assessment.reliable:
+        if lugar is None or not evaluacion.confiable:
             if errors and not merged:
-                payload["ficha_assessment"] = FichaAssessment(
-                    reliable=False,
-                    confidence=0.0,
-                    match_score=0,
-                    reasons=errors[:3],
-                ).to_dict()
-            return False, payload, "Sin ficha Places confiable"
-        payload["place"] = place
-        return True, payload, None
+                carga["ficha_assessment"] = EvaluacionFicha(
+                    confiable=False,
+                    confianza=0.0,
+                    puntaje_coincidencia=0,
+                    razones=errors[:3],
+                ).a_dict()
+            return False, carga, "Sin ficha Places confiable"
+        carga["place"] = lugar
+        return True, carga, None

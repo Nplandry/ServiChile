@@ -8,13 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.middleware.gzip import GZipMiddleware
 
-from app.api.v1 import autenticacion, negocios, perfil, reporte, reservas
+from app.api.v1 import autenticacion, negocios, perfil, reporte, trabajos
 
-from app.configuracion import get_settings
+from app.configuracion import obtener_configuracion
 from app.ensamblado.arranque import precargar_pades_ca
-from app.ensamblado.rater import bucle_rater
+from app.ensamblado.evaluador import bucle_evaluador
 
-settings = get_settings()
+settings = obtener_configuracion()
 precargar_pades_ca(settings)
 
 
@@ -23,7 +23,7 @@ async def lifespan(_app: FastAPI):
     from contextlib import suppress
 
     stop = asyncio.Event()
-    tarea = asyncio.create_task(bucle_rater(stop), name="rater-background")
+    tarea = asyncio.create_task(bucle_evaluador(stop), name="evaluador-segundo-plano")
     try:
         yield
     finally:
@@ -57,9 +57,9 @@ app.include_router(perfil.router)
 
 app.include_router(negocios.router)
 
-app.include_router(reservas.router)
+app.include_router(trabajos.router)
 
-app.include_router(reservas.titular_router)
+app.include_router(trabajos.titular_router)
 
 app.include_router(reporte.router)
 _RUTAS_SILENCIOSAS = ("GET / ", "GET /json/version ")

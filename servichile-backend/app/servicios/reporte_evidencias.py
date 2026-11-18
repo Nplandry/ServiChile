@@ -1,4 +1,4 @@
-"""Evidencias del pasaporte: biometría, cédula, antecedentes y aval."""
+"""Evidencias del reporte de confianza: biometría, cédula, antecedentes y aval."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ _FIRMAS_IMAGEN = (
 )
 
 
-class PasaporteEvidenciasMixin:
+class MezclaReporteEvidencias:
     def procesar_biometria(self, usuario: Usuario, contenido: bytes) -> Usuario:
         if len(contenido) > BIOMETRIA_MAX_BYTES:
             raise BiometriaMuyGrande("La foto supera el tamaño máximo de 5 MB.")
@@ -107,7 +107,7 @@ class PasaporteEvidenciasMixin:
 
         # Si aún no tiene RUT verificado, adoptar el del carnet (identidad Nivel 1).
         if resultado.rut and not usuario.rut_verificado:
-            otro = self.usuarios.get_by_rut(resultado.rut)
+            otro = self.usuarios.obtener_por_rut(resultado.rut)
             if otro is not None and otro.id != usuario.id:
                 raise RutEnUso("Este RUT ya está registrado en otra cuenta.")
             usuario.rut = resultado.rut

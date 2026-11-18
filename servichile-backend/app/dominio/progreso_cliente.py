@@ -1,4 +1,4 @@
-"""Puntos y nivel del cliente (registro, RUT, biometría, asistencia)."""
+"""Puntos y nivel del cliente (registro, RUT, biometría, trabajo concretado)."""
 
 XP_REGISTRO = 10
 
@@ -12,7 +12,7 @@ XP_ANTECEDENTES = 60
 
 XP_AVAL = 50
 
-XP_ASISTENCIA = 25
+XP_TRABAJO_CONCRETADO = 25
 
 EVENTO_REGISTRO = "registro"
 
@@ -27,9 +27,9 @@ EVENTO_ANTECEDENTES = "antecedentes"
 EVENTO_AVAL = "aval"
 
 
-def evento_asistencia(reserva_id: str) -> str:
+def evento_trabajo_concretado(trabajo_id: str) -> str:
 
-    return f"asistencia:{reserva_id}"
+    return f"trabajo:{trabajo_id}"
 
 
 def nivel_por_xp(xp: int) -> int:

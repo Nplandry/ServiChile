@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from app.dominio.pasaporte import RutInvalido, normalizar_rut
+from app.dominio.rut import RutInvalido, normalizar_rut
 
 MIN_TEXTO_ALNUM = 120
 PDF_MAX_BYTES = 8 * 1024 * 1024

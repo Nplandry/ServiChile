@@ -15,7 +15,7 @@ from app.principal import app
 
 class SinLimite:
 
-    def allow(self, key, limit, window_s=60):
+    def permitir(self, clave, limite, ventana_s=60):
 
         return True
 
@@ -169,7 +169,7 @@ def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
 
     client.post("/v1/auth/registro", json=datos)
 
-    app.dependency_overrides[dependencias.get_rate_limiter] = lambda: SinLimite()
+    app.dependency_overrides[dependencias.obtener_limite_solicitudes] = lambda: SinLimite()
 
     try:
 
@@ -181,7 +181,7 @@ def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
 
     finally:
 
-        app.dependency_overrides.pop(dependencias.get_rate_limiter, None)
+        app.dependency_overrides.pop(dependencias.obtener_limite_solicitudes, None)
 
     cociente = max(con_cuenta, sin_cuenta) / min(con_cuenta, sin_cuenta)
 
@@ -268,16 +268,16 @@ def test_respuesta_429_incluye_retry_after(client: TestClient):
 
 def _settings_con_proxy(valor: bool):
 
-    from app.configuracion import get_settings
+    from app.configuracion import obtener_configuracion
 
-    return get_settings().model_copy(update={"trust_proxy": valor})
+    return obtener_configuracion().model_copy(update={"trust_proxy": valor})
 
 
 def test_sin_proxy_de_confianza_se_ignora_x_forwarded_for(client: TestClient):
 
-    from app.configuracion import get_settings
+    from app.configuracion import obtener_configuracion
 
-    app.dependency_overrides[get_settings] = lambda: _settings_con_proxy(False)
+    app.dependency_overrides[obtener_configuracion] = lambda: _settings_con_proxy(False)
 
     try:
 
@@ -292,7 +292,7 @@ def test_sin_proxy_de_confianza_se_ignora_x_forwarded_for(client: TestClient):
 
     finally:
 
-        app.dependency_overrides.pop(get_settings, None)
+        app.dependency_overrides.pop(obtener_configuracion, None)
 
     assert codigos[20] == 429
 
@@ -301,9 +301,9 @@ def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(
     client: TestClient,
 ):
 
-    from app.configuracion import get_settings
+    from app.configuracion import obtener_configuracion
 
-    app.dependency_overrides[get_settings] = lambda: _settings_con_proxy(True)
+    app.dependency_overrides[obtener_configuracion] = lambda: _settings_con_proxy(True)
 
     try:
 
@@ -327,7 +327,7 @@ def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(
 
     finally:
 
-        app.dependency_overrides.pop(get_settings, None)
+        app.dependency_overrides.pop(obtener_configuracion, None)
 
     assert codigos[20] == 429
 

@@ -1,7 +1,9 @@
+from datetime import datetime, timedelta, timezone
+
 from app.dominio.docs_empresa import TIPOS_DOC_EMPRESA, docs_empresa_desde_raw
-from app.dominio.transparencia.rating import (
+from app.dominio.transparencia.valoracion import (
     calcular_indice,
-    calcular_rating_documentos,
+    calcular_valoracion_documentos,
     observables_documentos,
     score_unificado,
 )
@@ -11,19 +13,37 @@ def _docs(*tipos: str):
     return docs_empresa_desde_raw({t: {"verificado": True, "score": 100} for t in tipos})
 
 
+def test_rating_ignora_documento_caducado():
+    tipo = TIPOS_DOC_EMPRESA[0]
+    pasado = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+    docs = docs_empresa_desde_raw(
+        {
+            tipo: {
+                "verificado": True,
+                "score": 100,
+                "verificado_en": pasado,
+                "vence_en": pasado,
+            }
+        }
+    )
+    rating = calcular_valoracion_documentos(docs)
+    assert rating.verificados == 0
+    assert rating.indice == 0.0
+
+
 def test_rating_sin_docs_es_cero():
-    rating = calcular_rating_documentos(None)
+    rating = calcular_valoracion_documentos(None)
     assert rating.verificados == 0
     assert rating.total == len(TIPOS_DOC_EMPRESA)
     assert rating.pct == 0
     assert rating.indice == 0.0
     assert calcular_indice(None) == 0.0
-    assert calcular_rating_documentos(None) is calcular_rating_documentos({})
+    assert calcular_valoracion_documentos(None) is calcular_valoracion_documentos({})
 
 
 def test_rating_un_documento_pesa_igual():
     tipo = TIPOS_DOC_EMPRESA[0]
-    rating = calcular_rating_documentos(_docs(tipo))
+    rating = calcular_valoracion_documentos(_docs(tipo))
     esperado_pct = int(round(100.0 / len(TIPOS_DOC_EMPRESA)))
     esperado_indice = round(10.0 / len(TIPOS_DOC_EMPRESA), 1)
     assert rating.verificados == 1
@@ -33,11 +53,11 @@ def test_rating_un_documento_pesa_igual():
 
 def test_rating_todos_documentos_llega_a_100():
     completo = _docs(*TIPOS_DOC_EMPRESA)
-    rating = calcular_rating_documentos(completo)
+    rating = calcular_valoracion_documentos(completo)
     assert rating.verificados == len(TIPOS_DOC_EMPRESA)
     assert rating.pct == 100
     assert rating.indice == 10.0
-    assert calcular_rating_documentos(completo) is rating
+    assert calcular_valoracion_documentos(completo) is rating
 
 
 def test_rating_ignora_docs_no_verificados():
@@ -48,18 +68,18 @@ def test_rating_ignora_docs_no_verificados():
             "tipo_desconocido": {"verificado": True},
         }
     )
-    rating = calcular_rating_documentos(docs)
+    rating = calcular_valoracion_documentos(docs)
     assert rating.verificados == 1
 
 
-def test_score_unificado_junta_rater_y_docs():
-    indice, pct = score_unificado(rater_pct=80, docs_pct=20)
+def test_score_unificado_junta_evaluador_y_docs():
+    indice, pct = score_unificado(pct_evaluador=80, docs_pct=20)
     assert pct == 50
     assert indice == 5.0
 
 
 def test_score_unificado_sin_docs_baja_el_indice():
-    indice, pct = score_unificado(rater_pct=100, docs_pct=0)
+    indice, pct = score_unificado(pct_evaluador=100, docs_pct=0)
     assert pct == 50
     assert indice == 5.0
 

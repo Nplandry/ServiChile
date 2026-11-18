@@ -2,7 +2,7 @@ import uuid
 
 from fastapi.testclient import TestClient
 
-from app.infraestructura.persistencia.modelos import BusinessEntity
+from app.infraestructura.persistencia.modelos import EntidadNegocio
 
 CLAVE = "clave-segura-123"
 
@@ -27,7 +27,7 @@ def _negocio(session_factory, nombre="Proveedor TI Central") -> uuid.UUID:
 
     with session_factory() as s:
 
-        negocio = BusinessEntity(
+        negocio = EntidadNegocio(
             nombre=nombre, categoria="tecnologia", latitud=-33.45, longitud=-70.66
         )
 
@@ -38,10 +38,10 @@ def _negocio(session_factory, nombre="Proveedor TI Central") -> uuid.UUID:
         return negocio.id
 
 
-def _reservar(client: TestClient, headers, business_id) -> dict:
+def _abrir_trabajo(client: TestClient, headers, business_id) -> dict:
 
     r = client.post(
-        "/v1/reservas", json={"business_id": str(business_id)}, headers=headers
+        "/v1/trabajos", json={"business_id": str(business_id)}, headers=headers
     )
 
     assert r.status_code == 201, r.text
@@ -49,27 +49,27 @@ def _reservar(client: TestClient, headers, business_id) -> dict:
     return r.json()
 
 
-def test_cancelar_reserva_propia_cambia_estado(client: TestClient, session_factory):
+def test_cancelar_trabajo_propio_cambia_estado(client: TestClient, session_factory):
 
     bid = _negocio(session_factory)
 
     h = _cuenta(client, "cancela@servichile.cl")
 
-    reserva = _reservar(client, h, bid)
+    trabajo = _abrir_trabajo(client, h, bid)
 
-    r = client.delete(f"/v1/reservas/{reserva['id']}", headers=h)
+    r = client.delete(f"/v1/trabajos/{trabajo['id']}", headers=h)
 
     assert r.status_code == 200, r.text
 
-    assert r.json()["estado"] == "cancelada"
+    assert r.json()["estado"] == "cancelado"
 
     activas = [
         x
-        for x in client.get("/v1/reservas", headers=h).json()
-        if x["id"] == reserva["id"]
+        for x in client.get("/v1/trabajos", headers=h).json()
+        if x["id"] == trabajo["id"]
     ]
 
-    assert activas[0]["estado"] == "cancelada"
+    assert activas[0]["estado"] == "cancelado"
 
 
 def test_cancelar_dos_veces_da_409(client: TestClient, session_factory):
@@ -78,14 +78,14 @@ def test_cancelar_dos_veces_da_409(client: TestClient, session_factory):
 
     h = _cuenta(client, "dos@servichile.cl")
 
-    reserva = _reservar(client, h, bid)
+    trabajo = _abrir_trabajo(client, h, bid)
 
-    client.delete(f"/v1/reservas/{reserva['id']}", headers=h)
+    client.delete(f"/v1/trabajos/{trabajo['id']}", headers=h)
 
-    assert client.delete(f"/v1/reservas/{reserva['id']}", headers=h).status_code == 409
+    assert client.delete(f"/v1/trabajos/{trabajo['id']}", headers=h).status_code == 409
 
 
-def test_cancelar_reserva_ajena_da_404(client: TestClient, session_factory):
+def test_cancelar_trabajo_ajeno_da_404(client: TestClient, session_factory):
 
     bid = _negocio(session_factory)
 
@@ -93,16 +93,16 @@ def test_cancelar_reserva_ajena_da_404(client: TestClient, session_factory):
 
     otro = _cuenta(client, "otro@servichile.cl")
 
-    reserva = _reservar(client, dueno, bid)
+    trabajo = _abrir_trabajo(client, dueno, bid)
 
     assert (
-        client.delete(f"/v1/reservas/{reserva['id']}", headers=otro).status_code == 404
+        client.delete(f"/v1/trabajos/{trabajo['id']}", headers=otro).status_code == 404
     )
 
 
 def test_cancelar_requiere_sesion(client: TestClient):
 
-    assert client.delete(f"/v1/reservas/{uuid.uuid4()}").status_code == 401
+    assert client.delete(f"/v1/trabajos/{uuid.uuid4()}").status_code == 401
 
 
 def test_eliminar_cuenta_con_contrasena_incorrecta_da_403(client: TestClient):

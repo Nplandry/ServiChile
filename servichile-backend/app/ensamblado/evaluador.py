@@ -1,0 +1,117 @@
+"""Composición compartida del evaluador de señales (API + segundo plano).
+
+El resto de fábricas HTTP viven en ``app.api.dependencias``; aquí solo lo
+que también arranca fuera de FastAPI (bucle de refresco).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from contextlib import suppress
+from functools import lru_cache
+
+from sqlalchemy.orm import Session
+
+from app.configuracion import obtener_configuracion
+from app.dominio.puertos import AnalizadorDocEmpresa
+from app.infraestructura.geocodificacion import construir_geocodificador
+from app.infraestructura.persistencia.modelos import obtener_sessionmaker
+from app.infraestructura.persistencia.repositorios import RepositorioNegocio
+from app.infraestructura.evaluador.adaptador import AdaptadorEvaluador, ConfiguracionEvaluador
+from app.servicios.negocio import ServicioNegocio
+
+log = logging.getLogger(__name__)
+
+
+@lru_cache
+def obtener_adaptador_evaluador() -> AdaptadorEvaluador:
+    s = obtener_configuracion()
+    return AdaptadorEvaluador(
+        ConfiguracionEvaluador(
+            app_env=s.app_env,
+            chilecompra_ticket=s.chilecompra_ticket,
+            google_places_api_key=s.google_places_api_key,
+            presupuesto_segundos=s.rater_budget_seconds,
+        )
+    )
+
+
+def armar_servicio_negocio(
+    session: Session,
+    analizador_docs: AnalizadorDocEmpresa | None = None,
+) -> ServicioNegocio:
+    """Única composición de ServicioNegocio (API y segundo plano)."""
+    return ServicioNegocio(
+        RepositorioNegocio(session),
+        analizador_docs,
+        obtener_adaptador_evaluador(),
+        construir_geocodificador(obtener_configuracion().app_env),
+    )
+
+
+def _refrescar_lote() -> int:
+    SesionLocal = obtener_sessionmaker()
+    with SesionLocal() as session:
+        return armar_servicio_negocio(session).refrescar_evaluador_todos()
+
+
+def refrescar_evaluador_negocio(negocio_id) -> None:
+    """Sesión propia; el bucle prioriza sin rater_escaneado_en."""
+    from uuid import UUID
+
+    bid = negocio_id if isinstance(negocio_id, UUID) else UUID(str(negocio_id))
+    SesionLocal = obtener_sessionmaker()
+    with SesionLocal() as session:
+        try:
+            # guardar() ya hace commit; no hace falta commit extra.
+            armar_servicio_negocio(session).refrescar_evaluador(bid)
+        except Exception:
+            session.rollback()
+            log.exception("Evaluador diferido falló para negocio %s", bid)
+
+
+def encolar_evaluador(
+    tareas_segundo_plano, negocio_id, *, servicio: ServicioNegocio | None = None
+):
+    """Prod/local: BackgroundTasks. Test: sincrónico en la misma sesión de la petición."""
+    from app.servicios.negocio_reputacion import a_titular
+
+    if obtener_configuracion().app_env == "test":
+        if servicio is None:
+            raise RuntimeError("encolar_evaluador en test requiere servicio")
+        return a_titular(servicio.refrescar_evaluador(negocio_id))
+    tareas_segundo_plano.add_task(refrescar_evaluador_negocio, negocio_id)
+    return None
+
+
+async def bucle_evaluador(stop: asyncio.Event) -> None:
+    config = obtener_configuracion()
+    minutos = float(config.rater_refresh_minutes or 0)
+    if config.app_env == "test" or minutos <= 0:
+        log.info(
+            "Evaluador en segundo plano desactivado (env=%s, minutos=%s).",
+            config.app_env,
+            minutos,
+        )
+        return
+
+    intervalo = max(60.0, minutos * 60.0)
+    log.info("Evaluador en segundo plano cada %.0f min.", minutos)
+
+    try:
+        n = await asyncio.to_thread(_refrescar_lote)
+        log.info("Evaluador en segundo plano inicial: %s empresas.", n)
+    except Exception:
+        log.exception("Evaluador en segundo plano: fallo en arranque inicial.")
+
+    while not stop.is_set():
+        with suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=intervalo)
+        if stop.is_set():
+            break
+        try:
+            n = await asyncio.to_thread(_refrescar_lote)
+            log.info("Evaluador en segundo plano: %s empresas refrescadas.", n)
+        except Exception:
+            log.exception("Evaluador en segundo plano falló.")

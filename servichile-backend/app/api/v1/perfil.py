@@ -5,21 +5,21 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from starlette.concurrency import run_in_threadpool
 
 from app.api.dependencias import (
-    CurrentUserDep,
-    PasaporteServiceDep,
-    RateLimiterDep,
+    UsuarioActualDep,
+    ServicioReporteIdentidadDep,
+    LimiteSolicitudesDep,
     demasiadas_solicitudes,
 )
 
 from app.api.mapeos import to_perfil_out
 
 from app.api.esquemas import (
-    AntecedentesOut,
-    AvalOut,
-    BiometriaOut,
-    CedulaOut,
-    PerfilIn,
-    PerfilOut,
+    AntecedentesSalida,
+    AvalSalida,
+    BiometriaSalida,
+    CedulaSalida,
+    PerfilEntrada,
+    PerfilSalida,
 )
 
 from app.dominio.antecedentes import ANTECEDENTES_MAX_BYTES
@@ -54,15 +54,15 @@ ANTECEDENTES_POR_MINUTO = 10
 AVAL_POR_MINUTO = 8
 
 
-@router.get("", response_model=PerfilOut)
-def ver_perfil(usuario: CurrentUserDep, servicio: PasaporteServiceDep):
+@router.get("", response_model=PerfilSalida)
+def ver_perfil(usuario: UsuarioActualDep, servicio: ServicioReporteIdentidadDep):
 
     return to_perfil_out(servicio.estado(usuario))
 
 
-@router.patch("", response_model=PerfilOut)
+@router.patch("", response_model=PerfilSalida)
 def actualizar_perfil(
-    datos: PerfilIn, usuario: CurrentUserDep, servicio: PasaporteServiceDep
+    datos: PerfilEntrada, usuario: UsuarioActualDep, servicio: ServicioReporteIdentidadDep
 ):
 
     cambios = datos.model_dump(exclude_unset=True)
@@ -85,12 +85,12 @@ def actualizar_perfil(
 
 
 @router.post(
-    "/biometria", response_model=BiometriaOut, status_code=status.HTTP_201_CREATED
+    "/biometria", response_model=BiometriaSalida, status_code=status.HTTP_201_CREATED
 )
 async def verificar_biometria(
-    usuario: CurrentUserDep,
-    servicio: PasaporteServiceDep,
-    limiter: RateLimiterDep,
+    usuario: UsuarioActualDep,
+    servicio: ServicioReporteIdentidadDep,
+    limiter: LimiteSolicitudesDep,
     foto: Annotated[
         UploadFile,
         File(
@@ -102,7 +102,7 @@ async def verificar_biometria(
     ],
 ):
 
-    if not limiter.allow(f"biometria:{usuario.id}", BIOMETRIA_POR_MINUTO):
+    if not limiter.permitir(f"biometria:{usuario.id}", BIOMETRIA_POR_MINUTO):
 
         raise demasiadas_solicitudes()
 
@@ -130,7 +130,7 @@ async def verificar_biometria(
 
     estado = servicio.estado(actualizado)
 
-    return BiometriaOut(
+    return BiometriaSalida(
         biometria_verificada=actualizado.biometria_verificada,
         biometria_verificada_en=actualizado.biometria_verificada_en,
         biometria_retener_hasta=actualizado.biometria_retener_hasta,
@@ -141,12 +141,12 @@ async def verificar_biometria(
 
 
 @router.post(
-    "/cedula", response_model=CedulaOut, status_code=status.HTTP_201_CREATED
+    "/cedula", response_model=CedulaSalida, status_code=status.HTTP_201_CREATED
 )
 async def verificar_cedula(
-    usuario: CurrentUserDep,
-    servicio: PasaporteServiceDep,
-    limiter: RateLimiterDep,
+    usuario: UsuarioActualDep,
+    servicio: ServicioReporteIdentidadDep,
+    limiter: LimiteSolicitudesDep,
     foto: Annotated[
         UploadFile,
         File(
@@ -157,7 +157,7 @@ async def verificar_cedula(
         ),
     ],
 ):
-    if not limiter.allow(f"cedula:{usuario.id}", CEDULA_POR_MINUTO):
+    if not limiter.permitir(f"cedula:{usuario.id}", CEDULA_POR_MINUTO):
         raise demasiadas_solicitudes()
 
     contenido = await foto.read(CEDULA_MAX_BYTES + 1)
@@ -177,7 +177,7 @@ async def verificar_cedula(
         del contenido
 
     estado = servicio.estado(actualizado)
-    return CedulaOut(
+    return CedulaSalida(
         cedula_verificada=actualizado.cedula_verificada,
         cedula_verificada_en=actualizado.cedula_verificada_en,
         cedula_retener_hasta=actualizado.cedula_retener_hasta,
@@ -193,12 +193,12 @@ async def verificar_cedula(
 
 
 @router.post(
-    "/antecedentes", response_model=AntecedentesOut, status_code=status.HTTP_201_CREATED
+    "/antecedentes", response_model=AntecedentesSalida, status_code=status.HTTP_201_CREATED
 )
 async def verificar_antecedentes(
-    usuario: CurrentUserDep,
-    servicio: PasaporteServiceDep,
-    limiter: RateLimiterDep,
+    usuario: UsuarioActualDep,
+    servicio: ServicioReporteIdentidadDep,
+    limiter: LimiteSolicitudesDep,
     archivo: Annotated[
         UploadFile,
         File(description="PDF del certificado de antecedentes; no se almacena"),
@@ -206,7 +206,7 @@ async def verificar_antecedentes(
     nombre_archivo: Annotated[str | None, Form()] = None,
 ):
 
-    if not limiter.allow(f"antecedentes:{usuario.id}", ANTECEDENTES_POR_MINUTO):
+    if not limiter.permitir(f"antecedentes:{usuario.id}", ANTECEDENTES_POR_MINUTO):
 
         raise demasiadas_solicitudes()
 
@@ -236,7 +236,7 @@ async def verificar_antecedentes(
 
     estado = servicio.estado(actualizado)
 
-    return AntecedentesOut(
+    return AntecedentesSalida(
         antecedentes_verificados=actualizado.antecedentes_verificados,
         antecedentes_verificados_en=actualizado.antecedentes_verificados_en,
         antecedentes_anotaciones=actualizado.antecedentes_anotaciones,
@@ -253,11 +253,11 @@ async def verificar_antecedentes(
     )
 
 
-@router.post("/aval", response_model=AvalOut, status_code=status.HTTP_201_CREATED)
+@router.post("/aval", response_model=AvalSalida, status_code=status.HTTP_201_CREATED)
 async def verificar_aval(
-    usuario: CurrentUserDep,
-    servicio: PasaporteServiceDep,
-    limiter: RateLimiterDep,
+    usuario: UsuarioActualDep,
+    servicio: ServicioReporteIdentidadDep,
+    limiter: LimiteSolicitudesDep,
     archivo: Annotated[
         UploadFile,
         File(
@@ -269,7 +269,7 @@ async def verificar_aval(
     ],
     nombre_archivo: Annotated[str | None, Form()] = None,
 ):
-    if not limiter.allow(f"aval:{usuario.id}", AVAL_POR_MINUTO):
+    if not limiter.permitir(f"aval:{usuario.id}", AVAL_POR_MINUTO):
         raise demasiadas_solicitudes()
 
     contenido = await archivo.read(AVAL_MAX_BYTES + 1)
@@ -288,7 +288,7 @@ async def verificar_aval(
         del contenido
 
     estado = servicio.estado(actualizado)
-    return AvalOut(
+    return AvalSalida(
         aval_verificado=actualizado.aval_verificado,
         aval_verificado_en=actualizado.aval_verificado_en,
         aval_score=actualizado.aval_score,

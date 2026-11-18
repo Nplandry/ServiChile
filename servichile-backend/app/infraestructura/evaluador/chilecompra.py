@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from app.infraestructura.rater.http_sync import get_json
+from app.infraestructura.evaluador.http_sync import obtener_json
 
 
 def _format_rut_dots(rut: str) -> str:
@@ -20,7 +20,7 @@ def _format_rut_dots(rut: str) -> str:
     return f"{'.'.join(reversed(chunks))}-{dv}"
 
 
-class ChileCompraCliente:
+class ClienteChileCompra:
     def __init__(self, ticket: str, *, base: str | None = None) -> None:
         self.ticket = (ticket or "").strip()
         self.base = (base or "https://api.mercadopublico.cl/servicios/v1").rstrip("/")
@@ -30,15 +30,15 @@ class ChileCompraCliente:
         return bool(self.ticket)
 
     def buscar_proveedor(
-        self, rut: str, *, timeout: float = 2.0
+        self, rut: str, *, tiempo_espera: float = 2.0
     ) -> tuple[bool, dict[str, Any] | None, str | None]:
         if not self.configurado:
             return False, None, "CHILECOMPRA_TICKET no configurado"
         url = f"{self.base}/Publico/Empresas/BuscarProveedor"
-        ok, data, err = get_json(
+        ok, data, err = obtener_json(
             url,
             params={"rutempresaproveedor": _format_rut_dots(rut), "ticket": self.ticket},
-            timeout=timeout,
+            tiempo_espera=tiempo_espera,
         )
         if not ok:
             return False, None, err

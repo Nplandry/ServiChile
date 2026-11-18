@@ -1,7 +1,7 @@
 """Ensambla la aplicación: crea servicios y les inyecta repositorios.
 
 Los routers no tocan la base. Piden un servicio aquí (por ejemplo
-``NegocioServiceDep``) y FastAPI lo construye con las implementaciones concretas.
+``ServicioNegocioDep``) y FastAPI lo construye con las implementaciones concretas.
 """
 
 from functools import lru_cache
@@ -14,7 +14,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from sqlalchemy.orm import Session
 
-from app.configuracion import Settings, get_settings
+from app.configuracion import Configuracion, obtener_configuracion
 
 from app.dominio.entidades import Usuario
 
@@ -29,7 +29,7 @@ from app.dominio.puertos import (
     AnalizadorDocEmpresa,
     EmisorReporte,
     EmisorSesion,
-    HasherContrasena,
+    HasheadorContrasena,
     VerificadorIdentidad,
 )
 
@@ -44,67 +44,70 @@ from app.infraestructura.pdf_antecedentes import AnalizadorPdfAntecedentes
 from app.infraestructura.pdf_aval import AnalizadorPdfAval
 from app.infraestructura.pdf_docs_empresa import AnalizadorPdfDocEmpresa
 
-from app.infraestructura.persistencia.modelos import get_session
+from app.infraestructura.persistencia.modelos import obtener_sesion
 
-from app.infraestructura.limite_solicitudes import RateLimiter, build_rate_limiter
-
-from app.infraestructura.persistencia.repositorios import (
-    NegocioRepository,
-    ReservaRepository,
-    UsuarioRepository,
-    XpRepository,
+from app.infraestructura.limite_solicitudes import (
+    LimiteSolicitudes,
+    construir_limite_solicitudes,
 )
 
-from app.infraestructura.seguridad.hasher import HasherArgon2
+from app.infraestructura.persistencia.repositorios import (
+    RepositorioNegocio,
+    RepositorioTrabajo,
+    RepositorioUsuario,
+    RepositorioXp,
+)
+
+from app.infraestructura.seguridad.hasheador import HasheadorArgon2
 
 from app.infraestructura.seguridad.jwt_reporte import JwtReporte
 
 from app.infraestructura.seguridad.jwt_sesion import JwtSesion
 
-from app.infraestructura.verificacion import build_verificador_rut
+from app.infraestructura.verificacion import construir_verificador_rut
 
-from app.ensamblado.rater import armar_negocio_service
+from app.ensamblado.evaluador import armar_servicio_negocio
 
-from app.servicios.autenticacion import AuthService
+from app.servicios.autenticacion import ServicioAutenticacion
 
-from app.servicios.cuenta import CuentaService
+from app.servicios.cuenta import ServicioCuenta
 
-from app.servicios.negocio import NegocioService
+from app.servicios.negocio import ServicioNegocio
 
-from app.servicios.pasaporte import PasaporteService
+from app.servicios.reporte_identidad import ServicioReporteIdentidad
 
-from app.servicios.reporte import ReporteService
+from app.servicios.reporte import ServicioReporte
 
-from app.servicios.reserva import ReservaService
+from app.servicios.trabajo import ServicioTrabajo
 
-from app.servicios.progreso_cliente import XpService
+from app.servicios.progreso_cliente import ServicioProgresoCliente
 
-SessionDep = Annotated[Session, Depends(get_session)]
+SesionDep = Annotated[Session, Depends(obtener_sesion)]
 
-SettingsDep = Annotated[Settings, Depends(get_settings)]
-
-
-@lru_cache
-def get_rate_limiter() -> RateLimiter:
-
-    return build_rate_limiter(get_settings().redis_url)
-
-
-def get_xp_service(session: SessionDep) -> XpService:
-
-    return XpService(XpRepository(session))
+ConfiguracionDep = Annotated[Configuracion, Depends(obtener_configuracion)]
 
 
 @lru_cache
-def get_hasher() -> HasherContrasena:
+def obtener_limite_solicitudes() -> LimiteSolicitudes:
 
-    return HasherArgon2()
+    return construir_limite_solicitudes(obtener_configuracion().redis_url)
+
+
+def obtener_servicio_progreso(session: SesionDep) -> ServicioProgresoCliente:
+
+    return ServicioProgresoCliente(RepositorioXp(session))
 
 
 @lru_cache
-def get_emisor_sesion() -> EmisorSesion:
+def obtener_hasheador() -> HasheadorContrasena:
 
-    settings = get_settings()
+    return HasheadorArgon2()
+
+
+@lru_cache
+def obtener_emisor_sesion() -> EmisorSesion:
+
+    settings = obtener_configuracion()
 
     return JwtSesion(
         settings.jwt_secret.get_secret_value(), settings.jwt_expires_minutes
@@ -112,91 +115,98 @@ def get_emisor_sesion() -> EmisorSesion:
 
 
 @lru_cache
-def get_emisor_reporte() -> EmisorReporte:
+def obtener_emisor_reporte() -> EmisorReporte:
 
-    settings = get_settings()
+    settings = obtener_configuracion()
 
     return JwtReporte(
         settings.jwt_secret.get_secret_value(), settings.reporte_expires_minutes
     )
 
 
-def get_auth_service(
-    session: SessionDep,
-    hasher: Annotated[HasherContrasena, Depends(get_hasher)],
-    sesion: Annotated[EmisorSesion, Depends(get_emisor_sesion)],
-) -> AuthService:
+def obtener_servicio_autenticacion(
+    session: SesionDep,
+    hasheador: Annotated[HasheadorContrasena, Depends(obtener_hasheador)],
+    sesion: Annotated[EmisorSesion, Depends(obtener_emisor_sesion)],
+) -> ServicioAutenticacion:
 
-    return AuthService(
-        UsuarioRepository(session), hasher, sesion, get_xp_service(session)
+    return ServicioAutenticacion(
+        RepositorioUsuario(session),
+        hasheador,
+        sesion,
+        obtener_servicio_progreso(session),
     )
 
 
-def get_verificador_rut() -> VerificadorIdentidad:
-
-    return build_verificador_rut(get_settings().rut_verifier)
+def obtener_verificador_rut() -> VerificadorIdentidad:
+    s = obtener_configuracion()
+    return construir_verificador_rut(
+        s.rut_verifier,
+        app_env=s.app_env,
+        chilecompra_ticket=getattr(s, "chilecompra_ticket", "") or "",
+    )
 
 
 @lru_cache
-def get_analizador_antecedentes() -> AnalizadorAntecedentes:
-    settings = get_settings()
+def obtener_analizador_antecedentes() -> AnalizadorAntecedentes:
+    settings = obtener_configuracion()
     return AnalizadorPdfAntecedentes(str(settings.pades_ca_ruta()))
 
 
 @lru_cache
-def get_almacenamiento_biometria() -> AlmacenamientoBiometria:
-    settings = get_settings()
+def obtener_almacenamiento_biometria() -> AlmacenamientoBiometria:
+    settings = obtener_configuracion()
     return AlmacenamientoBiometriaLocal(
         settings.biometria_raiz(),
         max_lado=settings.biometria_max_lado,
-        jpeg_quality=settings.biometria_jpeg_quality,
+        calidad_jpeg=settings.biometria_jpeg_quality,
     )
 
 
 @lru_cache
-def get_almacenamiento_cedula() -> AlmacenamientoCedula:
-    settings = get_settings()
+def obtener_almacenamiento_cedula() -> AlmacenamientoCedula:
+    settings = obtener_configuracion()
     return AlmacenamientoCedulaLocal(
         settings.cedula_raiz(),
         max_lado=settings.cedula_max_lado,
-        jpeg_quality=settings.cedula_jpeg_quality,
+        calidad_jpeg=settings.cedula_jpeg_quality,
     )
 
 
 @lru_cache
-def get_analizador_cedula() -> AnalizadorCedula:
+def obtener_analizador_cedula() -> AnalizadorCedula:
     return AnalizadorCedulaOcr(LectorOcrTesseract(), ComparadorRostrosOpenCv())
 
 
 @lru_cache
-def get_analizador_aval() -> AnalizadorAval:
+def obtener_analizador_aval() -> AnalizadorAval:
     return AnalizadorPdfAval()
 
 
 @lru_cache
-def get_analizador_docs_empresa() -> AnalizadorDocEmpresa:
-    settings = get_settings()
+def obtener_analizador_docs_empresa() -> AnalizadorDocEmpresa:
+    settings = obtener_configuracion()
     return AnalizadorPdfDocEmpresa(str(settings.pades_ca_ruta()))
 
 
-def get_pasaporte_service(
-    session: SessionDep,
-    verificador: Annotated[VerificadorIdentidad, Depends(get_verificador_rut)],
-    analizador: Annotated[AnalizadorAntecedentes, Depends(get_analizador_antecedentes)],
+def obtener_servicio_reporte_identidad(
+    session: SesionDep,
+    verificador: Annotated[VerificadorIdentidad, Depends(obtener_verificador_rut)],
+    analizador: Annotated[AnalizadorAntecedentes, Depends(obtener_analizador_antecedentes)],
     biometria: Annotated[
-        AlmacenamientoBiometria, Depends(get_almacenamiento_biometria)
+        AlmacenamientoBiometria, Depends(obtener_almacenamiento_biometria)
     ],
-    cedula: Annotated[AlmacenamientoCedula, Depends(get_almacenamiento_cedula)],
-    analizador_cedula: Annotated[AnalizadorCedula, Depends(get_analizador_cedula)],
-    analizador_aval: Annotated[AnalizadorAval, Depends(get_analizador_aval)],
-    settings: SettingsDep,
-) -> PasaporteService:
+    cedula: Annotated[AlmacenamientoCedula, Depends(obtener_almacenamiento_cedula)],
+    analizador_cedula: Annotated[AnalizadorCedula, Depends(obtener_analizador_cedula)],
+    analizador_aval: Annotated[AnalizadorAval, Depends(obtener_analizador_aval)],
+    settings: ConfiguracionDep,
+) -> ServicioReporteIdentidad:
 
-    return PasaporteService(
-        UsuarioRepository(session),
-        ReservaRepository(session),
+    return ServicioReporteIdentidad(
+        RepositorioUsuario(session),
+        RepositorioTrabajo(session),
         verificador,
-        get_xp_service(session),
+        obtener_servicio_progreso(session),
         analizador,
         biometria,
         biometria_retencion_dias=settings.biometria_retencion_dias,
@@ -207,64 +217,68 @@ def get_pasaporte_service(
     )
 
 
-def get_negocio_service(
-    session: SessionDep,
+def obtener_servicio_negocio(
+    session: SesionDep,
     analizador_docs: Annotated[
-        AnalizadorDocEmpresa, Depends(get_analizador_docs_empresa)
+        AnalizadorDocEmpresa, Depends(obtener_analizador_docs_empresa)
     ],
-) -> NegocioService:
-    return armar_negocio_service(session, analizador_docs)
+) -> ServicioNegocio:
+    return armar_servicio_negocio(session, analizador_docs)
 
 
-def get_reserva_service(session: SessionDep) -> ReservaService:
+def obtener_servicio_trabajo(session: SesionDep) -> ServicioTrabajo:
 
-    return ReservaService(
-        NegocioRepository(session),
-        ReservaRepository(session),
-        get_xp_service(session),
+    return ServicioTrabajo(
+        RepositorioNegocio(session),
+        RepositorioTrabajo(session),
+        obtener_servicio_progreso(session),
     )
 
 
-def get_reporte_service(
-    session: SessionDep,
-    pasaporte: Annotated[PasaporteService, Depends(get_pasaporte_service)],
-    emisor: Annotated[EmisorReporte, Depends(get_emisor_reporte)],
-) -> ReporteService:
+def obtener_servicio_reporte(
+    session: SesionDep,
+    identidad: Annotated[
+        ServicioReporteIdentidad, Depends(obtener_servicio_reporte_identidad)
+    ],
+    emisor: Annotated[EmisorReporte, Depends(obtener_emisor_reporte)],
+) -> ServicioReporte:
 
-    return ReporteService(UsuarioRepository(session), pasaporte, emisor)
+    return ServicioReporte(RepositorioUsuario(session), identidad, emisor)
 
 
-def get_cuenta_service(
-    session: SessionDep,
-    negocios: Annotated[NegocioService, Depends(get_negocio_service)],
-    hasher: Annotated[HasherContrasena, Depends(get_hasher)],
+def obtener_servicio_cuenta(
+    session: SesionDep,
+    negocios: Annotated[ServicioNegocio, Depends(obtener_servicio_negocio)],
+    hasheador: Annotated[HasheadorContrasena, Depends(obtener_hasheador)],
     biometria: Annotated[
-        AlmacenamientoBiometria, Depends(get_almacenamiento_biometria)
+        AlmacenamientoBiometria, Depends(obtener_almacenamiento_biometria)
     ],
-    cedula: Annotated[AlmacenamientoCedula, Depends(get_almacenamiento_cedula)],
-) -> CuentaService:
+    cedula: Annotated[AlmacenamientoCedula, Depends(obtener_almacenamiento_cedula)],
+) -> ServicioCuenta:
 
-    return CuentaService(
-        UsuarioRepository(session), negocios, hasher, biometria, cedula
+    return ServicioCuenta(
+        RepositorioUsuario(session), negocios, hasheador, biometria, cedula
     )
 
 
-PasaporteServiceDep = Annotated[PasaporteService, Depends(get_pasaporte_service)]
+ServicioReporteIdentidadDep = Annotated[
+    ServicioReporteIdentidad, Depends(obtener_servicio_reporte_identidad)
+]
 
-ReservaServiceDep = Annotated[ReservaService, Depends(get_reserva_service)]
+ServicioTrabajoDep = Annotated[ServicioTrabajo, Depends(obtener_servicio_trabajo)]
 
-ReporteServiceDep = Annotated[ReporteService, Depends(get_reporte_service)]
+ServicioReporteDep = Annotated[ServicioReporte, Depends(obtener_servicio_reporte)]
 
-NegocioServiceDep = Annotated[NegocioService, Depends(get_negocio_service)]
+ServicioNegocioDep = Annotated[ServicioNegocio, Depends(obtener_servicio_negocio)]
 
-CuentaServiceDep = Annotated[CuentaService, Depends(get_cuenta_service)]
+ServicioCuentaDep = Annotated[ServicioCuenta, Depends(obtener_servicio_cuenta)]
 
 _bearer = HTTPBearer(auto_error=False)
 
 
-def get_current_user(
+def obtener_usuario_actual(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-    auth: Annotated[AuthService, Depends(get_auth_service)],
+    auth: Annotated[ServicioAutenticacion, Depends(obtener_servicio_autenticacion)],
 ) -> Usuario:
 
     if credentials is None:
@@ -289,11 +303,13 @@ def _no_autorizado() -> HTTPException:
     )
 
 
-AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+ServicioAutenticacionDep = Annotated[
+    ServicioAutenticacion, Depends(obtener_servicio_autenticacion)
+]
 
-CurrentUserDep = Annotated[Usuario, Depends(get_current_user)]
+UsuarioActualDep = Annotated[Usuario, Depends(obtener_usuario_actual)]
 
-RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
+LimiteSolicitudesDep = Annotated[LimiteSolicitudes, Depends(obtener_limite_solicitudes)]
 
 
 def demasiadas_solicitudes() -> HTTPException:

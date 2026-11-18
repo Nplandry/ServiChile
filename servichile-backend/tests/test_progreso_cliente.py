@@ -113,7 +113,7 @@ def test_rut_suma_xp(client: TestClient, token: str):
     assert r2.json()["xp"] == antes + reglas.XP_RUT
 
 
-def test_asistencia_suma_xp(client: TestClient, token_empresa: str):
+def test_trabajo_concretado_suma_xp(client: TestClient, token_empresa: str):
 
     import uuid
 
@@ -150,14 +150,14 @@ def test_asistencia_suma_xp(client: TestClient, token_empresa: str):
 
     antes = client.get("/v1/auth/yo", headers=cliente).json()["perfil"]["xp"]
 
-    reserva = client.post(
-        "/v1/reservas", json={"business_id": str(bid)}, headers=cliente
+    trabajo = client.post(
+        "/v1/trabajos", json={"business_id": str(bid)}, headers=cliente
     ).json()
 
     assert (
         client.post(
-            f"/v1/businesses/{bid}/checkin",
-            json={"qr_token": reserva["qr_token"]},
+            f"/v1/businesses/{bid}/trabajos/concretar",
+            json={"qr_token": trabajo["qr_token"]},
             headers=titular,
         ).status_code
         == 200
@@ -165,9 +165,9 @@ def test_asistencia_suma_xp(client: TestClient, token_empresa: str):
 
     despues = client.get("/v1/auth/yo", headers=cliente).json()["perfil"]["xp"]
 
-    assert despues == antes + reglas.XP_ASISTENCIA
+    assert despues == antes + reglas.XP_TRABAJO_CONCRETADO
 
-    assert uuid.UUID(reserva["id"])
+    assert uuid.UUID(trabajo["id"])
 
 
 def test_nivel_por_xp_umbrales():

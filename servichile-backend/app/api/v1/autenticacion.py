@@ -1,18 +1,18 @@
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from app.api.dependencias import (
-    AuthServiceDep,
-    CuentaServiceDep,
-    CurrentUserDep,
-    PasaporteServiceDep,
-    RateLimiterDep,
-    SettingsDep,
+    ServicioAutenticacionDep,
+    ServicioCuentaDep,
+    UsuarioActualDep,
+    ServicioReporteIdentidadDep,
+    LimiteSolicitudesDep,
+    ConfiguracionDep,
     demasiadas_solicitudes,
 )
 
 from app.api.mapeos import to_usuario_out
 
-from app.api.esquemas import EliminarCuentaIn, LoginIn, RegistroIn, TokenOut, UsuarioOut
+from app.api.esquemas import EliminarCuentaEntrada, LoginEntrada, RegistroEntrada, TokenSalida, UsuarioSalida
 
 from app.dominio.errores import (
     ContrasenaIncorrecta,
@@ -42,11 +42,11 @@ def _limitar_intento(
     request: Request, accion: str, email: str, limiter, settings
 ) -> None:
 
-    if not limiter.allow(f"{accion}-correo:{email}", settings.login_rate_per_minute):
+    if not limiter.permitir(f"{accion}-correo:{email}", settings.login_rate_per_minute):
 
         raise demasiadas_solicitudes()
 
-    if not limiter.allow(
+    if not limiter.permitir(
         f"{accion}-ip:{_ip(request, settings)}", settings.login_ip_rate_per_minute
     ):
 
@@ -54,15 +54,15 @@ def _limitar_intento(
 
 
 @router.post(
-    "/registro", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED
+    "/registro", response_model=UsuarioSalida, status_code=status.HTTP_201_CREATED
 )
 def registro(
-    datos: RegistroIn,
+    datos: RegistroEntrada,
     request: Request,
-    auth: AuthServiceDep,
-    pasaporte: PasaporteServiceDep,
-    limiter: RateLimiterDep,
-    settings: SettingsDep,
+    auth: ServicioAutenticacionDep,
+    identidad: ServicioReporteIdentidadDep,
+    limiter: LimiteSolicitudesDep,
+    settings: ConfiguracionDep,
 ):
 
     _limitar_intento(request, "registro", datos.email.lower(), limiter, settings)
@@ -79,16 +79,16 @@ def registro(
             status.HTTP_409_CONFLICT, "Este correo ya está registrado. Inicie sesión."
         ) from None
 
-    return to_usuario_out(usuario, pasaporte.estado(usuario))
+    return to_usuario_out(usuario, identidad.estado(usuario))
 
 
-@router.post("/login", response_model=TokenOut)
+@router.post("/login", response_model=TokenSalida)
 def login(
-    datos: LoginIn,
+    datos: LoginEntrada,
     request: Request,
-    auth: AuthServiceDep,
-    limiter: RateLimiterDep,
-    settings: SettingsDep,
+    auth: ServicioAutenticacionDep,
+    limiter: LimiteSolicitudesDep,
+    settings: ConfiguracionDep,
 ):
 
     _limitar_intento(request, "login", datos.email.lower(), limiter, settings)
@@ -103,18 +103,18 @@ def login(
             status.HTTP_401_UNAUTHORIZED, CREDENCIALES_INCORRECTAS
         ) from None
 
-    return TokenOut(access_token=token.access_token, expires_in=token.expires_in)
+    return TokenSalida(access_token=token.access_token, expires_in=token.expires_in)
 
 
-@router.get("/yo", response_model=UsuarioOut)
-def yo(usuario: CurrentUserDep, pasaporte: PasaporteServiceDep):
+@router.get("/yo", response_model=UsuarioSalida)
+def yo(usuario: UsuarioActualDep, identidad: ServicioReporteIdentidadDep):
 
-    return to_usuario_out(usuario, pasaporte.estado(usuario))
+    return to_usuario_out(usuario, identidad.estado(usuario))
 
 
 @router.delete("/yo", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_cuenta(
-    datos: EliminarCuentaIn, usuario: CurrentUserDep, cuenta: CuentaServiceDep
+    datos: EliminarCuentaEntrada, usuario: UsuarioActualDep, cuenta: ServicioCuentaDep
 ):
 
     try:

@@ -3,9 +3,12 @@ import uuid
 from fastapi.testclient import TestClient
 
 from app.dominio.docs_empresa import TIPOS_DOC_EMPRESA, docs_empresa_desde_raw
-from app.dominio.transparencia.rating import calcular_indice
+from app.dominio.transparencia.valoracion import calcular_indice
 
-from app.infraestructura.persistencia.modelos import BusinessEntity, BusinessReputationMetrics
+from app.infraestructura.persistencia.modelos import (
+    EntidadNegocio,
+    MetricasReputacionNegocio,
+)
 
 
 def test_indice_en_rango_0_a_10():
@@ -38,7 +41,7 @@ def _crear_negocio(
 
     with session_factory() as s:
 
-        negocio = BusinessEntity(
+        negocio = EntidadNegocio(
             nombre=kwargs.get("nombre", "Proveedor TI Central"),
             categoria=kwargs.get("categoria", "tecnologia"),
             latitud=-33.45,
@@ -56,7 +59,7 @@ def _crear_negocio(
         if metricas:
 
             s.add(
-                BusinessReputationMetrics(
+                MetricasReputacionNegocio(
                     business_id=negocio.id,
                     google_rating_avg=kwargs.get("rating", 4.2),
                     google_reviews_count=kwargs.get("reviews", 150),
@@ -101,13 +104,12 @@ def test_reputacion_sin_sello_verificado(client: TestClient, session_factory):
     assert "estado_perfil" not in cuerpo
 
     assert "No constituye un juicio" in cuerpo["descargo"]
-
     assert "reviews" not in cuerpo and "comentarios" not in cuerpo
 
 
 def test_reputacion_docs_solo_flags_publicos(client: TestClient, session_factory):
     with session_factory() as s:
-        negocio = BusinessEntity(
+        negocio = EntidadNegocio(
             nombre="Docs Publicos SpA",
             categoria="tecnologia",
             latitud=-33.45,
@@ -125,7 +127,7 @@ def test_reputacion_docs_solo_flags_publicos(client: TestClient, session_factory
         )
         s.add(negocio)
         s.flush()
-        s.add(BusinessReputationMetrics(business_id=negocio.id, final_score=5.0))
+        s.add(MetricasReputacionNegocio(business_id=negocio.id, final_score=5.0))
         s.commit()
         bid = negocio.id
 
@@ -208,6 +210,10 @@ def test_crear_empresa_queda_del_titular(client: TestClient, token_empresa: str)
 
     assert cuerpo["logo_url"] == "https://cdn.ejemplo.cl/logo-pyme.png"
 
+    assert cuerpo["latitud"] is not None and cuerpo["longitud"] is not None
+    assert -56.0 <= float(cuerpo["latitud"]) <= -17.0
+    assert -76.0 <= float(cuerpo["longitud"]) <= -66.0
+
     assert 0.0 <= float(cuerpo["indice_transparencia"]) <= 10.0
     assert 0 <= int(cuerpo["indice_pct"]) <= 100
 
@@ -216,6 +222,32 @@ def test_crear_empresa_queda_del_titular(client: TestClient, token_empresa: str)
     assert mias.status_code == 200
 
     assert any((n["id"] == cuerpo["id"] for n in mias.json()))
+
+
+def test_telefono_empresa_debe_empezar_con_mas_56(client: TestClient, token_empresa: str):
+    h = {"Authorization": f"Bearer {token_empresa}"}
+    base = {
+        "nombre": "Tel SpA",
+        "categoria": "tecnologia",
+        "direccion": "Providencia 10",
+    }
+    assert (
+        client.post(
+            "/v1/businesses", headers=h, json={**base, "telefono": "9 1234 5678"}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/v1/businesses", headers=h, json={**base, "telefono": "56912345678"}
+        ).status_code
+        == 422
+    )
+    r = client.post(
+        "/v1/businesses", headers=h, json={**base, "telefono": "+56912345678"}
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["telefono"] == "+56 9 1234 5678"
 
 
 def test_actualizar_datos_empresa_refresca_ficha(client: TestClient, token_empresa: str):
@@ -307,6 +339,27 @@ def test_crear_empresa_banner_invalido_da_422(client: TestClient, token_empresa:
     )
 
     assert r.status_code == 422
+
+
+def test_crear_empresa_banner_http_se_upgradea_a_https(
+    client: TestClient, token_empresa: str
+):
+    h = {"Authorization": f"Bearer {token_empresa}"}
+    r = client.post(
+        "/v1/businesses",
+        headers=h,
+        json={
+            "nombre": "Banner Http SpA",
+            "categoria": "industria",
+            "direccion": "Av. Central 2",
+            "imagen_url": "http://cdn.ejemplo.cl/banner.jpg",
+            "logo_url": "http://cdn.ejemplo.cl/logo.png",
+        },
+    )
+    assert r.status_code == 201, r.text
+    cuerpo = r.json()
+    assert cuerpo["imagen_url"] == "https://cdn.ejemplo.cl/banner.jpg"
+    assert cuerpo["logo_url"] == "https://cdn.ejemplo.cl/logo.png"
 
 
 def test_crear_empresa_sin_direccion_da_422(client: TestClient, token_empresa: str):

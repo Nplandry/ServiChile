@@ -3,31 +3,31 @@ from app.dominio.errores import ContrasenaIncorrecta
 from app.dominio.puertos import (
     AlmacenamientoBiometria,
     AlmacenamientoCedula,
-    HasherContrasena,
+    HasheadorContrasena,
     RepositorioUsuarios,
 )
-from app.servicios.negocio import NegocioService
+from app.servicios.negocio import ServicioNegocio
 
-__all__ = ["CuentaService", "ContrasenaIncorrecta"]
+__all__ = ["ServicioCuenta", "ContrasenaIncorrecta"]
 
 
-class CuentaService:
+class ServicioCuenta:
     def __init__(
         self,
         usuarios: RepositorioUsuarios,
-        negocios: NegocioService,
-        hasher: HasherContrasena,
+        negocios: ServicioNegocio,
+        hasheador: HasheadorContrasena,
         biometria: AlmacenamientoBiometria | None = None,
         cedula: AlmacenamientoCedula | None = None,
     ) -> None:
         self.usuarios = usuarios
         self.negocios = negocios
-        self.hasher = hasher
+        self.hasheador = hasheador
         self.biometria = biometria
         self.cedula = cedula
 
-    def eliminar(self, usuario: Usuario, password: str) -> None:
-        if not self.hasher.verificar(usuario.password_hash, password):
+    def eliminar(self, usuario: Usuario, contrasena: str) -> None:
+        if not self.hasheador.verificar(usuario.password_hash, contrasena):
             raise ContrasenaIncorrecta()
         if self.biometria is not None:
             self.biometria.eliminar(usuario.id, usuario.biometria_ruta)

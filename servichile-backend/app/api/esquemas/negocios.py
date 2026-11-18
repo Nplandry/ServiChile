@@ -9,8 +9,9 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.api.esquemas.comunes import CategoriaNegocio, telefono_opcional
+from app.dominio.ficha_negocio import normalizar_url_recurso
 
-class NegocioEnMapaOut(BaseModel):
+class NegocioEnMapaSalida(BaseModel):
     """Listado público: sin RUT, teléfono, sitio ni docs."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -46,10 +47,10 @@ class NegocioEnMapaOut(BaseModel):
     indice_pct: int = Field(default=0, ge=0, le=100)
 
 
-class NegocioTitularOut(NegocioEnMapaOut):
+class NegocioTitularSalida(NegocioEnMapaSalida):
     """Alta /mias / PATCH: datos de contacto y docs del titular."""
 
-    docs_empresa: dict[str, "DocEmpresaMetaOut"] | None = None
+    docs_empresa: dict[str, "DocEmpresaMetaSalida"] | None = None
 
     rut_empresa: str | None = None
 
@@ -57,15 +58,17 @@ class NegocioTitularOut(NegocioEnMapaOut):
 
     sitio_web: str | None = None
 
+    rater_listo: bool = False
 
-class NegocioRutIn(BaseModel):
+
+class NegocioRutEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
     rut_empresa: str = Field(min_length=3, max_length=20)
 
 
-class NegocioActualizarIn(BaseModel):
+class NegocioActualizarEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
@@ -97,30 +100,25 @@ class NegocioActualizarIn(BaseModel):
     @field_validator("imagen_url", "logo_url")
     @classmethod
     def url_http_act(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-        url = v.strip()
-        if not url:
-            return None
-        if not (url.startswith("http://") or url.startswith("https://")):
-            raise ValueError("La URL debe comenzar con http:// o https://")
-        return url
+        return normalizar_url_recurso(v)
 
 
-class DocEmpresaFlagOut(BaseModel):
+class DocEmpresaFlagSalida(BaseModel):
     """Flags públicos de un documento (sin hashes ni glosas)."""
 
     verificado: bool = False
     verificado_en: str | None = None
+    vence_en: str | None = None
 
 
-class DocEmpresaMetaOut(BaseModel):
+class DocEmpresaMetaSalida(BaseModel):
     """Metadatos de un documento de empresa (titular / post-upload)."""
 
     model_config = ConfigDict(extra="allow")
 
     verificado: bool = False
     verificado_en: str | None = None
+    vence_en: str | None = None
     score: int | None = None
     senales: list[str] = Field(default_factory=list)
     verificado_criptograficamente: bool | None = None
@@ -140,7 +138,7 @@ class DocEmpresaMetaOut(BaseModel):
         return str(value)
 
 
-class DocEmpresaOut(BaseModel):
+class DocEmpresaSalida(BaseModel):
 
     business_id: UUID
 
@@ -152,7 +150,7 @@ class DocEmpresaOut(BaseModel):
 
     senales: list[str] = Field(default_factory=list)
 
-    docs_empresa: dict[str, DocEmpresaMetaOut] = Field(default_factory=dict)
+    docs_empresa: dict[str, DocEmpresaMetaSalida] = Field(default_factory=dict)
 
     indice_transparencia: float = 0.0
 
@@ -175,7 +173,7 @@ class DocEmpresaOut(BaseModel):
     motivo: str = "Documento de empresa validado. El PDF no se almacenó."
 
 
-class ObservableSenalOut(BaseModel):
+class ObservableSenalSalida(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -196,7 +194,7 @@ class ObservableSenalOut(BaseModel):
     razones: list[str] = Field(default_factory=list)
 
 
-class ReputacionOut(BaseModel):
+class ReputacionSalida(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -218,11 +216,13 @@ class ReputacionOut(BaseModel):
 
     docs_total: int = 0
 
-    docs_empresa: dict[str, DocEmpresaFlagOut] | None = None
+    docs_empresa: dict[str, DocEmpresaFlagSalida] | None = None
 
     actualizado_en: datetime
 
-    observables: list[ObservableSenalOut] = Field(default_factory=list)
+    observables: list[ObservableSenalSalida] = Field(default_factory=list)
+
+    rater_listo: bool = False
 
     descargo: str = (
         "Índice global a partir de señales públicas (ficha, sitio, "
@@ -230,7 +230,7 @@ class ReputacionOut(BaseModel):
     )
 
 
-class NegocioCrearIn(BaseModel):
+class NegocioCrearEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
@@ -263,21 +263,6 @@ class NegocioCrearIn(BaseModel):
     @field_validator("imagen_url", "logo_url")
     @classmethod
     def url_http(cls, v: str | None) -> str | None:
-
-        if v is None:
-
-            return None
-
-        url = v.strip()
-
-        if not url:
-
-            return None
-
-        if not (url.startswith("http://") or url.startswith("https://")):
-
-            raise ValueError("La URL debe comenzar con http:// o https://")
-
-        return url
+        return normalizar_url_recurso(v)
 
 

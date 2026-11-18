@@ -7,7 +7,7 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Literal
 
-from app.dominio.pasaporte import normalizar_rut, RutInvalido
+from app.dominio.rut import normalizar_rut, RutInvalido
 
 AVAL_MAX_BYTES = 8 * 1024 * 1024
 UMBRAL_ACEPTACION = 70

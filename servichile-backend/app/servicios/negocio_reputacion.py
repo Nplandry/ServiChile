@@ -1,8 +1,8 @@
-"""Proyección de reputación e índice (extraído de NegocioService)."""
+"""Proyección de reputación e índice (extraído de ServicioNegocio)."""
 
 from __future__ import annotations
 
-from app.dominio.docs_empresa import DocsEmpresa, MetaDocEmpresa
+from app.dominio.docs_empresa import DocsEmpresa, MetaDocEmpresa, meta_doc_esta_vigente
 from app.dominio.entidades import (
     Metricas,
     Negocio,
@@ -11,10 +11,15 @@ from app.dominio.entidades import (
     ObservableSenal,
     Reputacion,
 )
-from app.dominio.ficha_negocio import cta_texto, imagen_efectiva, logo_texto
-from app.dominio.transparencia.rating import (
-    RatingDocumentos,
-    calcular_rating_documentos,
+from app.dominio.ficha_negocio import (
+    cta_texto,
+    imagen_efectiva,
+    logo_efectivo,
+    logo_texto,
+)
+from app.dominio.transparencia.valoracion import (
+    ValoracionDocumentos,
+    calcular_valoracion_documentos,
     es_observable_documento,
     observables_documentos,
     score_unificado,
@@ -33,7 +38,7 @@ def metricas_de(negocio: Negocio) -> Metricas:
     return negocio.metricas
 
 
-def rater_pct_desde_observables(obs: list[ObservableSenal]) -> float | None:
+def pct_evaluador_desde_observables(obs: list[ObservableSenal]) -> float | None:
     senales = [o for o in obs if not es_observable_documento(o.id)]
     if not senales:
         return None
@@ -106,12 +111,12 @@ def persistir_indice(
     negocio: Negocio,
     *,
     senales: list[ObservableSenal] | None = None,
-    rater_pct: float | None = None,
-) -> RatingDocumentos:
+    pct_evaluador: float | None = None,
+) -> ValoracionDocumentos:
     """Fusiona señales públicas + docs en final_score y observables."""
     metricas = metricas_de(negocio)
     docs = negocio.docs_empresa or {}
-    docs_rating = calcular_rating_documentos(docs)
+    docs_rating = calcular_valoracion_documentos(docs)
     base = (
         list(senales)
         if senales is not None
@@ -121,9 +126,18 @@ def persistir_indice(
             if not es_observable_documento(o.id)
         ]
     )
-    if rater_pct is None:
-        rater_pct = rater_pct_desde_observables(base)
-    indice, _pct = score_unificado(rater_pct=rater_pct, docs_pct=docs_rating.pct)
+    # Completar UI con señales previas no re-medidas (sin bajar el % por ceros inventados).
+    if senales is not None:
+        vistos = {o.id for o in base}
+        for prev in observables_de(metricas):
+            if es_observable_documento(prev.id) or prev.id in vistos:
+                continue
+            if prev.score > 0:
+                base.append(prev)
+                vistos.add(prev.id)
+    if pct_evaluador is None:
+        pct_evaluador = pct_evaluador_desde_observables(base)
+    indice, _pct = score_unificado(pct_evaluador=pct_evaluador, docs_pct=docs_rating.pct)
     metricas.final_score = indice
     metricas.observables = [
         obs_a_dict(o) for o in observables_documentos(docs) + base
@@ -132,7 +146,7 @@ def persistir_indice(
     return docs_rating
 
 
-def aplicar_rating_docs(negocio: Negocio) -> RatingDocumentos:
+def aplicar_rating_docs(negocio: Negocio) -> ValoracionDocumentos:
     return persistir_indice(negocio)
 
 
@@ -141,14 +155,17 @@ def docs_copia(negocio: Negocio) -> DocsEmpresa:
 
 
 def docs_publicos(negocio: Negocio) -> DocsEmpresa:
-    """Solo flags de verificación; sin hashes ni glosas internas."""
+    """Solo flags de verificación vigentes; sin hashes ni glosas internas."""
     out: DocsEmpresa = {}
     for tipo, meta in (negocio.docs_empresa or {}).items():
         if not isinstance(meta, MetaDocEmpresa):
             continue
-        flag = MetaDocEmpresa(verificado=meta.verificado)
+        vigente = meta_doc_esta_vigente(meta)
+        flag = MetaDocEmpresa(verificado=vigente)
         if meta.verificado_en:
             flag.verificado_en = meta.verificado_en
+        if meta.vence_en:
+            flag.vence_en = meta.vence_en
         out[str(tipo)] = flag
     return out
 
@@ -166,7 +183,7 @@ def a_mapa(negocio: Negocio) -> NegocioEnMapa:
         direccion=negocio.direccion,
         descripcion=negocio.descripcion,
         imagen_url=imagen_efectiva(negocio.imagen_url, negocio.categoria),
-        logo_url=negocio.logo_url,
+        logo_url=logo_efectivo(negocio.logo_url),
         logo_texto=logo_texto(negocio.nombre),
         cta_texto=cta_texto(negocio.categoria),
         indice_transparencia=indice,
@@ -189,7 +206,7 @@ def a_titular(negocio: Negocio) -> NegocioTitular:
         direccion=negocio.direccion,
         descripcion=negocio.descripcion,
         imagen_url=imagen_efectiva(negocio.imagen_url, negocio.categoria),
-        logo_url=negocio.logo_url,
+        logo_url=logo_efectivo(negocio.logo_url),
         logo_texto=logo_texto(negocio.nombre),
         cta_texto=cta_texto(negocio.categoria),
         indice_transparencia=indice,
@@ -200,12 +217,19 @@ def a_titular(negocio: Negocio) -> NegocioTitular:
         rut_empresa=negocio.rut_empresa,
         telefono=negocio.telefono,
         sitio_web=negocio.sitio_web,
+        rater_listo=bool(metricas.rater_escaneado_en),
     )
 
 
+_DESCARGO = (
+    "Índice global a partir de señales públicas (ficha, sitio, "
+    "compras públicas, etc.). No constituye un juicio sobre la calidad del servicio."
+)
+
+
 def reputacion_de(negocio: Negocio) -> Reputacion:
-    """Lee el snapshot persistido del rater; no llama APIs en vivo."""
-    docs_rating = calcular_rating_documentos(negocio.docs_empresa)
+    """Lee el snapshot persistido del evaluador; no llama APIs en vivo."""
+    docs_rating = calcular_valoracion_documentos(negocio.docs_empresa)
     metricas = metricas_de(negocio)
     indice, pct = indice_global(metricas)
     observables = observables_de(metricas)
@@ -229,4 +253,6 @@ def reputacion_de(negocio: Negocio) -> Reputacion:
         docs_empresa=docs_publicos(negocio),
         actualizado_en=metricas.rater_escaneado_en or metricas.actualizado_en,
         observables=observables,
+        rater_listo=bool(metricas.rater_escaneado_en),
+        descargo=_DESCARGO,
     )

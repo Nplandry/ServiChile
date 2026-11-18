@@ -1,15 +1,15 @@
 """Transparencia empresarial: un solo índice (señales + documentos)."""
 
-from app.dominio.transparencia.rating import (
-    RatingDocumentos,
+from app.dominio.transparencia.valoracion import (
+    ValoracionDocumentos,
     calcular_indice,
-    calcular_rating_documentos,
+    calcular_valoracion_documentos,
     score_unificado,
 )
 
 __all__ = [
-    "RatingDocumentos",
+    "ValoracionDocumentos",
     "calcular_indice",
-    "calcular_rating_documentos",
+    "calcular_valoracion_documentos",
     "score_unificado",
 ]

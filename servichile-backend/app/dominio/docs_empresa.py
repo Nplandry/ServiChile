@@ -6,13 +6,16 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.dominio.docs_empresa_meta import (
+    DOCS_EMPRESA_VIGENCIA_DIAS,
     DocsEmpresa,
     MetaDocEmpresa,
     docs_empresa_a_raw,
     docs_empresa_desde_raw,
     meta_doc_desde_raw,
+    meta_doc_esta_vigente,
+    vence_en_efectivo,
 )
-from app.dominio.pasaporte import RutInvalido, normalizar_rut
+from app.dominio.rut import RutInvalido, normalizar_rut
 from app.dominio.texto_pdf import (
     MIN_TEXTO_ALNUM,
     PDF_MAX_BYTES,

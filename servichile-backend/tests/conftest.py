@@ -1,7 +1,7 @@
 import os
 
-os.environ.setdefault("JWT_SECRET", "test-secret-de-al-menos-32-caracteres-xx")
-os.environ.setdefault("APP_ENV", "test")
+os.environ["JWT_SECRET"] = "test-secret-de-al-menos-32-caracteres-xx"
+os.environ["APP_ENV"] = "test"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,13 +10,18 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api import dependencias
+from app.configuracion import obtener_configuracion
 from app.infraestructura.biometria_fs import AlmacenamientoBiometriaLocal
 from app.infraestructura.cedula_fs import AlmacenamientoCedulaLocal
 from app.infraestructura.cedula_ocr import AnalizadorCedulaOcr, LectorOcrFijo
 from app.infraestructura.cedula_vision import ComparadorRostrosFijo
-from app.infraestructura.persistencia.modelos import Base, get_session
-from app.infraestructura.limite_solicitudes import MemoryRateLimiter
+from app.infraestructura.persistencia.modelos import Base, obtener_sesion
+from app.infraestructura.limite_solicitudes import LimiteSolicitudesMemoria
+from app.ensamblado.evaluador import obtener_adaptador_evaluador
 from app.principal import app
+
+obtener_configuracion.cache_clear()
+obtener_adaptador_evaluador.cache_clear()
 
 _TEXTO_OCR_CEDULA = """
 CÉDULA DE REPÚBLICA DE CHILE
@@ -59,7 +64,7 @@ def session_factory():
                 "perfiles",
                 "business_entities",
                 "business_reputation_metrics",
-                "reservas",
+                "trabajos",
                 "pades_document_hashes",
             )
         ],
@@ -95,7 +100,7 @@ def client(session_factory, biometria_dir, cedula_dir, vault_pades):
         with session_factory() as s:
             yield s
 
-    limiter = MemoryRateLimiter()
+    limiter = LimiteSolicitudesMemoria()
     bio = AlmacenamientoBiometriaLocal(biometria_dir)
     ced = AlmacenamientoCedulaLocal(cedula_dir)
     analizador = AnalizadorCedulaOcr(
@@ -106,13 +111,18 @@ def client(session_factory, biometria_dir, cedula_dir, vault_pades):
     ant = AnalizadorPdfAntecedentes(ca)
     docs = AnalizadorPdfDocEmpresa(ca)
 
-    app.dependency_overrides[get_session] = _session
-    app.dependency_overrides[dependencias.get_rate_limiter] = lambda: limiter
-    app.dependency_overrides[dependencias.get_almacenamiento_biometria] = lambda: bio
-    app.dependency_overrides[dependencias.get_almacenamiento_cedula] = lambda: ced
-    app.dependency_overrides[dependencias.get_analizador_cedula] = lambda: analizador
-    app.dependency_overrides[dependencias.get_analizador_antecedentes] = lambda: ant
-    app.dependency_overrides[dependencias.get_analizador_docs_empresa] = lambda: docs
+    app.dependency_overrides[obtener_sesion] = _session
+    app.dependency_overrides[dependencias.obtener_limite_solicitudes] = lambda: limiter
+    app.dependency_overrides[dependencias.obtener_almacenamiento_biometria] = lambda: bio
+    app.dependency_overrides[dependencias.obtener_almacenamiento_cedula] = lambda: ced
+    app.dependency_overrides[dependencias.obtener_analizador_cedula] = lambda: analizador
+    app.dependency_overrides[dependencias.obtener_analizador_antecedentes] = lambda: ant
+    app.dependency_overrides[dependencias.obtener_analizador_docs_empresa] = lambda: docs
+    from app.infraestructura.verificacion import MuestraVerificadorRut
+
+    app.dependency_overrides[dependencias.obtener_verificador_rut] = (
+        lambda: MuestraVerificadorRut()
+    )
 
     with TestClient(app) as c:
         yield c
