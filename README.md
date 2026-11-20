@@ -1,3 +1,16 @@
+<p align="center">
+  <img src="docs/servichile-banner.jpg" alt="ServiChile — Due diligence B2B e índice de transparencia" width="100%">
+</p>
 
+# ServiChile
 
-![Header](https://ff496f9b299c5cf6595fa5d7f3817910a68bb88f15497eb5262f127-apidata.googleusercontent.com/download/storage/v1/b/servichile/o/github-header-banner.png?jk=AVjWZV5O0mJdqRQEdyaRXtdNGGctYTuEb_s1vIIMeJ_Uj395LMeqFy1bT3uKduNhcZb4jnUz8DKLYy-Iz18cN_pTdHL8p2czQ_ORnLUp_1Zg_PpJC6B_Az8fglW5cHb_iD39IaeCPU6FHJ4FLb10K3uXoZKbPRdTclg94twqHXv7OcRo-sj9nGaHI2XHWi5rHn7xADtSfhb_AMVlFXCBcn0Wd2J7QQeg4X3UdvfDlHmHmIi84bFm3tXB5ci6m2S4_J9m50JnCYWGPozk0JfR-E2AmDmkHgYwvlQJsLiyFzV31Y5kS_eIocAm23Ryp3aHUwZR6CexcFq0jthl662y7SG1LOONAmVBqJpBhBg1yOZfGuPK9326FIrHtBKfnQyTRjMHXJPqUslETAwCY_HxgXk2dQz_oq3N7WCO5PTeCJ5z9ZBthyW91FUDaWABEMjWFtC4_-aFMVwooFYXGHIqtDzRs4W8EvGHihgc-1i4nHd8COJDaBKE7Ct0cfEBh8kUcGW9EIXb7ppk4JKevfKxf86y4VhNafqyz_TktzWgS5rwPAFrA1qAj_DUOnErwe-Hv2i69qdLT2VmmCQ61-74ukbTtx87x8XgkFlaI8GfOPaHypsFP5z8lOAJ7BgR5tkRntFNcLAAhLnKOhRPSuzZy5LtrbFHZKxoy5sXsjY6kki8P7vUDT59Oi10TY4fmrmRbfbzIjSOayTterrLJx2XCitIYIvSvj-MveVWyz1fSBayDeSFsqonbxaOv8IX0FpuADVtK2yfd2mZ7-Qmb4znGrtFsGpd9dzWcyzn5230dNEpW_75-fRz0OUtB_oVEFAV8pmZwxRBVBmLJjmbZqF57_eblQbkH-s4MwXqvKXcOBn8AGWwYyN4pm6lihNxKLt6TxBf7azUQX2A4Mr5cTIGk9erYRdyFykVldn5-EdmnbdA6wU_Zq8g__UUmRGF8FfHzWUmMcT5TdiNyuTj83Z0uM7bZcW2tARKXAriC1nECFM9wCfdtqxXOpMyv2KviL3eoFBldnHBTR1tLx34zJHnWS3hWxOsGsBldudnIo-vkrRiCugVax74BILGLTy1b9jIzG0TQlN7uh4H8qKZwdCsNL1eAwKAs22rmsYJThES66XVZ995pA2AWBdb5DoqMY5cCaanhlZPqwCbzFEhxYt7ydyWD1FPYGHNiiRbX8R2aoJbIQsB_Zw-5uG2Cindm2ZP4gXxl4rmOPFFXt0h28h1KKCa75rOIt-t0hDw2ZHW9Sis4mIGxjhFzXlcPGLgI1MQ3iDBUukNsAOE00Qhkph7YMHOR1a5mBl0uQ__3fcfzfC3Qy8VueXSPq87Sr2fQCb9shREJA1EqnXs3FpxnkJOwuY&isca=1)
+Due diligence B2B e índice de transparencia de proveedores.
+
+| Carpeta | Qué es |
+|---------|--------|
+| `servichile-frontend/` | PWA (Explorar, Reportes, Verificación, Perfil) |
+| `servichile-backend/` | API FastAPI + PostgreSQL |
+
+Ramas: `desarrollo` (default), `QA`, `produccion`.
+
+Ver `servichile-backend/COMO_LEVANTAR.md` y `servichile-frontend/README.md` para levantar en local.
