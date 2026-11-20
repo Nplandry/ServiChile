@@ -179,7 +179,7 @@ def test_endpoint_cedula_verifica_rut_sin_guardar_foto(
     assert body["cedula_bytes"]
     assert body.get("face_score") is not None and body["face_score"] >= 0.5
     assert "face-match" in body["senales"]
-    assert "no se retuvo" in body["motivo"].lower()
+    assert body["cedula_verificada"] is True
     assert list(cedula_dir.glob("*.jpg")) == []
 
     perfil = client.get("/v1/perfil", headers=h).json()

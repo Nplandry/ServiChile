@@ -19,6 +19,7 @@ from app.dominio.biometria import MetaBiometria
 from app.dominio.cedula import MetaCedula, ResultadoCedula
 from app.dominio.docs_empresa import ResultadoDocEmpresa, TipoDocEmpresa
 from app.dominio.entidades import Negocio, TokenEmitido, Trabajo, Usuario
+from app.dominio.oferta_negocio import FiltroListado
 from app.dominio.transparencia.evaluador.motor import ResultadoEvaluador
 
 
@@ -54,7 +55,7 @@ class RepositorioNegocios(RegistroHashPades, Protocol):
     def obtener(self, negocio_id: uuid.UUID) -> Negocio | None: ...
 
     def listar(
-        self, categoria: str | None = None, q: str | None = None, limite: int = 100
+        self, filtro: FiltroListado | None = None, limite: int = 100
     ) -> list[Negocio]: ...
 
     def listar_de(self, usuario_id: uuid.UUID) -> list[Negocio]: ...
@@ -82,6 +83,10 @@ class RepositorioTrabajos(Protocol):
     def listar_por_negocio(self, negocio_id: uuid.UUID) -> list[Trabajo]: ...
 
     def contar_por_estado(self, usuario_id: uuid.UUID) -> dict[str, int]: ...
+
+    def contar_concretados_por_negocios(
+        self, negocio_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, int]: ...
 
     def guardar(self, trabajo: Trabajo) -> Trabajo: ...
 
@@ -201,4 +206,97 @@ class PuertoEvaluador(Protocol):
     """Señales públicas del índice (Places, ChileCompra, rastreador_web, etc.)."""
 
     def evaluar(self, negocio: Negocio) -> ResultadoEvaluador: ...
+
+
+@dataclass(frozen=True)
+class MensajeSaliente:
+    destino: str
+    asunto: str
+    cuerpo: str
+
+
+class EnviadorPlataforma(Protocol):
+    """SMTP de ServiChile hacia el correo del registro. Sin OAuth del cliente."""
+
+    def disponible(self) -> bool: ...
+
+    def enviar(self, mensaje: MensajeSaliente) -> None: ...
+
+
+class RepositorioCorreo(Protocol):
+    def registrar(
+        self,
+        usuario_id: uuid.UUID,
+        business_id: uuid.UUID | None,
+        tipo: str,
+        destino: str,
+        asunto: str,
+        cuerpo: str,
+        estado: str,
+    ) -> None: ...
+
+
+@dataclass(frozen=True)
+class TransaccionWebpayCreada:
+    token: str
+    url: str
+
+
+@dataclass(frozen=True)
+class TransaccionWebpayConfirmada:
+    response_code: int
+    status: str
+    authorization_code: str | None = None
+    payment_type_code: str | None = None
+    card_last4: str | None = None
+    buy_order: str | None = None
+    detalle: str | None = None
+
+
+class PasarelaWebpay(Protocol):
+    def crear(
+        self, buy_order: str, session_id: str, amount: int, return_url: str
+    ) -> TransaccionWebpayCreada: ...
+
+    def confirmar(self, token: str) -> TransaccionWebpayConfirmada: ...
+
+
+class RepositorioComprasInforme(Protocol):
+    def crear(
+        self,
+        usuario_id: uuid.UUID,
+        business_id: uuid.UUID,
+        buy_order: str,
+        monto: int,
+    ): ...
+
+    def guardar(self, compra): ...
+
+    def obtener_por_token(self, token: str): ...
+
+    def obtener_por_buy_order(self, buy_order: str): ...
+
+    def reclamar_para_confirmar(self, token: str, usuario_id: uuid.UUID): ...
+
+    def tiene_autorizada(
+        self, usuario_id: uuid.UUID, business_id: uuid.UUID
+    ) -> bool: ...
+
+    def ultima_autorizada(
+        self, usuario_id: uuid.UUID, business_id: uuid.UUID
+    ): ...
+
+    def pendiente_reutilizable(
+        self, usuario_id: uuid.UUID, business_id: uuid.UUID, *, max_edad_seg: int
+    ): ...
+
+    def listar_pendientes_reconciliar(
+        self, *, min_edad_seg: int, max_edad_seg: int, limite: int
+    ): ...
+
+    def anular_pendientes_abiertos(
+        self, usuario_id: uuid.UUID, business_id: uuid.UUID, *, excepto_id=None
+    ) -> int: ...
+
+    def resumen_mes(self, usuario_id: uuid.UUID, mes_clave: str) -> tuple[int, int]: ...
 

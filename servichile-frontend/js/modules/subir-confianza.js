@@ -92,6 +92,7 @@ const SubirConfianza = {
   },
   empresas: null,
   reputacionMia: null,
+  STORAGE_EMPRESA: 'servichile.empresa.seleccionada',
 
   async init() {
     SubirConfianza.cargar();
@@ -99,6 +100,42 @@ const SubirConfianza = {
     if (!raiz) return;
     await SubirConfianza.cargarEmpresas();
     SubirConfianza.render(raiz);
+  },
+
+  storageQuien() {
+    const user = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
+    return user && user.email ? String(user.email).toLowerCase() : 'anon';
+  },
+
+  claveSeleccion() {
+    return SubirConfianza.STORAGE_EMPRESA + ':' + SubirConfianza.storageQuien();
+  },
+
+  leerSeleccionId() {
+    try {
+      return localStorage.getItem(SubirConfianza.claveSeleccion()) || '';
+    } catch (_) {
+      return '';
+    }
+  },
+
+  guardarSeleccionId(id) {
+    try {
+      if (id) localStorage.setItem(SubirConfianza.claveSeleccion(), String(id));
+      else localStorage.removeItem(SubirConfianza.claveSeleccion());
+    } catch (_) {
+      /* ignore */
+    }
+  },
+
+  elegirNegocio(lista) {
+    if (!Array.isArray(lista) || !lista.length) return null;
+    const want = SubirConfianza.leerSeleccionId();
+    if (want) {
+      const hit = lista.find((n) => String(n.id) === want);
+      if (hit) return hit;
+    }
+    return lista[0];
   },
 
   async cargarEmpresas() {
@@ -114,15 +151,17 @@ const SubirConfianza = {
       const lista = mias && Array.isArray(mias.data) ? mias.data : [];
       SubirConfianza.empresas = lista;
       if (!lista.length) return [];
-      SubirConfianza.sincronizarDocsEmpresaDesdeApi(lista[0]);
+      const actual = SubirConfianza.elegirNegocio(lista);
+      if (actual && actual.id) SubirConfianza.guardarSeleccionId(actual.id);
+      SubirConfianza.sincronizarDocsEmpresaDesdeApi(actual);
       const res = await Auth.request(
-        '/v1/businesses/' + encodeURIComponent(lista[0].id) + '/reputation',
+        '/v1/businesses/' + encodeURIComponent(actual.id) + '/reputation',
         { token: Auth.sesion.token }
       );
       if (res && res.ok && res.data) {
         SubirConfianza.reputacionMia = res.data;
-        lista[0].indice_transparencia = res.data.indice_transparencia;
-        lista[0].indice_pct = res.data.indice_pct;
+        actual.indice_transparencia = res.data.indice_transparencia;
+        actual.indice_pct = res.data.indice_pct;
       }
       return lista;
     } catch (_e) {
@@ -136,12 +175,7 @@ const SubirConfianza = {
   },
 
   empresaActual() {
-    return SubirConfianza.tieneEmpresa() ? SubirConfianza.empresas[0] : null;
-  },
-
-  storageQuien() {
-    const user = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
-    return user && user.email ? String(user.email).toLowerCase() : 'anon';
+    return SubirConfianza.elegirNegocio(SubirConfianza.empresas);
   },
 
   storageKey() {
@@ -584,7 +618,62 @@ const SubirConfianza = {
 
   render(raiz) {
     SubirConfianza.limpiar(raiz);
+    const selector = SubirConfianza.renderSelectorEmpresas();
+    if (selector) raiz.appendChild(selector);
     ProgresoCuenta.actual().montarContenido(raiz);
+  },
+
+  renderSelectorEmpresas() {
+    const lista = Array.isArray(SubirConfianza.empresas)
+      ? SubirConfianza.empresas
+      : [];
+    if (lista.length < 2) return null;
+    const actual = SubirConfianza.empresaActual();
+
+    const box = document.createElement('div');
+    box.className = 'reporte__selector';
+    box.setAttribute('aria-label', 'Seleccionar empresa');
+
+    const label = document.createElement('label');
+    label.className = 'reporte__selector-label';
+    label.htmlFor = 'confianzaEmpresaSelect';
+    label.textContent = 'Empresa';
+
+    const select = document.createElement('select');
+    select.id = 'confianzaEmpresaSelect';
+    select.className = 'reporte__selector-select';
+    select.setAttribute('aria-label', 'Elija a qué empresa aplican estos documentos');
+
+    lista.forEach((n) => {
+      const opt = document.createElement('option');
+      opt.value = String(n.id);
+      opt.textContent =
+        (n.nombre || 'Empresa') + (n.rut_empresa ? ' · ' + n.rut_empresa : '');
+      if (actual && String(actual.id) === String(n.id)) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    select.addEventListener('change', async () => {
+      const id = select.value;
+      SubirConfianza.guardarSeleccionId(id);
+      if (typeof ReporteEmpresa !== 'undefined' && ReporteEmpresa.guardarSeleccionId) {
+        ReporteEmpresa.guardarSeleccionId(id);
+      }
+      select.disabled = true;
+      await SubirConfianza.cargarEmpresas();
+      const raiz = document.getElementById('subirConfianzaRaiz');
+      if (raiz) SubirConfianza.render(raiz);
+    });
+
+    const ayuda = document.createElement('p');
+    ayuda.className = 'reporte__selector-ayuda';
+    ayuda.textContent =
+      'Tiene ' +
+      lista.length +
+      ' empresas. Los documentos y el índice se aplican a la seleccionada.';
+
+    box.append(label, select, ayuda);
+    return box;
   },
 
   bloqueDesgloseEmpresa() {
@@ -857,13 +946,14 @@ const SubirConfianza = {
     titulo.className = 'section-heading';
     titulo.textContent = prog ? prog.tituloDocumentos() : 'Subir documentos';
 
-    const nota = document.createElement('p');
-    nota.className = 'confianza-docs__nota';
-    nota.textContent = prog
-      ? prog.notaDocumentos()
-      : 'El archivo no se guarda (zero-retention): solo se valida y el resultado queda en su cuenta.';
-
-    head.append(titulo, nota);
+    const notaTxt = prog ? prog.notaDocumentos() : '';
+    head.appendChild(titulo);
+    if (notaTxt) {
+      const nota = document.createElement('p');
+      nota.className = 'confianza-docs__nota';
+      nota.textContent = notaTxt;
+      head.appendChild(nota);
+    }
 
     const form = document.createElement('form');
     form.className = 'confianza-docs__form';
@@ -1343,7 +1433,7 @@ const SubirConfianza = {
     const perfil = SubirConfianza.perfil();
     if (perfil.cedula_verificada) {
       lead.textContent =
-        'Carnet validado (OCR + face-match con su selfie). La foto del carnet no se retuvo.';
+        'Carnet validado (OCR + face-match con su selfie).';
       const partes = [];
       if (perfil.cedula_verificada_en) {
         partes.push('Validada el ' + SubirConfianza.formatoFecha(perfil.cedula_verificada_en));
@@ -1364,10 +1454,10 @@ const SubirConfianza = {
 
     if (perfil.rut_verificado) {
       lead.textContent =
-        'Ya tiene RUT verificado. Puede reforzar con la foto frontal: OCR + face-match contra su selfie. La imagen del carnet no se guarda.';
+        'Ya tiene RUT verificado. Puede reforzar con la foto frontal: OCR + face-match contra su selfie.';
     } else {
       lead.textContent =
-        'Encaje el frente del carnet en el marco. Se valida con OCR local, ROI del RUN y face-match contra su selfie; la foto del carnet no se retiene.';
+        'Encaje el frente del carnet en el marco. Se valida con OCR local, ROI del RUN y face-match contra su selfie.';
     }
 
     const previewWrap = document.createElement('div');
@@ -1444,7 +1534,7 @@ const SubirConfianza = {
     consent.id = 'confianzaCedulaConsent';
     const consentTxt = document.createElement('span');
     consentTxt.textContent =
-      'Autorizo procesar la foto frontal de mi carnet (OCR + comparación facial con mi selfie). Entiendo que la imagen del carnet no se retiene.';
+      'Autorizo procesar la foto frontal de mi carnet (OCR + comparación facial con mi selfie).';
     consentWrap.append(consent, consentTxt);
 
     const btn = document.createElement('button');

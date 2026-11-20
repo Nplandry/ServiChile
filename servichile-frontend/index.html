@@ -5,12 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="ServiChile: due diligence B2B e índice de transparencia de proveedores.">
   <meta name="theme-color" content="#2563EB">
+  <!-- Vacío = deriva (localhost→:8000; prod→mismo origin). Override: window.SERVICHILE_API_BASE -->
+  <meta name="servichile-api-base" content="">
   <title>ServiChile</title>
+  <script>
+    window.SERVICHILE_APP_VERSION = '173';
+  </script>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%232563EB'/%3E%3Ctext x='50' y='65' font-size='45' text-anchor='middle' fill='white' font-family='Arial'%3ES%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="http://localhost:8000" crossorigin>
   <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
-  <link rel="stylesheet" href="css/styles.css?v=127">
+  <link rel="stylesheet" href="css/styles.css?v=173">
 </head>
 <body>
   <div id="authGate" class="auth" hidden>
@@ -43,7 +48,7 @@
             <p id="loginStatus" class="error-text" role="alert" aria-live="assertive"></p>
             <p class="auth__alta">
               ¿No tienes cuenta?
-              <a class="auth__alta-link" href="./onboarding/?v=70">Regístrate aquí</a>
+              <a class="auth__alta-link" href="./onboarding/?v=173">Regístrate aquí</a>
             </p>
           </form>
         </div>
@@ -125,11 +130,13 @@
         <div class="market__head">
           <h2 class="section-heading">Proveedores</h2>
           <p class="section-lead">Directorio B2B para due diligence: tecnología, industria, construcción y servicios profesionales.</p>
-          <div id="marketJobs" class="market__jobs" role="group" aria-label="Verticales B2B"></div>
           <div id="marketProgreso" class="market__progreso"></div>
+          <p class="market__grupo-label">Tipo de proveedor</p>
+          <div id="marketJobs" class="market__jobs" role="group" aria-label="Tipo de proveedor"></div>
           <div class="market__search">
-            <input id="marketSearch" class="field__input" type="search" placeholder="Buscar proveedores, maestranzas, SaaS, contratistas..." maxlength="80" />
+            <input id="marketSearch" class="field__input" type="search" placeholder="Buscar por nombre, servicio o referencia..." maxlength="80" />
           </div>
+          <div id="marketOferta" class="market__oferta"></div>
           <p class="market__count" id="marketCount"></p>
         </div>
         <div id="marketGrid" class="market__grid"></div>
@@ -216,19 +223,24 @@
     </nav>
   </footer>
 
-  <script defer src="js/data/categorias.js?v=92"></script>
-  <script defer src="js/core/security.js?v=85"></script>
-  <script defer src="js/compliance.js?v=69"></script>
-  <script defer src="js/core/auth.js?v=75"></script>
-  <script defer src="js/modules/progreso-cuenta.js?v=123"></script>
-  <script defer src="js/modules/market-monetizacion.js?v=99"></script>
-  <script defer src="js/modules/trabajos.js?v=1"></script>
-  <script defer src="js/modules/market.js?v=136"></script>
-  <script defer src="js/modules/indice-desglose.js?v=156"></script>
-  <script defer src="js/app.js?v=151"></script>
+  <div id="reportePrintPortal" class="reporte-print-portal" hidden aria-hidden="true"></div>
+
+  <script defer src="js/data/categorias.js?v=173"></script>
+  <script defer src="js/data/oferta.js?v=173"></script>
+  <script defer src="js/core/security.js?v=173"></script>
+  <script defer src="js/compliance.js?v=173"></script>
+  <script defer src="js/core/auth.js?v=173"></script>
+  <script defer src="js/modules/progreso-cuenta.js?v=173"></script>
+  <script defer src="js/modules/market-monetizacion.js?v=173"></script>
+  <script defer src="js/modules/market-pago-store.js?v=173"></script>
+  <script defer src="js/modules/market-contacto.js?v=173"></script>
+  <script defer src="js/modules/trabajos.js?v=173"></script>
+  <script defer src="js/modules/market.js?v=173"></script>
+  <script defer src="js/modules/indice-desglose.js?v=173"></script>
+  <script defer src="js/app.js?v=173"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=129').catch(function () {});
+      navigator.serviceWorker.register('sw.js?v=' + (window.SERVICHILE_APP_VERSION || '173')).catch(function () {});
     }
   </script>
 </body>

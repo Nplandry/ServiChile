@@ -58,6 +58,14 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "041_hardening_esquema.sql",
     ROOT / "db" / "migrations" / "042_rename_ciber_a_rater.sql",
     ROOT / "db" / "migrations" / "043_trabajos_concretados.sql",
+    ROOT / "db" / "migrations" / "044_oferta_negocio.sql",
+    ROOT / "db" / "migrations" / "045_correo_oauth.sql",
+    ROOT / "db" / "migrations" / "046_compras_informe.sql",
+    ROOT / "db" / "migrations" / "047_compras_informe_fks.sql",
+    ROOT / "db" / "migrations" / "048_compras_informe_fk_business.sql",
+    ROOT / "db" / "migrations" / "049_compras_informe_unica_autorizada.sql",
+    ROOT / "db" / "migrations" / "050_compras_publicacion.sql",
+    ROOT / "db" / "migrations" / "051_compras_publicacion_fks.sql",
 ]
 
 

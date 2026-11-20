@@ -140,7 +140,7 @@ class CedulaSalida(BaseModel):
     face_score: float | None = None
 
     motivo: str = (
-        "Cédula validada. La foto frontal se usó solo para el chequeo y no se retuvo."
+        "Cédula validada."
     )
 
 
@@ -170,7 +170,7 @@ class AntecedentesSalida(BaseModel):
 
     senales: list[str] = Field(default_factory=list)
 
-    motivo: str = "Certificado de antecedentes validado. El PDF no se almacenó."
+    motivo: str = "Certificado de antecedentes validado."
 
 
 class AvalSalida(BaseModel):
@@ -189,7 +189,7 @@ class AvalSalida(BaseModel):
 
     senales: list[str] = Field(default_factory=list)
 
-    motivo: str = "Aval/garantía validado. El PDF no se almacenó."
+    motivo: str = "Aval/garantía validado."
 
 
 class RegistroEntrada(BaseModel):

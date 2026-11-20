@@ -21,8 +21,8 @@ const Market = {
     },
     {
       id: 'industria',
-      label: 'Industria',
-      hint: 'Minería · faenas',
+      label: 'Minería e industria',
+      hint: 'Plantas · faenas',
       categoria: 'industria'
     },
     {
@@ -50,6 +50,10 @@ const Market = {
   categoria: 'tecnologia',
   job: 'tecnologia',
   busqueda: '',
+  contratacion: '',
+  monto: '',
+  plazo: '',
+  concretados: '',
   ref: null,
   timer: null,
   seleccionado: null,
@@ -77,9 +81,13 @@ const Market = {
     }
     Market.cerrarDetalle();
     Market.renderJobs();
+    Market.renderOferta();
     Market.renderProgreso();
     Market.pedirUbicacion();
     Market.cargar();
+    if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.procesarRetornoPago) {
+      MarketMonetizacion.procesarRetornoPago();
+    }
   },
 
   renderJobs() {
@@ -110,6 +118,37 @@ const Market = {
     Market.renderAccionEmpresa();
   },
 
+  renderOferta() {
+    const host = document.getElementById('marketOferta');
+    if (!host || host.childElementCount || typeof Oferta === 'undefined') return;
+    [
+      ['contratacion', 'Contratación', Oferta.CONTRATACIONES],
+      ['monto', 'Monto', Oferta.MONTOS],
+      ['plazo', 'Plazo', Oferta.PLAZOS],
+      ['concretados', 'Trabajos Concretados en ServiChile', Oferta.CONCRETADOS]
+    ].forEach(([clave, etiqueta, opciones]) => {
+      const select = document.createElement('select');
+      select.className = 'field__input';
+      select.setAttribute('aria-label', etiqueta);
+      const vacio = document.createElement('option');
+      vacio.value = '';
+      vacio.textContent = etiqueta;
+      select.appendChild(vacio);
+      (opciones || []).forEach((opcion) => {
+        const opt = document.createElement('option');
+        opt.value = opcion.id;
+        opt.textContent = opcion.label;
+        select.appendChild(opt);
+      });
+      select.value = Market[clave] || '';
+      select.addEventListener('change', () => {
+        Market[clave] = select.value;
+        Market.cargar();
+      });
+      host.appendChild(select);
+    });
+  },
+
   esProveedor() {
     return typeof ProgresoCuenta !== 'undefined'
       ? ProgresoCuenta.esProveedor()
@@ -123,7 +162,11 @@ const Market = {
   async asegurarEmpresas() {
     if (!Market.esProveedor()) return false;
     if (typeof SubirConfianza === 'undefined' && typeof Carga !== 'undefined') {
-      await Carga.script('js/modules/subir-confianza.js?v=88');
+      const v =
+        (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
+        (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
+        '173';
+      await Carga.script('js/modules/subir-confianza.js?v=' + v);
     }
     if (typeof SubirConfianza === 'undefined') return false;
     if (!Array.isArray(SubirConfianza.empresas)) {
@@ -276,6 +319,10 @@ const Market = {
     const params = new URLSearchParams();
     if (Market.categoria !== 'all') params.set('categoria', Market.categoria);
     if (Market.busqueda) params.set('q', Market.busqueda);
+    if (Market.contratacion) params.set('contratacion', Market.contratacion);
+    if (Market.monto) params.set('monto', Market.monto);
+    if (Market.plazo) params.set('plazo', Market.plazo);
+    if (Market.concretados) params.set('concretados', Market.concretados);
     const clave = params.toString();
     const ticket = ++Market._cargaTicket;
     const previa = Market._cache && Market._cache.clave === clave ? Market._cache.lista : null;
@@ -341,7 +388,7 @@ const Market = {
     card.setAttribute(
       'aria-label',
       bloqueado
-        ? n.nombre + '. Pide nivel ' + (n.requiere_nivel || 1)
+        ? n.nombre + '. Pide nivel ' + Market.etiquetaNivelPedido(n.requiere_nivel)
         : 'Ver detalle de ' + n.nombre
     );
     const media = document.createElement('div');
@@ -388,9 +435,52 @@ const Market = {
       ...(bloqueado ? [Market.avisoNivel(n)] : [])
     );
 
-    cuerpo.append(nombre, dir, desc, pie);
+    const tags = Market.chipsServicios(n);
+    cuerpo.append(nombre, dir, ...(tags ? [tags] : []), desc, pie);
     card.append(media, cuerpo);
     return card;
+  },
+
+  chipsServicios(n) {
+    const lista = Array.isArray(n.servicios) ? n.servicios.slice(0, 4) : [];
+    if (!lista.length) return null;
+    const box = document.createElement('ul');
+    box.className = 'market__card-tags';
+    lista.forEach((texto) => {
+      const li = document.createElement('li');
+      li.textContent = texto;
+      box.appendChild(li);
+    });
+    return box;
+  },
+
+  filasOferta(n) {
+    if (typeof Oferta === 'undefined' || !n) return [];
+    const servicios = Array.isArray(n.servicios) ? n.servicios : [];
+    const industrias = Array.isArray(n.industrias) ? n.industrias : [];
+    const contrataciones = Array.isArray(n.contrataciones) ? n.contrataciones : [];
+    const referencias = Array.isArray(n.referencias) ? n.referencias : [];
+    const filas = [];
+    if (servicios.length) filas.push(['Servicios', servicios.join(', ')]);
+    if (industrias.length) {
+      filas.push([
+        'Le vende a',
+        industrias.map((id) => Oferta.etiqueta(Oferta.INDUSTRIAS, id)).filter(Boolean).join(', ')
+      ]);
+    }
+    if (contrataciones.length) {
+      filas.push([
+        'Cómo se contrata',
+        contrataciones
+          .map((id) => Oferta.etiqueta(Oferta.CONTRATACIONES, id))
+          .filter(Boolean)
+          .join(', ')
+      ]);
+    }
+    if (n.monto) filas.push(['Monto que acepta', Oferta.etiqueta(Oferta.MONTOS, n.monto)]);
+    if (n.plazo) filas.push(['Plazo de cotización', Oferta.etiqueta(Oferta.PLAZOS, n.plazo)]);
+    if (referencias.length) filas.push(['Referencias', referencias.join(', ')]);
+    return filas.filter(([, v]) => v);
   },
 
   async abrirDetalle(n) {
@@ -398,7 +488,11 @@ const Market = {
     const gen = ++Market._detalleGen;
     const previa = Market._reps[id];
     if (previa) Market.pintarDetalle(n, previa);
-    const res = await Auth.request('/v1/businesses/' + encodeURIComponent(n.id) + '/reputation');
+    const sesion = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
+    const res = await Auth.request(
+      '/v1/businesses/' + encodeURIComponent(n.id) + '/reputation',
+      sesion && sesion.token ? { token: sesion.token } : {}
+    );
     if (gen !== Market._detalleGen) return;
     if (!res.ok) return;
     Market._reps[id] = res.data;
@@ -505,12 +599,13 @@ const Market = {
     const colIzq = document.createElement('div');
     colIzq.className = 'market-detalle__col';
 
+    const filasOferta = Market.filasOferta(n);
     const filas = [
       ['Descripción', n.descripcion || 'Sin descripción por ahora.'],
       ['Categoría', Market.etiquetaDe(n.categoria)],
       ['Dirección', n.direccion || 'Sin dirección'],
       ['Distancia', Market.distanciaTexto(n) || 'No disponible'],
-      ['Nivel pedido', 'Nivel ' + pide]
+      ['Nivel pedido', Market.etiquetaNivelPedido(pide)]
     ];
     if (rep) {
       filas.push(
@@ -523,6 +618,7 @@ const Market = {
         ['Reseñas', String(rep.google_reviews_count || 0)]
       );
     }
+    filas.push(...filasOferta);
 
     const datos = document.createElement('dl');
     datos.className = 'market-detalle__datos';
@@ -537,15 +633,37 @@ const Market = {
       datos.appendChild(fila);
     });
     colIzq.appendChild(datos);
+    if (filasOferta.length) {
+      const nota = document.createElement('p');
+      nota.className = 'field__hint';
+      nota.textContent =
+        'Datos declarados por la empresa. No forman parte del índice de transparencia.';
+      colIzq.appendChild(nota);
+    }
 
     colIzq.appendChild(Market.bloqueIndice(negocioIndice, true));
-    const nDocs = Object.assign({}, n, {
-      indice_pct: pctValor,
-      docs_empresa:
-        (rep && rep.docs_empresa) || n.docs_empresa || null
-    });
-    const desglose = Market.bloqueDesgloseIndice(nDocs, rep, indiceValor, false);
-    if (desglose) colIzq.appendChild(desglose);
+    const obsPublicos =
+      rep && Array.isArray(rep.observables) && rep.observables.length > 0;
+    if (obsPublicos) {
+      const nDocs = Object.assign({}, n, {
+        indice_pct: pctValor,
+        docs_empresa:
+          (rep && rep.docs_empresa) || n.docs_empresa || null
+      });
+      const desglose = Market.bloqueDesgloseIndice(
+        nDocs,
+        rep,
+        indiceValor,
+        false
+      );
+      if (desglose) colIzq.appendChild(desglose);
+    } else {
+      const teaser = document.createElement('p');
+      teaser.className = 'indice-desglose__lead';
+      teaser.textContent =
+        'El desglose de observables forma parte del informe comprado. Use el panel de la derecha para adquirirlo o reabrirlo.';
+      colIzq.appendChild(teaser);
+    }
 
     const colDer = document.createElement('div');
     colDer.className = 'market-detalle__col market-detalle__col--paywall';
@@ -592,16 +710,24 @@ const Market = {
     raiz.appendChild(cuerpo);
   },
 
+  etiquetaNivelPedido(pide) {
+    return Number(pide) >= 2 ? 'Alto' : 'Bajo';
+  },
+
   textoAvisoNivel(n, pide) {
     return (
-      'Este proveedor pide verificación nivel ' +
-      pide +
+      'Este proveedor pide verificación ' +
+      Market.etiquetaNivelPedido(pide).toLowerCase() +
       '. Complete su verificación y vuelva a la ficha.'
     );
   },
 
   textoCtaBloqueado(n, pide) {
-    return 'Completar verificación (nivel ' + pide + ')';
+    return (
+      'Completar verificación (' +
+      Market.etiquetaNivelPedido(pide).toLowerCase() +
+      ')'
+    );
   },
 
   estaBloqueado(n) {
@@ -611,7 +737,7 @@ const Market = {
   avisoNivel(n) {
     const aviso = document.createElement('span');
     aviso.className = 'market__nivel';
-    aviso.textContent = 'Pide nivel ' + (n.requiere_nivel || 1);
+    aviso.textContent = 'Pide nivel ' + Market.etiquetaNivelPedido(n.requiere_nivel).toLowerCase();
     return aviso;
   },
 

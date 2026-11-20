@@ -175,6 +175,16 @@ Cobertura representativa en `tests/`:
 - `test_biometria.py`, `test_progreso_cliente.py`, `test_tipo_cuenta.py`
 - `test_trabajos.py`, `test_negocios.py`, `test_ficha_negocio.py`
 - `test_reporte.py`, `test_reputacion_indice.py`, `test_seguridad.py`
+- `test_pago_informe.py`, `test_pago_publicacion.py` (Webpay SCI/SCP, gate `buy_order`, cupón `consumido`)
+
+### 3.2.1 Publicación de ficha (Webpay SCP)
+
+1. Solo cuenta **proveedor** puede iniciar/confirmar/acceder al cupón (`exige_cuenta_proveedor`).
+2. `POST /v1/businesses` exige `buy_order` listo (salvo pytest/`SERVICHILE_SKIP_PAGO_PUBLICACION=1`): **una TX** (reserva+ficha+consumo) → `commit`; `rollback` si falla (sin cupón “tomado” huérfano). `IntegrityError` → 409 `alta_conflicto`.
+3. Consumo atómico (`UPDATE`); borrar la ficha no reabre el cupón aunque `business_id` quede NULL.
+4. Monto desde `PAGOS_PUBLICACION_MONTO` (catálogo + mensajes 402).
+5. Correo «cupón listo» en `/confirmar` y en reconciliación TBK (requiere SMTP disponible).
+6. Production: migraciones `050`/`051` + check de arranque (`verificar_compras_publicacion`).
 
 Estas pruebas **no requieren** una instancia activa de PostgreSQL.
 

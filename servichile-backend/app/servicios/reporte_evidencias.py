@@ -131,10 +131,7 @@ class MezclaReporteEvidencias:
             rut=resultado.rut,
             nombre_ocr=resultado.nombre_ocr,
             senales=resultado.senales,
-            motivo=(
-                resultado.motivo.rstrip(".")
-                + ". La foto del carnet no se retuvo."
-            ),
+            motivo=resultado.motivo.rstrip(".") + ".",
             texto_compacto_len=resultado.texto_compacto_len,
             face_score=resultado.face_score,
         )

@@ -2,6 +2,7 @@ import os
 
 os.environ["JWT_SECRET"] = "test-secret-de-al-menos-32-caracteres-xx"
 os.environ["APP_ENV"] = "test"
+os.environ["SERVICHILE_ALLOW_MEMORIA_PASARELA"] = "1"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -66,6 +67,10 @@ def session_factory():
                 "business_reputation_metrics",
                 "trabajos",
                 "pades_document_hashes",
+                "correo_oauth",
+                "mensajes_correo",
+                "compras_informe",
+                "compras_publicacion",
             )
         ],
     )

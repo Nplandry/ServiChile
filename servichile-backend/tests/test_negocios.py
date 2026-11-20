@@ -48,6 +48,12 @@ def _crear_negocio(
             longitud=-70.66,
             direccion=kwargs.get("direccion", "Av. Siempre Viva 100"),
             descripcion=kwargs.get("descripcion", "Un lugar de prueba."),
+            servicios=kwargs.get("servicios") or [],
+            industrias=kwargs.get("industrias") or [],
+            contrataciones=kwargs.get("contrataciones") or [],
+            monto=kwargs.get("monto"),
+            plazo=kwargs.get("plazo"),
+            referencias=kwargs.get("referencias") or [],
             requiere_nivel=kwargs.get("requiere_nivel", 1),
             is_claimed=claimed,
         )
@@ -285,6 +291,30 @@ def test_actualizar_datos_empresa_refresca_ficha(client: TestClient, token_empre
     assert cuerpo["telefono"] == "+56 9 8765 4321"
     assert cuerpo["sitio_web"] == "https://editada.cl"
     assert cuerpo["rut_empresa"] == "76123456-0"
+
+
+def test_crear_empresa_con_rut_repetido_da_409(client: TestClient, token_empresa: str):
+    h = {"Authorization": f"Bearer {token_empresa}"}
+    cuerpo = {
+        "nombre": "Primera SpA",
+        "categoria": "tecnologia",
+        "direccion": "Providencia 1",
+        "rut_empresa": "76.123.456-0",
+    }
+    alta = client.post("/v1/businesses", headers=h, json=cuerpo)
+    assert alta.status_code == 201, alta.text
+
+    repetida = client.post(
+        "/v1/businesses",
+        headers=h,
+        json={**cuerpo, "nombre": "Otra SpA", "direccion": "Las Condes 2"},
+    )
+    assert repetida.status_code == 409, repetida.text
+    assert repetida.json()["detail"] == "Este RUT de empresa ya está registrado."
+
+    mias = client.get("/v1/businesses/mias", headers=h)
+    assert mias.status_code == 200
+    assert [n["nombre"] for n in mias.json()] == ["Primera SpA"]
 
 
 def test_actualizar_rut_empresa_habilita_consulta(client: TestClient, token_empresa: str):
@@ -552,3 +582,117 @@ def test_listado_sin_metricas_calcula_indice_minimo(
 
     assert cuerpo[0]["indice_transparencia"] == 0.0
     assert cuerpo[0]["indice_pct"] == 0
+
+
+def test_oferta_se_guarda_y_filtra_el_mapa(client: TestClient, token_empresa: str, session_factory):
+    h = {"Authorization": f"Bearer {token_empresa}"}
+    oferta = {
+        "servicios": ["Bodega", "última milla"],
+        "industrias": ["mineria", "retail"],
+        "contrataciones": ["factura-electronica", "licitacion-oc"],
+        "monto": "alto",
+        "plazo": "en-el-dia",
+        "referencias": ["Falabella", "Codelco"],
+    }
+    alta = client.post(
+        "/v1/businesses",
+        headers=h,
+        json={
+            "nombre": "Logística Sur SpA",
+            "categoria": "logistica",
+            "direccion": "Ruta 5 Sur 100",
+            "rut_empresa": "76.123.456-0",
+            **oferta,
+        },
+    )
+    assert alta.status_code == 201, alta.text
+    cuerpo = alta.json()
+    assert cuerpo["servicios"] == ["Bodega", "última milla"]
+    assert cuerpo["industrias"] == ["mineria", "retail"]
+    assert cuerpo["contrataciones"] == ["factura-electronica", "licitacion-oc"]
+    assert cuerpo["monto"] == "alto"
+    assert cuerpo["plazo"] == "en-el-dia"
+    assert cuerpo["referencias"] == ["Falabella", "Codelco"]
+
+    _crear_negocio(
+        session_factory,
+        nombre="Otra Industria",
+        categoria="industria",
+        servicios=["Mantención"],
+        industrias=["salud"],
+        monto="bajo",
+        plazo="24-48h",
+        referencias=["Clínica Norte"],
+    )
+
+    assert len(client.get("/v1/businesses", params={"q": "bodega"}).json()) == 1
+    assert len(client.get("/v1/businesses", params={"q": "Falabella"}).json()) == 1
+    retail = client.get("/v1/businesses", params={"industria": "retail"}).json()
+    assert [n["nombre"] for n in retail] == ["Logística Sur SpA"]
+    factura = client.get(
+        "/v1/businesses", params={"contratacion": "factura-electronica"}
+    ).json()
+    assert len(factura) == 1
+    assert client.get("/v1/businesses", params={"monto": "alto"}).json()[0]["nombre"] == (
+        "Logística Sur SpA"
+    )
+    assert client.get("/v1/businesses", params={"plazo": "24-48h"}).json()[0]["nombre"] == (
+        "Otra Industria"
+    )
+
+    invalida = client.get("/v1/businesses", params={"industria": "astronomia"})
+    assert invalida.status_code == 422
+    assert isinstance(invalida.json()["detail"], str)
+
+    larga = client.post(
+        "/v1/businesses",
+        headers=h,
+        json={
+            "nombre": "Tags SpA",
+            "categoria": "tecnologia",
+            "direccion": "Providencia 9",
+            "servicios": ["uno", "dos", "tres", "cuatro", "cinco", "seis", "siete"],
+        },
+    )
+    assert larga.status_code == 422
+
+
+def test_actualizar_oferta_reemplaza_lo_declarado(client: TestClient, token_empresa: str):
+    h = {"Authorization": f"Bearer {token_empresa}"}
+    alta = client.post(
+        "/v1/businesses",
+        headers=h,
+        json={
+            "nombre": "Oferta SpA",
+            "categoria": "tecnologia",
+            "direccion": "Providencia 2",
+            "rut_empresa": "76.123.456-0",
+            "servicios": ["SaaS"],
+            "monto": "bajo",
+        },
+    )
+    assert alta.status_code == 201, alta.text
+    bid = alta.json()["id"]
+    ok = client.patch(
+        f"/v1/businesses/{bid}",
+        headers=h,
+        json={
+            "nombre": "Oferta SpA",
+            "categoria": "tecnologia",
+            "direccion": "Providencia 2",
+            "rut_empresa": "76.123.456-0",
+            "servicios": ["Datos"],
+            "industrias": ["sector-publico"],
+            "monto": "medio",
+            "plazo": "menos-2h",
+            "referencias": ["Ministerio"],
+        },
+    )
+    assert ok.status_code == 200, ok.text
+    cuerpo = ok.json()
+    assert cuerpo["servicios"] == ["Datos"]
+    assert cuerpo["industrias"] == ["sector-publico"]
+    assert cuerpo["monto"] == "medio"
+    assert cuerpo["plazo"] == "menos-2h"
+    assert cuerpo["referencias"] == ["Ministerio"]
+    assert cuerpo["contrataciones"] == []

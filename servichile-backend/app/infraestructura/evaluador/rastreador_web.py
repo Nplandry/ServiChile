@@ -77,6 +77,18 @@ _RUTAS_LEGALES = (
     "/aviso-legal",
 )
 
+# Solo señales contractuales (no headers cyb_*): id del índice ← doc_type del crawler.
+_DOC_A_CON: dict[str, str] = {
+    "privacy_policy": "con_privacy",
+    "ley_21719": "con_ley_21719",
+    "terms": "con_tyc",
+    "sla": "con_sla",
+    "dpa": "con_dpa",
+    "service_clauses": "con_clausulas",
+    "data_contact": "con_contacto_datos",
+    "cookies_notice": "con_cookies_notice",
+}
+
 
 def _normalize_url(url: str) -> str:
     u = url.strip()
@@ -102,13 +114,52 @@ def _urls_candidatas(url_sitio: str) -> list[str]:
     return out
 
 
+def ruta_mostrar(url: str | None, *, home_url: str = "") -> str | None:
+    """Ruta corta para el índice (/politica-de-privacidad), no la URL completa."""
+    if not url or not str(url).strip():
+        return None
+    raw = str(url).strip()
+    if raw.startswith("link:"):
+        href = raw[5:].strip()
+        if not href:
+            return None
+        if href.startswith("http://") or href.startswith("https://"):
+            path = urlparse(href).path or "/"
+        elif href.startswith("/"):
+            path = href.split("?", 1)[0].split("#", 1)[0]
+        else:
+            path = "/" + href.split("?", 1)[0].split("#", 1)[0]
+        path = path or "/"
+        if path != "/" and path.endswith("/"):
+            path = path.rstrip("/")
+        return path or None
+    if raw.startswith("http://") or raw.startswith("https://"):
+        path = urlparse(raw).path or "/"
+        if path != "/" and path.endswith("/"):
+            path = path.rstrip("/")
+        return path or "/"
+    if raw.startswith("/"):
+        path = raw.split("?", 1)[0].split("#", 1)[0]
+        if path != "/" and path.endswith("/"):
+            path = path.rstrip("/")
+        return path or "/"
+    if home_url:
+        try:
+            origen = f"{urlparse(home_url).scheme}://{urlparse(home_url).netloc}"
+            return ruta_mostrar(origen.rstrip("/") + "/" + raw.lstrip("/"), home_url=home_url)
+        except Exception:  # noqa: BLE001
+            return None
+    return None
+
+
 def rastrear_sitio(url_sitio: str, *, tiempo_espera: float = 1.5) -> dict[str, Any]:
-    """Devuelve paginas_escaneadas, pistas_puntaje, hallazgos_count e info_headers."""
+    """Devuelve pistas, hallazgos y rutas_evidencia (solo con_*; no cyb_*)."""
     vacio = {
         "paginas_escaneadas": 0,
         "pistas_puntaje": {},
         "hallazgos_count": 0,
         "info_headers": {},
+        "rutas_evidencia": {},
     }
     if BeautifulSoup is None:
         return vacio
@@ -169,6 +220,15 @@ def rastrear_sitio(url_sitio: str, *, tiempo_espera: float = 1.5) -> dict[str, A
     )
     hallazgos = _analizar(page_texts, page_html)
     pistas = _pistas_puntaje(hallazgos, headers_info, page_texts)
+    home = str(headers_info.get("url") or "")
+    rutas = _rutas_evidencia_con(hallazgos, home_url=home)
+    # con_clausulas a veces hereda score de terms: misma ruta si no hubo match propio.
+    if (
+        float(pistas.get("con_clausulas") or 0) > 0
+        and "con_clausulas" not in rutas
+        and "con_tyc" in rutas
+    ):
+        rutas["con_clausulas"] = rutas["con_tyc"]
     return {
         "paginas_escaneadas": len([u for u in page_texts if not u.startswith("link:")]),
         "pistas_puntaje": pistas,
@@ -178,6 +238,7 @@ def rastrear_sitio(url_sitio: str, *, tiempo_espera: float = 1.5) -> dict[str, A
             for k, v in headers_info.items()
             if k not in {"headers", "set_cookie"}
         },
+        "rutas_evidencia": rutas,
     }
 
 
@@ -249,15 +310,70 @@ def _analizar(page_texts: dict[str, str], page_html: dict[str, str]) -> list[dic
             {"doc_type": doc_type, "found": best_conf >= min_conf, "url": found_url}
         )
 
-    ley = any(LEY_21719.search(t) for t in page_texts.values())
-    hallazgos.append({"doc_type": "ley_21719", "found": ley, "url": None})
-    cookie = any(COOKIE_NOTICE.search(t[:3000]) for t in page_texts.values()) or any(
-        COOKIE_NOTICE.search(h[:2000]) for h in page_html.values()
+    ley_url = _primera_url_match(page_texts, page_html, LEY_21719, html_limit=0)
+    hallazgos.append(
+        {"doc_type": "ley_21719", "found": ley_url is not None, "url": ley_url}
     )
-    hallazgos.append({"doc_type": "cookies_notice", "found": cookie, "url": None})
-    contact = any(CONTACT_DATA.search(t) for t in page_texts.values())
-    hallazgos.append({"doc_type": "data_contact", "found": contact, "url": None})
+    cookie_url = _primera_url_match(
+        page_texts, page_html, COOKIE_NOTICE, text_limit=3000, html_limit=2000
+    )
+    hallazgos.append(
+        {
+            "doc_type": "cookies_notice",
+            "found": cookie_url is not None,
+            "url": cookie_url,
+        }
+    )
+    contact_url = _primera_url_match(page_texts, page_html, CONTACT_DATA, html_limit=0)
+    hallazgos.append(
+        {
+            "doc_type": "data_contact",
+            "found": contact_url is not None,
+            "url": contact_url,
+        }
+    )
     return hallazgos
+
+
+def _primera_url_match(
+    page_texts: dict[str, str],
+    page_html: dict[str, str],
+    patron: re.Pattern[str],
+    *,
+    text_limit: int | None = None,
+    html_limit: int = 0,
+) -> str | None:
+    """Primera página (preferir URL real sobre link:) que dispara el patrón."""
+    candidatas: list[tuple[int, str]] = []
+    for url, text in page_texts.items():
+        blob = text if text_limit is None else text[:text_limit]
+        if patron.search(blob) or patron.search(url):
+            prio = 0 if not url.startswith("link:") else 1
+            candidatas.append((prio, url))
+    if html_limit > 0:
+        for url, html in page_html.items():
+            if patron.search((html or "")[:html_limit]):
+                prio = 0 if not url.startswith("link:") else 1
+                candidatas.append((prio, url))
+    if not candidatas:
+        return None
+    candidatas.sort(key=lambda x: x[0])
+    return candidatas[0][1]
+
+
+def _rutas_evidencia_con(hallazgos: list[dict], *, home_url: str) -> dict[str, str]:
+    """Mapa con_* → ruta corta; solo hallazgos found con URL."""
+    out: dict[str, str] = {}
+    for h in hallazgos:
+        if not h.get("found"):
+            continue
+        pid = _DOC_A_CON.get(str(h.get("doc_type") or ""))
+        if not pid:
+            continue
+        ruta = ruta_mostrar(h.get("url"), home_url=home_url)
+        if ruta:
+            out[pid] = ruta
+    return out
 
 
 def _contar_mixed_content(page_html: dict[str, str], *, https: bool) -> int:

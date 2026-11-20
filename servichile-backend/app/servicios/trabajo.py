@@ -10,6 +10,7 @@ from app.dominio.errores import (
     TrabajoYaCerrado,
 )
 from app.dominio.puertos import RepositorioNegocios, RepositorioTrabajos
+from app.servicios.negocio_reputacion import persistir_indice
 from app.servicios.progreso_cliente import ServicioProgresoCliente
 
 __all__ = [
@@ -90,6 +91,18 @@ class ServicioTrabajo:
             raise TrabajoYaCerrado()
         trabajo.estado = estado
         trabajo = self.trabajos.guardar(trabajo)
+        if estado in ("concretado", "no_concretado"):
+            self._refrescar_indice_negocio(trabajo.business_id)
         if estado == "concretado" and self.xp is not None:
             self.xp.por_trabajo_concretado(trabajo.usuario_id, trabajo.id)
         return trabajo
+
+    def _refrescar_indice_negocio(self, negocio_id: uuid.UUID) -> None:
+        negocio = self.negocios.obtener(negocio_id)
+        if negocio is None:
+            return
+        conteo = self.trabajos.contar_concretados_por_negocios([negocio_id]).get(
+            negocio_id, 0
+        )
+        persistir_indice(negocio, trabajos_concretados=conteo)
+        self.negocios.guardar(negocio)

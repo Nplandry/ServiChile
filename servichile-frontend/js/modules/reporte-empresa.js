@@ -1,6 +1,46 @@
 
 const ReporteEmpresa = {
-  async init() {
+  STORAGE_EMPRESA: 'servichile.empresa.seleccionada',
+
+  storageQuien() {
+    const user = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
+    return user && user.email ? String(user.email).toLowerCase() : 'anon';
+  },
+
+  claveSeleccion() {
+    return ReporteEmpresa.STORAGE_EMPRESA + ':' + ReporteEmpresa.storageQuien();
+  },
+
+  leerSeleccionId() {
+    try {
+      return localStorage.getItem(ReporteEmpresa.claveSeleccion()) || '';
+    } catch (_) {
+      return '';
+    }
+  },
+
+  guardarSeleccionId(id) {
+    try {
+      if (id) localStorage.setItem(ReporteEmpresa.claveSeleccion(), String(id));
+      else localStorage.removeItem(ReporteEmpresa.claveSeleccion());
+    } catch (_) {
+      /* ignore */
+    }
+  },
+
+  elegirNegocio(lista, preferidoId) {
+    if (!Array.isArray(lista) || !lista.length) return null;
+    const want = preferidoId != null && preferidoId !== ''
+      ? String(preferidoId)
+      : ReporteEmpresa.leerSeleccionId();
+    if (want) {
+      const hit = lista.find((n) => String(n.id) === want);
+      if (hit) return hit;
+    }
+    return lista[0];
+  },
+
+  async init(opts) {
     const raiz = document.getElementById('reporteRaiz');
     if (!raiz) return;
     if (typeof ReporteQr !== 'undefined') {
@@ -10,35 +50,42 @@ const ReporteEmpresa = {
     if (typeof SubirConfianza !== 'undefined' && SubirConfianza.cargar) {
       SubirConfianza.cargar();
     }
-    const estado = await ReporteEmpresa.cargarEstadoNegocio();
+    const estado = await ReporteEmpresa.cargarEstadoNegocio(
+      opts && opts.businessId != null ? opts.businessId : null
+    );
     while (raiz.firstChild) raiz.removeChild(raiz.firstChild);
     raiz.appendChild(ReporteEmpresa.render(estado));
   },
 
-  async cargarEstadoNegocio() {
+  async cargarEstadoNegocio(preferidoId) {
     if (typeof Auth === 'undefined' || !Auth.isAuthenticated() || !Auth.request) {
-      return { sinFicha: true, rep: null };
+      return { sinFicha: true, rep: null, lista: [] };
     }
     try {
       const mias = await Auth.request('/v1/businesses/mias', { token: Auth.sesion.token });
       const lista = mias && Array.isArray(mias.data) ? mias.data : [];
-      if (!lista.length) return { sinFicha: true, rep: null };
-      const negocio = lista[0];
+      if (!lista.length) return { sinFicha: true, rep: null, lista: [] };
+      const negocio = ReporteEmpresa.elegirNegocio(lista, preferidoId);
+      if (negocio && negocio.id) ReporteEmpresa.guardarSeleccionId(negocio.id);
       const res = await Auth.request(
         '/v1/businesses/' + encodeURIComponent(negocio.id) + '/reputation',
         { token: Auth.sesion.token }
       );
       if (typeof SubirConfianza !== 'undefined') {
         SubirConfianza.empresas = lista;
+        if (SubirConfianza.guardarSeleccionId) {
+          SubirConfianza.guardarSeleccionId(negocio.id);
+        }
         if (res && res.ok && res.data) SubirConfianza.reputacionMia = res.data;
       }
       return {
         sinFicha: false,
         rep: res && res.data ? res.data : null,
-        negocio: negocio
+        negocio: negocio,
+        lista: lista
       };
     } catch (_e) {
-      return { sinFicha: true, rep: null, negocio: null };
+      return { sinFicha: true, rep: null, negocio: null, lista: [] };
     }
   },
 
@@ -113,6 +160,11 @@ const ReporteEmpresa = {
     lead.textContent =
       'Consulte su índice de transparencia, muestre su QR y valide el de otra parte. Puede imprimir o guardar el informe en PDF.';
 
+    const selector = ReporteEmpresa.renderSelectorEmpresas(
+      info.lista || [],
+      info.negocio || null
+    );
+
     const acciones = document.createElement('div');
     acciones.className = 'reporte__acciones no-print';
 
@@ -140,7 +192,11 @@ const ReporteEmpresa = {
     btnAct.type = 'button';
     btnAct.className = 'history__clear';
     btnAct.textContent = 'Actualizar datos';
-    btnAct.addEventListener('click', () => ReporteEmpresa.init());
+    btnAct.addEventListener('click', () =>
+      ReporteEmpresa.init({
+        businessId: info.negocio && info.negocio.id
+      })
+    );
     pieAcciones.appendChild(btnAct);
 
     const modal =
@@ -148,9 +204,56 @@ const ReporteEmpresa = {
         ? ReporteQr.renderModalValidador()
         : document.createComment('sin-modal-qr');
 
-    wrap.append(lead, acciones, doc, pieAcciones, modal);
+    wrap.append(lead);
+    if (selector) wrap.appendChild(selector);
+    wrap.append(acciones, doc, pieAcciones, modal);
     setTimeout(() => ReporteEmpresa.cargarQrInforme(), 0);
     return wrap;
+  },
+
+  renderSelectorEmpresas(lista, actual) {
+    if (!Array.isArray(lista) || lista.length < 2) return null;
+
+    const box = document.createElement('div');
+    box.className = 'reporte__selector no-print';
+    box.setAttribute('aria-label', 'Seleccionar empresa');
+
+    const label = document.createElement('label');
+    label.className = 'reporte__selector-label';
+    label.htmlFor = 'reporteEmpresaSelect';
+    label.textContent = 'Empresa';
+
+    const select = document.createElement('select');
+    select.id = 'reporteEmpresaSelect';
+    select.className = 'reporte__selector-select';
+    select.setAttribute('aria-label', 'Elija qué empresa ver en el reporte');
+
+    lista.forEach((n) => {
+      const opt = document.createElement('option');
+      opt.value = String(n.id);
+      const cat = ReporteEmpresa.etiquetaCategoria(n.categoria);
+      opt.textContent =
+        (n.nombre || 'Empresa') +
+        (n.rut_empresa ? ' · ' + n.rut_empresa : '') +
+        (cat && cat !== '—' ? ' · ' + cat : '');
+      if (actual && String(actual.id) === String(n.id)) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    select.addEventListener('change', () => {
+      const id = select.value;
+      ReporteEmpresa.guardarSeleccionId(id);
+      select.disabled = true;
+      ReporteEmpresa.init({ businessId: id });
+    });
+
+    const ayuda = document.createElement('p');
+    ayuda.className = 'reporte__selector-ayuda';
+    ayuda.textContent =
+      'Tiene ' + lista.length + ' empresas. Elija cuál mostrar en este reporte.';
+
+    box.append(label, select, ayuda);
+    return box;
   },
 
   renderAvisoSinFicha() {
@@ -165,12 +268,12 @@ const ReporteEmpresa = {
     const lead = document.createElement('p');
     lead.className = 'section-lead';
     lead.textContent =
-      'Para generar su reporte de transparencia debe crear su empresa. En Perfil puede publicar una ficha nueva, asociada a su cuenta.';
+      'Para generar su reporte de transparencia debe crear su empresa. En Perfil puede publicar una ficha nueva (pago Webpay).';
 
     const lista = document.createElement('ul');
     lista.className = 'reporte-sin-ficha__lista';
     [
-      'Crear y publicar ficha de empresa',
+      'Pagar y publicar ficha de empresa (Webpay)',
       'La ficha queda a nombre de quien la crea',
       'Sin ficha activa no aparece ante compradores en Explorar'
     ].forEach((t) => {
@@ -363,6 +466,8 @@ const ReporteEmpresa = {
     });
     resumen.appendChild(metricas);
 
+    const oferta = ReporteEmpresa.renderOferta(emp);
+
     const desgloseWrap = document.createElement('section');
     desgloseWrap.className = 'reporte-doc__desglose';
     desgloseWrap.setAttribute('aria-label', 'Desglose del índice global');
@@ -401,8 +506,79 @@ const ReporteEmpresa = {
       ReporteEmpresa.hoy();
     pie.append(aviso, ref);
 
-    doc.append(cabezal, titular, qrBloque, resumen, desgloseWrap, pie);
+    doc.append(cabezal, titular, qrBloque, resumen);
+    if (oferta) doc.appendChild(oferta);
+    doc.append(desgloseWrap, pie);
     return doc;
+  },
+
+  etiquetaOferta(lista, id) {
+    if (typeof Oferta !== 'undefined' && Oferta.etiqueta) {
+      return Oferta.etiqueta(lista, id) || id;
+    }
+    return id;
+  },
+
+  renderOferta(emp) {
+    const servicios = Array.isArray(emp.servicios) ? emp.servicios : [];
+    const industrias = Array.isArray(emp.industrias) ? emp.industrias : [];
+    const contrataciones = Array.isArray(emp.contrataciones) ? emp.contrataciones : [];
+    const referencias = Array.isArray(emp.referencias) ? emp.referencias : [];
+    const catalogo = typeof Oferta !== 'undefined' ? Oferta : {};
+    const filas = [];
+    if (servicios.length) filas.push(['Servicios', servicios.join(', ')]);
+    if (industrias.length) {
+      filas.push([
+        'Le vende a',
+        industrias.map((id) => ReporteEmpresa.etiquetaOferta(catalogo.INDUSTRIAS, id)).join(', ')
+      ]);
+    }
+    if (contrataciones.length) {
+      filas.push([
+        'Cómo se contrata',
+        contrataciones
+          .map((id) => ReporteEmpresa.etiquetaOferta(catalogo.CONTRATACIONES, id))
+          .join(', ')
+      ]);
+    }
+    if (emp.monto) {
+      filas.push(['Monto que acepta', ReporteEmpresa.etiquetaOferta(catalogo.MONTOS, emp.monto)]);
+    }
+    if (emp.plazo) {
+      filas.push([
+        'Plazo de cotización',
+        ReporteEmpresa.etiquetaOferta(catalogo.PLAZOS, emp.plazo)
+      ]);
+    }
+    if (referencias.length) filas.push(['Referencias', referencias.join(', ')]);
+    if (!filas.length) return null;
+
+    const sec = document.createElement('section');
+    sec.className = 'reporte-doc__oferta';
+    sec.setAttribute('aria-label', 'Oferta declarada');
+    const titulo = document.createElement('h3');
+    titulo.className = 'reporte-doc__h';
+    titulo.textContent = 'Oferta declarada';
+    const nota = document.createElement('p');
+    nota.className = 'reporte-doc__oferta-nota';
+    nota.textContent =
+      'Datos declarados por la empresa. No forman parte del índice de transparencia.';
+    const metricas = document.createElement('div');
+    metricas.className = 'reporte-doc__metricas';
+    filas.forEach(([k, v]) => {
+      const chip = document.createElement('div');
+      chip.className = 'reporte-doc__chip';
+      const dt = document.createElement('span');
+      dt.className = 'reporte-doc__chip-k';
+      dt.textContent = k;
+      const dd = document.createElement('strong');
+      dd.className = 'reporte-doc__chip-v';
+      dd.textContent = v;
+      chip.append(dt, dd);
+      metricas.appendChild(chip);
+    });
+    sec.append(titulo, nota, metricas);
+    return sec;
   },
 
   async cargarQrInforme() {
@@ -442,20 +618,113 @@ const ReporteEmpresa = {
   },
 
   imprimir() {
-
-    const todos = document.querySelector(
-      '#reporteDocumento .indice-desglose__filtro--todos'
-    );
+    const doc = document.getElementById('reporteDocumento');
+    if (!doc) return;
+    const todos = doc.querySelector('.indice-desglose__filtro--todos');
     if (todos && todos.getAttribute('aria-pressed') !== 'true') todos.click();
+    ReporteEmpresa.imprimirDocumento(doc);
+  },
 
-    document.body.classList.add('reporte-print');
-    const limpiar = () => {
-      document.body.classList.remove('reporte-print');
-      window.removeEventListener('afterprint', limpiar);
-    };
-    window.addEventListener('afterprint', limpiar);
-    window.print();
-    setTimeout(limpiar, 1500);
+  /**
+   * PDF del comprador: exige compra autorizada + print_token (validado en servidor).
+   * opts: { autorizado, buy_order, print_token, payload, expires_at }
+   */
+  async imprimirFicha(negocio, rep, opts) {
+    const compra = opts && typeof opts === 'object' ? opts : null;
+    if (
+      !compra ||
+      !compra.autorizado ||
+      !compra.buy_order ||
+      !String(compra.buy_order).trim() ||
+      !compra.print_token ||
+      !String(compra.print_token).trim()
+    ) {
+      if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.toast) {
+        MarketMonetizacion.toast(
+          'El PDF del informe solo se entrega tras validar la compra en el servidor.'
+        );
+      }
+      return false;
+    }
+    const doc = ReporteEmpresa.renderDocumento(rep || null, negocio || null);
+    const sello = document.createElement('p');
+    sello.className = 'reporte-doc__compra';
+    sello.textContent =
+      'Informe comprado en ServiChile · Orden ' + String(compra.buy_order).trim();
+    const cabezal = doc.querySelector('.reporte-doc__cabezal');
+    if (cabezal && cabezal.parentNode) {
+      cabezal.parentNode.insertBefore(sello, cabezal.nextSibling);
+    } else {
+      doc.insertBefore(sello, doc.firstChild);
+    }
+
+    if (compra.payload && typeof ReporteQr !== 'undefined') {
+      const status = doc.querySelector('#reporteQrStatus');
+      const host = doc.querySelector('#reporteQrHost');
+      if (status) status.textContent = '';
+      if (host) {
+        while (host.firstChild) host.removeChild(host.firstChild);
+        const frame = document.createElement('div');
+        frame.className = 'reporte-doc__qr-frame';
+        ReporteQr.dibujarQr(frame, compra.payload);
+        host.appendChild(frame);
+        if (compra.expires_at) {
+          const expira = document.createElement('p');
+          expira.className = 'reporte-doc__qr-expira';
+          expira.textContent =
+            'Válido hasta ' +
+            (ReporteQr.formatoFecha
+              ? ReporteQr.formatoFecha(compra.expires_at)
+              : String(compra.expires_at));
+          host.appendChild(expira);
+        }
+      }
+    } else {
+      const status = doc.querySelector('#reporteQrStatus');
+      if (status) {
+        status.textContent =
+          'Informe autorizado (orden ' +
+          compra.buy_order +
+          '). QR de identidad no disponible para esta ficha.';
+      }
+    }
+    const filtros = doc.querySelectorAll('.indice-desglose__filtros');
+    filtros.forEach((el) => el.remove());
+    await ReporteEmpresa.imprimirDocumento(doc);
+    return true;
+  },
+
+  /** Portal fijo: no toca #reporteRaiz ni #verifyView. */
+  imprimirDocumento(nodo) {
+    return new Promise((resolve) => {
+      const portal = document.getElementById('reportePrintPortal');
+      if (!portal || !nodo) {
+        resolve();
+        return;
+      }
+      const pieza = nodo.parentNode ? nodo.cloneNode(true) : nodo;
+      while (portal.firstChild) portal.removeChild(portal.firstChild);
+      portal.appendChild(pieza);
+      portal.hidden = false;
+      portal.setAttribute('aria-hidden', 'false');
+
+      requestAnimationFrame(() => {
+        const todos = pieza.querySelector('.indice-desglose__filtro--todos');
+        if (todos && todos.getAttribute('aria-pressed') !== 'true') todos.click();
+        document.body.classList.add('reporte-print');
+        const limpiar = () => {
+          document.body.classList.remove('reporte-print');
+          window.removeEventListener('afterprint', limpiar);
+          while (portal.firstChild) portal.removeChild(portal.firstChild);
+          portal.hidden = true;
+          portal.setAttribute('aria-hidden', 'true');
+          resolve();
+        };
+        window.addEventListener('afterprint', limpiar);
+        window.print();
+        setTimeout(limpiar, 1500);
+      });
+    });
   },
 
   hoy() {

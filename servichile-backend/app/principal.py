@@ -8,14 +8,25 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.middleware.gzip import GZipMiddleware
 
-from app.api.v1 import autenticacion, negocios, perfil, reporte, trabajos
+from app.api.v1 import autenticacion, negocios, pagos, perfil, radar, reporte, trabajos
 
 from app.configuracion import obtener_configuracion
-from app.ensamblado.arranque import precargar_pades_ca
+from app.ensamblado.arranque import (
+    precargar_pades_ca,
+    verificar_compras_publicacion,
+    verificar_entorno_produccion,
+    verificar_fks_compras_informe,
+    verificar_redis,
+)
 from app.ensamblado.evaluador import bucle_evaluador
+from app.ensamblado.pagos import bucle_reconciliar_pagos
 
 settings = obtener_configuracion()
+verificar_entorno_produccion(settings)
 precargar_pades_ca(settings)
+verificar_fks_compras_informe(settings)
+verificar_compras_publicacion(settings)
+verificar_redis(settings)
 
 
 @asynccontextmanager
@@ -23,14 +34,20 @@ async def lifespan(_app: FastAPI):
     from contextlib import suppress
 
     stop = asyncio.Event()
-    tarea = asyncio.create_task(bucle_evaluador(stop), name="evaluador-segundo-plano")
+    tarea_eval = asyncio.create_task(
+        bucle_evaluador(stop), name="evaluador-segundo-plano"
+    )
+    tarea_pagos = asyncio.create_task(
+        bucle_reconciliar_pagos(stop), name="pagos-reconciliar-tbk"
+    )
     try:
         yield
     finally:
         stop.set()
-        tarea.cancel()
-        with suppress(asyncio.CancelledError):
-            await tarea
+        for tarea in (tarea_eval, tarea_pagos):
+            tarea.cancel()
+            with suppress(asyncio.CancelledError):
+                await tarea
 
 
 app = FastAPI(
@@ -62,6 +79,8 @@ app.include_router(trabajos.router)
 app.include_router(trabajos.titular_router)
 
 app.include_router(reporte.router)
+app.include_router(radar.router_radar)
+app.include_router(pagos.router)
 _RUTAS_SILENCIOSAS = ("GET / ", "GET /json/version ")
 
 
@@ -94,6 +113,14 @@ def json_version() -> dict[str, str]:
 
 
 @app.get("/salud", tags=["Sistema"])
-def salud() -> dict[str, str]:
+def salud() -> dict:
+    from app.ensamblado import evaluador_estado, pagos_estado
 
-    return {"estado": "ok"}
+    ev = evaluador_estado.snapshot()
+    pg = pagos_estado.snapshot()
+    ok = bool(ev.get("ok", True)) and bool(pg.get("ok", True))
+    return {
+        "estado": "ok" if ok else "degradado",
+        "evaluador": ev,
+        "pagos_reconciliar": pg,
+    }

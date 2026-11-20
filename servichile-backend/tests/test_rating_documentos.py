@@ -84,6 +84,40 @@ def test_score_unificado_sin_docs_baja_el_indice():
     assert indice == 5.0
 
 
+def test_teaser_publico_tres_senales():
+    from app.dominio.entidades import ObservableSenal
+    from app.dominio.transparencia.valoracion import teaser_observables_publico
+
+    full = [
+        ObservableSenal(
+            id="fis_reviews",
+            etiqueta="Cantidad de reseñas de clientes",
+            detalle="",
+            score=70,
+            peso="1.0",
+            grupo="operativa",
+            razones=[],
+        ),
+        ObservableSenal(
+            id="cyb_https",
+            etiqueta="HTTPS",
+            detalle="",
+            score=100,
+            peso="1.0",
+            grupo="ciber",
+            razones=[],
+        ),
+    ]
+    teaser, restantes = teaser_observables_publico(full)
+    assert [o.id for o in teaser] == [
+        "doc_patente",
+        "fis_reviews",
+        "cyb_referrer",
+    ]
+    assert teaser[1].score == 70
+    assert restantes >= 31
+
+
 def test_observables_documentos_entran_al_desglose():
     docs = _docs(TIPOS_DOC_EMPRESA[0])
     obs = observables_documentos(docs)

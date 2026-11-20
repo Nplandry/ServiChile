@@ -473,14 +473,14 @@ def validar_certificado_antecedentes(
 
         motivo = (
             "Certificado válido con firma PAdES íntegra. "
-            "Anotaciones: Sí (no afecta el puntaje). El PDF no se retuvo."
+            "Anotaciones: Sí (no afecta el puntaje)."
         )
 
     else:
 
         motivo = (
             "Certificado válido con firma PAdES íntegra. "
-            "Anotaciones: No (no afecta el puntaje). El PDF no se retuvo."
+            "Anotaciones: No (no afecta el puntaje)."
         )
 
     return ResultadoAntecedentes(

@@ -84,6 +84,15 @@ El índice público de empresa vive en `observables` + `final_score` (0–10). N
 | `041` | Índices listado, `final_score` default 0, CHECK+UNIQUE `rut_empresa`, FKs PAdES |
 | `042` | Renombra `observables_ciber`→`observables`, `ciber_escaneado_en`→`rater_escaneado_en` |
 | `043` | Renombra `reservas`→`trabajos` y estados a abierto/concretado/no_concretado/cancelado |
+| `046`–`049` | `compras_informe` (SCI, FKs, índice única autorizada) |
+| `050`–`051` | `compras_publicacion` (SCP cupón pre-alta, FKs) |
+
+### Pagos Webpay
+
+| Tabla | Prefijo | Ciclo |
+|---|---|---|
+| `compras_informe` | `SCI…` | Amarrada a `business_id` al iniciar; CASCADE al borrar ficha |
+| `compras_publicacion` | `SCP…` | Cupón por usuario: `autorizado` → `reservado` (antes del alta) → `consumido`; `business_id` SET NULL al borrar **no** reabre el cupón |
 
 `GET /reputation` expone `docs_empresa` solo con flags públicos (`verificado`, `verificado_en`). El titular ve el detalle completo al subir o vía sus endpoints.
 

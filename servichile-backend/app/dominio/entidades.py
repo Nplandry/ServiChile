@@ -145,6 +145,18 @@ class Negocio:
 
     descripcion: str | None = None
 
+    servicios: tuple[str, ...] = ()
+
+    industrias: tuple[str, ...] = ()
+
+    contrataciones: tuple[str, ...] = ()
+
+    monto: str | None = None
+
+    plazo: str | None = None
+
+    referencias: tuple[str, ...] = ()
+
     imagen_url: str | None = None
 
     logo_url: str | None = None
@@ -354,6 +366,20 @@ class NegocioEnMapa:
 
     indice_pct: int = 0
 
+    servicios: tuple[str, ...] = ()
+
+    industrias: tuple[str, ...] = ()
+
+    contrataciones: tuple[str, ...] = ()
+
+    monto: str | None = None
+
+    plazo: str | None = None
+
+    referencias: tuple[str, ...] = ()
+
+    trabajos_concretados: int = 0
+
 
 @dataclass
 class NegocioTitular:
@@ -398,6 +424,20 @@ class NegocioTitular:
     sitio_web: str | None = None
 
     rater_listo: bool = False
+
+    servicios: tuple[str, ...] = ()
+
+    industrias: tuple[str, ...] = ()
+
+    contrataciones: tuple[str, ...] = ()
+
+    monto: str | None = None
+
+    plazo: str | None = None
+
+    referencias: tuple[str, ...] = ()
+
+    trabajos_concretados: int = 0
 
 
 @dataclass

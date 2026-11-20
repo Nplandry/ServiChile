@@ -150,10 +150,7 @@ async def verificar_cedula(
     foto: Annotated[
         UploadFile,
         File(
-            description=(
-                "Foto frontal del carnet chileno; se valida con OCR (sin LLM) "
-                "y no se retiene en disco"
-            )
+            description="Foto frontal del carnet chileno; se valida con OCR (sin LLM)"
         ),
     ],
 ):
@@ -201,7 +198,7 @@ async def verificar_antecedentes(
     limiter: LimiteSolicitudesDep,
     archivo: Annotated[
         UploadFile,
-        File(description="PDF del certificado de antecedentes; no se almacena"),
+        File(description="PDF del certificado de antecedentes"),
     ],
     nombre_archivo: Annotated[str | None, Form()] = None,
 ):
@@ -263,7 +260,7 @@ async def verificar_aval(
         File(
             description=(
                 "PDF textual de aval o garantía de respaldo; no se admite escaneo "
-                "ni foto; el archivo no se almacena"
+                "ni foto"
             )
         ),
     ],

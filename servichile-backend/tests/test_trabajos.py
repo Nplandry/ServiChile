@@ -86,6 +86,20 @@ def test_concretar_del_titular_da_score_100(client: TestClient, token_empresa: s
     assert (
         client.get("/v1/perfil", headers=cliente).json()["score_confiabilidad"] == 100.0
     )
+    ficha = next(x for x in client.get("/v1/businesses").json() if x["id"] == bid)
+    assert ficha["trabajos_concretados"] == 1
+    rep = client.get(f"/v1/businesses/{bid}/reputation")
+    assert rep.status_code == 200, rep.text
+    senal = next(
+        o for o in rep.json()["observables"] if o["id"] == "trabajos_concretados"
+    )
+    assert senal["grupo"] == "plataforma"
+    assert senal["etiqueta"] == "Trabajos Concretados en ServiChile"
+    assert senal["score"] == 10
+    assert client.get("/v1/businesses", params={"concretados": "1"}).json()
+    assert (
+        client.get("/v1/businesses", params={"concretados": "5"}).json() == []
+    )
 
 
 def test_no_concretado_baja_el_score(client: TestClient, token_empresa: str):

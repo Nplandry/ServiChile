@@ -64,7 +64,10 @@ class ResultadoEvaluador:
                 continue
             puntaje = int(round(_acotar(p.puntaje)))
             detalle = (p.evidencia or "").strip()
-            if p.fuente and detalle:
+            # Contractuales del crawler: mostrar solo la ruta encontrada (/privacidad).
+            if p.id.startswith("con_") and detalle.startswith("/"):
+                pass
+            elif p.fuente and detalle:
                 detalle = f"{detalle} · {p.fuente}"
             elif p.fuente and not detalle:
                 detalle = p.fuente

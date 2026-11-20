@@ -1,10 +1,46 @@
 
 
 const Auth = {
-
-  API_BASE: (typeof window !== 'undefined' && window.SERVICHILE_API_BASE) || 'http://localhost:8000',
   STORAGE_KEY: 'servichile.session',
   sesion: null,
+
+  /** Resuelve API en deploy (meta / window) o localhost:8000 en desarrollo. */
+  resolverApiBase() {
+    if (typeof window === 'undefined') return 'http://localhost:8000';
+    const override = window.SERVICHILE_API_BASE;
+    if (override && String(override).trim()) {
+      return String(override).trim().replace(/\/$/, '');
+    }
+    try {
+      const meta = document.querySelector('meta[name="servichile-api-base"]');
+      const content = meta && meta.getAttribute('content');
+      if (content && content.trim()) {
+        return content.trim().replace(/\/$/, '');
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    try {
+      const { protocol, hostname, origin } = window.location;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return protocol + '//' + hostname + ':8000';
+      }
+      return origin;
+    } catch (_) {
+      return 'http://localhost:8000';
+    }
+  },
+
+  get API_BASE() {
+    return Auth.resolverApiBase();
+  },
+
+  get APP_VERSION() {
+    if (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) {
+      return String(window.SERVICHILE_APP_VERSION);
+    }
+    return '173';
+  },
 
   init() {
     Auth.restoreSession();
@@ -38,12 +74,25 @@ const Auth = {
       data = await res.json();
     } catch {}
     if (res.ok) return { ok: true, status: res.status, data };
-    return { ok: false, status: res.status, error: Auth.mensajeError(res.status, data) };
+    return {
+      ok: false,
+      status: res.status,
+      data: data,
+      error: Auth.mensajeError(res.status, data)
+    };
   },
 
   mensajeError(status, data) {
     if (status === 429) return 'Demasiados intentos. Espere un minuto e intente de nuevo.';
     if (data && typeof data.detail === 'string') return data.detail;
+    if (data && data.detail && typeof data.detail === 'object' && !Array.isArray(data.detail)) {
+      const d = data.detail;
+      const partes = [];
+      if (d.mensaje) partes.push(String(d.mensaje));
+      if (d.buy_order) partes.push('Orden: ' + d.buy_order);
+      if (d.codigo) partes.push('Código: ' + d.codigo);
+      if (partes.length) return partes.join(' · ');
+    }
     if (status === 422) {
       const msg = Auth.mensajeValidacion(data);
       if (msg) return msg;
@@ -80,6 +129,9 @@ const Auth = {
     if (campo === 'rut') {
       return 'Ingrese un RUT válido.';
     }
+    const msg = String(primero.msg || '');
+    const prefijo = 'Value error, ';
+    if (msg.indexOf(prefijo) === 0) return msg.slice(prefijo.length);
     return 'Revise los datos ingresados.';
   },
 
@@ -394,9 +446,30 @@ const Auth = {
     return false;
   },
 
+  _leerSesionRaw() {
+    try {
+      const ses = sessionStorage.getItem(Auth.STORAGE_KEY);
+      if (ses) return ses;
+    } catch (_) {
+      /* ignore */
+    }
+    // Migración one-shot: saca el JWT de localStorage (menos persistente).
+    try {
+      const legacy = localStorage.getItem(Auth.STORAGE_KEY);
+      if (legacy) {
+        localStorage.removeItem(Auth.STORAGE_KEY);
+        sessionStorage.setItem(Auth.STORAGE_KEY, legacy);
+        return legacy;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    return null;
+  },
+
   tokenGuardado() {
     try {
-      const raw = localStorage.getItem(Auth.STORAGE_KEY);
+      const raw = Auth._leerSesionRaw();
       return raw ? (JSON.parse(raw) || {}).token || null : null;
     } catch (e) {
       return null;
@@ -406,23 +479,62 @@ const Auth = {
   logout() {
     Auth.sesion = null;
     try {
+      sessionStorage.removeItem(Auth.STORAGE_KEY);
+    } catch {}
+    try {
       localStorage.removeItem(Auth.STORAGE_KEY);
     } catch {}
+    // No dejar sellos/pago de otra cuenta en la misma pestaña.
+    if (
+      typeof MarketMonetizacion !== 'undefined' &&
+      MarketMonetizacion.limpiarPagoPendiente
+    ) {
+      MarketMonetizacion.limpiarPagoPendiente();
+    }
+    Auth._limpiarClavesPago();
+  },
+
+  _limpiarClavesPago() {
+    const claves = [
+      'servichile.pago.informe',
+      'servichile.pago.informe.retorno',
+      'servichile.pago.informe.print'
+    ];
+    claves.forEach((k) => {
+      try {
+        sessionStorage.removeItem(k);
+      } catch (_) {
+        /* ignore */
+      }
+      try {
+        localStorage.removeItem(k);
+      } catch (_) {
+        /* ignore */
+      }
+    });
   },
 
   persistSession() {
     try {
-      localStorage.setItem(Auth.STORAGE_KEY, JSON.stringify(Auth.sesion));
+      sessionStorage.setItem(Auth.STORAGE_KEY, JSON.stringify(Auth.sesion));
+    } catch {}
+    try {
+      localStorage.removeItem(Auth.STORAGE_KEY);
     } catch {}
   },
 
   restoreSession() {
     try {
-      const raw = localStorage.getItem(Auth.STORAGE_KEY);
+      const raw = Auth._leerSesionRaw();
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed && parsed.token) {
-        Auth.sesion = { email: parsed.email, nombre: parsed.nombre, perfil: parsed.perfil || {}, token: parsed.token };
+        Auth.sesion = {
+          email: parsed.email,
+          nombre: parsed.nombre,
+          perfil: parsed.perfil || {},
+          token: parsed.token
+        };
       }
     } catch (e) {
       Auth.sesion = null;

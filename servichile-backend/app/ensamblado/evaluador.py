@@ -42,11 +42,14 @@ def armar_servicio_negocio(
     analizador_docs: AnalizadorDocEmpresa | None = None,
 ) -> ServicioNegocio:
     """Única composición de ServicioNegocio (API y segundo plano)."""
+    from app.infraestructura.persistencia.repositorios import RepositorioTrabajo
+
     return ServicioNegocio(
         RepositorioNegocio(session),
         analizador_docs,
         obtener_adaptador_evaluador(),
         construir_geocodificador(obtener_configuracion().app_env),
+        RepositorioTrabajo(session),
     )
 
 
@@ -99,10 +102,14 @@ async def bucle_evaluador(stop: asyncio.Event) -> None:
     intervalo = max(60.0, minutos * 60.0)
     log.info("Evaluador en segundo plano cada %.0f min.", minutos)
 
+    from app.ensamblado import evaluador_estado
+
     try:
         n = await asyncio.to_thread(_refrescar_lote)
+        evaluador_estado.marcar_exito(n)
         log.info("Evaluador en segundo plano inicial: %s empresas.", n)
-    except Exception:
+    except Exception as e:
+        evaluador_estado.marcar_error(str(e))
         log.exception("Evaluador en segundo plano: fallo en arranque inicial.")
 
     while not stop.is_set():
@@ -112,6 +119,8 @@ async def bucle_evaluador(stop: asyncio.Event) -> None:
             break
         try:
             n = await asyncio.to_thread(_refrescar_lote)
+            evaluador_estado.marcar_exito(n)
             log.info("Evaluador en segundo plano: %s empresas refrescadas.", n)
-        except Exception:
+        except Exception as e:
+            evaluador_estado.marcar_error(str(e))
             log.exception("Evaluador en segundo plano falló.")

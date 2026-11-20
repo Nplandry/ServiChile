@@ -19,13 +19,17 @@ const Carga = {
   },
 
   vistas() {
+    const v =
+      (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
+      (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
+      '173';
     return Carga.serie([
-      'js/vendor/qrcode.min.js?v=69',
-      'js/modules/reporte-persona.js?v=109',
-      'js/modules/reporte-empresa.js?v=132',
-      'js/modules/reporte-qr.js?v=107',
-      'js/modules/subir-confianza.js?v=93',
-      'js/modules/perfil-empresa.js?v=124'
+      'js/vendor/qrcode.min.js?v=' + v,
+      'js/modules/reporte-persona.js?v=' + v,
+      'js/modules/reporte-empresa.js?v=' + v,
+      'js/modules/reporte-qr.js?v=' + v,
+      'js/modules/subir-confianza.js?v=' + v,
+      'js/modules/perfil-empresa.js?v=' + v
     ]);
   }
 };
@@ -35,9 +39,65 @@ const App = {
   elements: {},
 
   init() {
+    // Un solo origen: evita perder JWT tras retorno Webpay (127.0.0.1 ≠ localhost).
+    try {
+      if (
+        window.location.hostname === '127.0.0.1' &&
+        !window.SERVICHILE_ALLOW_127
+      ) {
+        const u = new URL(window.location.href);
+        u.hostname = 'localhost';
+        window.location.replace(u.toString());
+        return;
+      }
+    } catch (_) {
+      /* ignore */
+    }
     Auth.init();
     App.cacheElements();
     App.bindAuthEvents();
+    // Guardar token_ws antes del gate de login (Webpay puede volver sin sesión).
+    if (
+      typeof MarketMonetizacion !== 'undefined' &&
+      MarketMonetizacion.capturarRetornoDesdeUrl
+    ) {
+      MarketMonetizacion.capturarRetornoDesdeUrl();
+      // Precarga perfil-empresa si el retorno es de publicación (evita colgar el lazy load).
+      if (
+        MarketMonetizacion.esRetornoPublicacion &&
+        MarketMonetizacion.esRetornoPublicacion()
+      ) {
+        const v =
+          (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
+          (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
+          '173';
+        Carga.script('js/modules/perfil-empresa.js?v=' + v).catch(function () {});
+      }
+      if (
+        !Auth.isAuthenticated() &&
+        MarketMonetizacion.hayRetornoPendiente &&
+        MarketMonetizacion.hayRetornoPendiente()
+      ) {
+        const pendiente = MarketMonetizacion.leerPagoPendiente
+          ? MarketMonetizacion.leerPagoPendiente() || {}
+          : {};
+        const retorno = MarketMonetizacion.leerRetornoPago
+          ? MarketMonetizacion.leerRetornoPago() || {}
+          : {};
+        const orden = pendiente.buy_order || retorno.tbk_orden || '—';
+        const esPub =
+          pendiente.producto === 'publicacion' ||
+          retorno.producto === 'publicacion';
+        if (App.elements.loginStatus) {
+          App.elements.loginStatus.textContent =
+            'Pago recibido' +
+            (orden && orden !== '—' ? ' (orden ' + orden + ')' : '') +
+            (esPub
+              ? '. Inicie sesión para publicar la ficha.'
+              : '. Inicie sesión para entregar el informe.');
+        }
+      }
+    }
     App.applyAuthState();
     if (typeof Compliance !== 'undefined') Compliance.initCookieBanner();
     App.verifySession();
@@ -96,25 +156,30 @@ const App = {
 
   async openSection(name) {
     App.closeHistory();
+    const v =
+      (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
+      (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
+      '173';
     if (name === 'mapa') { App.showView('mapView'); return Market.init(); }
     if (name === 'perfil') {
-      await Carga.script('js/modules/perfil-empresa.js?v=124');
+      await Carga.script('js/modules/perfil-empresa.js?v=' + v);
       App.renderPerfil();
       if (typeof PerfilEmpresa !== 'undefined') PerfilEmpresa.init();
       return App.showView('perfilView');
     }
     if (name === 'reportes') {
       await Carga.serie([
-        'js/vendor/qrcode.min.js?v=69',
-        'js/modules/reporte-persona.js?v=109',
-        'js/modules/reporte-empresa.js?v=132',
-        'js/modules/reporte-qr.js?v=107'
+        'js/vendor/qrcode.min.js?v=' + v,
+        'js/modules/reporte-persona.js?v=' + v,
+        'js/modules/reporte-empresa.js?v=' + v,
+        'js/modules/reporte-qr.js?v=' + v,
+        'js/modules/subir-confianza.js?v=' + v
       ]);
       ReporteQr.init();
       return App.showView('verifyView');
     }
     if (name === 'subir-confianza') {
-      await Carga.script('js/modules/subir-confianza.js?v=93');
+      await Carga.script('js/modules/subir-confianza.js?v=' + v);
       App.actualizarEtiquetasConfianza();
       App.showView('subirConfianzaView');
       await SubirConfianza.init();
@@ -525,6 +590,14 @@ const App = {
     App.elements.loginForm.reset();
     App.elements.loginStatus.textContent = '';
     App.applyAuthState();
+    if (
+      typeof MarketMonetizacion !== 'undefined' &&
+      MarketMonetizacion.hayRetornoPendiente &&
+      MarketMonetizacion.hayRetornoPendiente() &&
+      MarketMonetizacion.procesarRetornoPago
+    ) {
+      MarketMonetizacion.procesarRetornoPago();
+    }
   },
 
   handleLogout() {
