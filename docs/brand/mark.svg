@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="ServiChile">
-  <title>ServiChile</title>
-  <rect width="128" height="128" rx="24" fill="#12636B"/>
-  <path fill="#FEDA3F" d="M64 22c-18.5 0-33.5 12.2-33.5 28.8 0 11.4 7.1 21.2 17.6 26.1L64 106l15.9-29.1c10.5-4.9 17.6-14.7 17.6-26.1C97.5 34.2 82.5 22 64 22z"/>
-  <path fill="#12636B" d="M54.2 58.4l7.1 7.1 15.5-15.5 5.2 5.2-20.7 20.7-12.3-12.3z"/>
-  <rect x="0" y="118" width="43" height="10" fill="#A4222B"/>
-  <rect x="43" y="118" width="42" height="10" fill="#FEDA3F"/>
-  <rect x="85" y="118" width="43" height="10" fill="#3C3C3B"/>
-</svg>
