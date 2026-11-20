@@ -9,13 +9,13 @@
   <meta name="servichile-api-base" content="">
   <title>ServiChile</title>
   <script>
-    window.SERVICHILE_APP_VERSION = '173';
+    window.SERVICHILE_APP_VERSION = '191';
   </script>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%232563EB'/%3E%3Ctext x='50' y='65' font-size='45' text-anchor='middle' fill='white' font-family='Arial'%3ES%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="http://localhost:8000" crossorigin>
   <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
-  <link rel="stylesheet" href="css/styles.css?v=173">
+  <link rel="stylesheet" href="css/styles.css?v=191">
 </head>
 <body>
   <div id="authGate" class="auth" hidden>
@@ -48,7 +48,7 @@
             <p id="loginStatus" class="error-text" role="alert" aria-live="assertive"></p>
             <p class="auth__alta">
               ¿No tienes cuenta?
-              <a class="auth__alta-link" href="./onboarding/?v=173">Regístrate aquí</a>
+              <a class="auth__alta-link" href="./onboarding/?v=191">Regístrate aquí</a>
             </p>
           </form>
         </div>
@@ -57,21 +57,62 @@
 
     <section class="auth__ads" aria-label="Cómo funciona">
       <div class="auth__columna auth__columna--ads">
-        <p class="auth__ads-label">Cómo funciona</p>
-        <div class="auth-flow">
-          <article class="auth-flow__card">
-            <h2 class="auth-flow__title">1. Verifíquese</h2>
+        <h2 class="auth-flow__heading">Cómo funciona</h2>
+        <ol class="auth-flow">
+          <li class="auth-flow__step">
+            <div class="auth-flow__pin" aria-hidden="true">
+              <svg class="auth-flow__pin-shape" viewBox="0 0 48 64" focusable="false">
+                <path d="M24 0C12.4 0 3 9.4 3 21c0 14.2 16.2 35.4 19.4 39.3a2 2 0 0 0 3.2 0C28.8 56.4 45 35.2 45 21 45 9.4 35.6 0 24 0z"/>
+              </svg>
+              <span class="auth-flow__pin-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="7" y="2.5" width="10" height="19" rx="2"/>
+                  <circle cx="12" cy="17.5" r="1"/>
+                  <path d="M9.5 6h5"/>
+                </svg>
+              </span>
+            </div>
+            <span class="auth-flow__num">1</span>
+            <h3 class="auth-flow__title">Verifíquese</h3>
             <p class="auth-flow__text">RUT, documentos y transparencia según sea proveedor, contratista o persona.</p>
-          </article>
-          <article class="auth-flow__card">
-            <h2 class="auth-flow__title">2. Publique o postule</h2>
+          </li>
+          <li class="auth-flow__step">
+            <div class="auth-flow__pin" aria-hidden="true">
+              <svg class="auth-flow__pin-shape" viewBox="0 0 48 64" focusable="false">
+                <path d="M24 0C12.4 0 3 9.4 3 21c0 14.2 16.2 35.4 19.4 39.3a2 2 0 0 0 3.2 0C28.8 56.4 45 35.2 45 21 45 9.4 35.6 0 24 0z"/>
+              </svg>
+              <span class="auth-flow__pin-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                  <path d="M5 19.5c1.2-3 3.7-4.5 7-4.5s5.8 1.5 7 4.5"/>
+                  <path d="M17 7.5h4M19 5.5v4"/>
+                </svg>
+              </span>
+            </div>
+            <span class="auth-flow__num">2</span>
+            <h3 class="auth-flow__title">Publique o postule</h3>
             <p class="auth-flow__text">Tecnología, industria, construcción y servicios profesionales B2B.</p>
-          </article>
-          <article class="auth-flow__card">
-            <h2 class="auth-flow__title">3. Valide con QR</h2>
-            <p class="auth-flow__text">En la visita al depto o en la entrega del producto, confirmen identidad al instante.</p>
-          </article>
-        </div>
+          </li>
+          <li class="auth-flow__step">
+            <div class="auth-flow__pin" aria-hidden="true">
+              <svg class="auth-flow__pin-shape" viewBox="0 0 48 64" focusable="false">
+                <path d="M24 0C12.4 0 3 9.4 3 21c0 14.2 16.2 35.4 19.4 39.3a2 2 0 0 0 3.2 0C28.8 56.4 45 35.2 45 21 45 9.4 35.6 0 24 0z"/>
+              </svg>
+              <span class="auth-flow__pin-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8 14l-2.5 2.5a2.1 2.1 0 0 0 3 3L12 16"/>
+                  <path d="M16 10l2.5-2.5a2.1 2.1 0 0 0-3-3L12 8"/>
+                  <path d="M9.5 14.5l5-5"/>
+                  <path d="M7 11l-1.2-1.2a1.6 1.6 0 0 1 2.3-2.3L9.5 9"/>
+                  <path d="M17 13l1.2 1.2a1.6 1.6 0 0 1-2.3 2.3L14.5 15"/>
+                </svg>
+              </span>
+            </div>
+            <span class="auth-flow__num">3</span>
+            <h3 class="auth-flow__title">Cierre el negocio</h3>
+            <p class="auth-flow__text">Contratista y proveedor se encuentran con transparencia: evalúan, acuerdan y concretan con confianza.</p>
+          </li>
+        </ol>
       </div>
     </section>
   </div>
@@ -225,22 +266,22 @@
 
   <div id="reportePrintPortal" class="reporte-print-portal" hidden aria-hidden="true"></div>
 
-  <script defer src="js/data/categorias.js?v=173"></script>
-  <script defer src="js/data/oferta.js?v=173"></script>
-  <script defer src="js/core/security.js?v=173"></script>
-  <script defer src="js/compliance.js?v=173"></script>
-  <script defer src="js/core/auth.js?v=173"></script>
-  <script defer src="js/modules/progreso-cuenta.js?v=173"></script>
-  <script defer src="js/modules/market-monetizacion.js?v=173"></script>
-  <script defer src="js/modules/market-pago-store.js?v=173"></script>
-  <script defer src="js/modules/market-contacto.js?v=173"></script>
-  <script defer src="js/modules/trabajos.js?v=173"></script>
-  <script defer src="js/modules/market.js?v=173"></script>
-  <script defer src="js/modules/indice-desglose.js?v=173"></script>
-  <script defer src="js/app.js?v=173"></script>
+  <script defer src="js/data/categorias.js?v=191"></script>
+  <script defer src="js/data/oferta.js?v=191"></script>
+  <script defer src="js/core/security.js?v=191"></script>
+  <script defer src="js/compliance.js?v=191"></script>
+  <script defer src="js/core/auth.js?v=191"></script>
+  <script defer src="js/modules/progreso-cuenta.js?v=191"></script>
+  <script defer src="js/modules/market-monetizacion.js?v=191"></script>
+  <script defer src="js/modules/market-pago-store.js?v=191"></script>
+  <script defer src="js/modules/market-contacto.js?v=191"></script>
+  <script defer src="js/modules/trabajos.js?v=191"></script>
+  <script defer src="js/modules/market.js?v=191"></script>
+  <script defer src="js/modules/indice-desglose.js?v=191"></script>
+  <script defer src="js/app.js?v=191"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=' + (window.SERVICHILE_APP_VERSION || '173')).catch(function () {});
+      navigator.serviceWorker.register('sw.js?v=' + (window.SERVICHILE_APP_VERSION || '191')).catch(function () {});
     }
   </script>
 </body>
