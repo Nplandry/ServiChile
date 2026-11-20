@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/servichile-banner.jpg" alt="ServiChile — Due diligence B2B e índice de transparencia" width="100%">
+  <img src="docs/servichile-banner.png" alt="ServiChile" width="100%">
 </p>
 
 # ServiChile
