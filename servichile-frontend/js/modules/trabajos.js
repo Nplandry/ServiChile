@@ -72,15 +72,37 @@ const Trabajos = {
     titulo.className = 'trabajos-panel__titulo';
     titulo.textContent = 'Trabajo con este proveedor';
 
-    const hint = document.createElement('p');
-    hint.className = 'field__hint';
-    hint.textContent =
-      'Abra un trabajo y muestre el código QR al titular para marcar concretado.';
-
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'submit-btn trabajos-panel__btn';
-    btn.textContent = 'Abrir trabajo';
+    btn.setAttribute('aria-label', 'Abrir trabajo y mostrar código');
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('class', 'trabajos-panel__btn-icon');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.setAttribute('fill', 'none');
+    icon.setAttribute('stroke', 'currentColor');
+    icon.setAttribute('stroke-width', '1.8');
+    icon.setAttribute('stroke-linecap', 'round');
+    icon.setAttribute('stroke-linejoin', 'round');
+    // Código / barcode: barras verticales para leerse como “código”
+    [
+      'M4 6v12',
+      'M7 6v12',
+      'M9 6v12',
+      'M12 6v12',
+      'M14 6v12',
+      'M17 6v12',
+      'M20 6v12'
+    ].forEach((d, i) => {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      if (i % 2 === 0) path.setAttribute('stroke-width', '2.4');
+      icon.appendChild(path);
+    });
+    const label = document.createElement('span');
+    label.textContent = 'Abrir trabajo';
+    btn.append(icon, label);
 
     const detalle = document.createElement('div');
     detalle.className = 'trabajos-panel__detalle';
@@ -102,11 +124,8 @@ const Trabajos = {
       code.className = 'trabajos-panel__qr';
       code.textContent = r.qr_token || '';
       const meta = document.createElement('p');
-      meta.className = 'field__hint';
-      meta.textContent =
-        'Estado: ' +
-        Trabajos.etiquetaEstado(r.estado) +
-        '. Muestre este código al proveedor.';
+      meta.className = 'field__hint trabajos-panel__hint';
+      meta.textContent = 'Muestre este código al proveedor.';
       const cancelar = document.createElement('button');
       cancelar.type = 'button';
       cancelar.className = 'history__clear';
@@ -124,7 +143,7 @@ const Trabajos = {
       if (estadoEl) estadoEl.textContent = 'Trabajo abierto. Guarde el código QR.';
     });
 
-    wrap.append(titulo, hint, btn, detalle);
+    wrap.append(titulo, btn, detalle);
     return wrap;
   },
 

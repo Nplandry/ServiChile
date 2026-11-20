@@ -6,6 +6,40 @@ const ReporteQr = {
   _escaneando: false,
   _ultimoPayload: '',
 
+  iconoQr() {
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('class', 'btn-icono-qr');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.setAttribute('fill', 'none');
+    icon.setAttribute('stroke', 'currentColor');
+    icon.setAttribute('stroke-width', '1.8');
+    icon.setAttribute('stroke-linecap', 'round');
+    icon.setAttribute('stroke-linejoin', 'round');
+    [
+      'M3 3h7v7H3z',
+      'M14 3h7v7h-7z',
+      'M3 14h7v7H3z',
+      'M14 14h3v3h-3z',
+      'M20 14v6',
+      'M14 20h3'
+    ].forEach((d) => {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      icon.appendChild(path);
+    });
+    return icon;
+  },
+
+  montarBotonQr(btn, texto) {
+    while (btn.firstChild) btn.removeChild(btn.firstChild);
+    btn.classList.add('btn-con-icono');
+    const label = document.createElement('span');
+    label.textContent = texto;
+    btn.append(ReporteQr.iconoQr(), label);
+    return btn;
+  },
+
   init() {
     const raiz = document.getElementById('reporteRaiz');
     if (!raiz) return;

@@ -44,7 +44,11 @@ const ReportePersona = {
     const btnQr = document.createElement('button');
     btnQr.type = 'button';
     btnQr.className = 'submit-btn submit-btn--secondary';
-    btnQr.textContent = 'Validar QR';
+    if (typeof ReporteQr !== 'undefined' && ReporteQr.montarBotonQr) {
+      ReporteQr.montarBotonQr(btnQr, 'Validar QR');
+    } else {
+      btnQr.textContent = 'Validar QR';
+    }
     btnQr.addEventListener('click', () => {
       if (typeof ReporteQr !== 'undefined') ReporteQr.abrirModalValidador();
     });

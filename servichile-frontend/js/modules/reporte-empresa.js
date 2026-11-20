@@ -160,11 +160,6 @@ const ReporteEmpresa = {
     lead.textContent =
       'Consulte su índice de transparencia, muestre su QR y valide el de otra parte. Puede imprimir o guardar el informe en PDF.';
 
-    const selector = ReporteEmpresa.renderSelectorEmpresas(
-      info.lista || [],
-      info.negocio || null
-    );
-
     const acciones = document.createElement('div');
     acciones.className = 'reporte__acciones no-print';
 
@@ -177,7 +172,11 @@ const ReporteEmpresa = {
     const btnQr = document.createElement('button');
     btnQr.type = 'button';
     btnQr.className = 'submit-btn submit-btn--secondary';
-    btnQr.textContent = 'Validar QR';
+    if (typeof ReporteQr !== 'undefined' && ReporteQr.montarBotonQr) {
+      ReporteQr.montarBotonQr(btnQr, 'Validar QR');
+    } else {
+      btnQr.textContent = 'Validar QR';
+    }
     btnQr.addEventListener('click', () => {
       if (typeof ReporteQr !== 'undefined') ReporteQr.abrirModalValidador();
     });
@@ -204,56 +203,9 @@ const ReporteEmpresa = {
         ? ReporteQr.renderModalValidador()
         : document.createComment('sin-modal-qr');
 
-    wrap.append(lead);
-    if (selector) wrap.appendChild(selector);
-    wrap.append(acciones, doc, pieAcciones, modal);
+    wrap.append(lead, acciones, doc, pieAcciones, modal);
     setTimeout(() => ReporteEmpresa.cargarQrInforme(), 0);
     return wrap;
-  },
-
-  renderSelectorEmpresas(lista, actual) {
-    if (!Array.isArray(lista) || lista.length < 2) return null;
-
-    const box = document.createElement('div');
-    box.className = 'reporte__selector no-print';
-    box.setAttribute('aria-label', 'Seleccionar empresa');
-
-    const label = document.createElement('label');
-    label.className = 'reporte__selector-label';
-    label.htmlFor = 'reporteEmpresaSelect';
-    label.textContent = 'Empresa';
-
-    const select = document.createElement('select');
-    select.id = 'reporteEmpresaSelect';
-    select.className = 'reporte__selector-select';
-    select.setAttribute('aria-label', 'Elija qué empresa ver en el reporte');
-
-    lista.forEach((n) => {
-      const opt = document.createElement('option');
-      opt.value = String(n.id);
-      const cat = ReporteEmpresa.etiquetaCategoria(n.categoria);
-      opt.textContent =
-        (n.nombre || 'Empresa') +
-        (n.rut_empresa ? ' · ' + n.rut_empresa : '') +
-        (cat && cat !== '—' ? ' · ' + cat : '');
-      if (actual && String(actual.id) === String(n.id)) opt.selected = true;
-      select.appendChild(opt);
-    });
-
-    select.addEventListener('change', () => {
-      const id = select.value;
-      ReporteEmpresa.guardarSeleccionId(id);
-      select.disabled = true;
-      ReporteEmpresa.init({ businessId: id });
-    });
-
-    const ayuda = document.createElement('p');
-    ayuda.className = 'reporte__selector-ayuda';
-    ayuda.textContent =
-      'Tiene ' + lista.length + ' empresas. Elija cuál mostrar en este reporte.';
-
-    box.append(label, select, ayuda);
-    return box;
   },
 
   renderAvisoSinFicha() {
@@ -298,7 +250,11 @@ const ReporteEmpresa = {
     const btnQr = document.createElement('button');
     btnQr.type = 'button';
     btnQr.className = 'submit-btn submit-btn--secondary';
-    btnQr.textContent = 'Validar QR de otra parte';
+    if (typeof ReporteQr !== 'undefined' && ReporteQr.montarBotonQr) {
+      ReporteQr.montarBotonQr(btnQr, 'Validar QR de otra parte');
+    } else {
+      btnQr.textContent = 'Validar QR de otra parte';
+    }
     btnQr.addEventListener('click', () => {
       if (typeof ReporteQr !== 'undefined') ReporteQr.abrirModalValidador();
     });
@@ -559,10 +515,6 @@ const ReporteEmpresa = {
     const titulo = document.createElement('h3');
     titulo.className = 'reporte-doc__h';
     titulo.textContent = 'Oferta declarada';
-    const nota = document.createElement('p');
-    nota.className = 'reporte-doc__oferta-nota';
-    nota.textContent =
-      'Datos declarados por la empresa. No forman parte del índice de transparencia.';
     const metricas = document.createElement('div');
     metricas.className = 'reporte-doc__metricas';
     filas.forEach(([k, v]) => {
@@ -577,7 +529,7 @@ const ReporteEmpresa = {
       chip.append(dt, dd);
       metricas.appendChild(chip);
     });
-    sec.append(titulo, nota, metricas);
+    sec.append(titulo, metricas);
     return sec;
   },
 

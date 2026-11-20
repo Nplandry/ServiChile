@@ -632,16 +632,8 @@ const Market = {
       fila.append(dt, dd);
       datos.appendChild(fila);
     });
-    colIzq.appendChild(datos);
-    if (filasOferta.length) {
-      const nota = document.createElement('p');
-      nota.className = 'field__hint';
-      nota.textContent =
-        'Datos declarados por la empresa. No forman parte del índice de transparencia.';
-      colIzq.appendChild(nota);
-    }
-
     colIzq.appendChild(Market.bloqueIndice(negocioIndice, true));
+    colIzq.appendChild(datos);
     const obsPublicos =
       rep && Array.isArray(rep.observables) && rep.observables.length > 0;
     if (obsPublicos) {
