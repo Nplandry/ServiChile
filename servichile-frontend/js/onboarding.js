@@ -176,7 +176,7 @@ const Onboarding = {
       return {
         titulo: 'Listo para explorar',
         texto:
-          'Crearemos tu cuenta. Entra, mira fichas de otros proveedores y publica la tuya cuando quieras. El pago se pide solo al publicar (demo, sin cobro real).'
+          'Crearemos tu cuenta. Entra, mira fichas de otros proveedores y publica la tuya cuando quieras. Publicar ficha se paga con Webpay (precio en Perfil); el informe de proveedor se vende aparte.'
       };
     }
     return { titulo: paso.titulo, texto: paso.texto };

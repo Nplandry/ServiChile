@@ -81,6 +81,8 @@ uvicorn app.principal:app --reload --port 8000
 
 ## Frontend
 
+Use siempre **localhost** (no `127.0.0.1`): la PWA redirige a localhost para no perder la sesión tras Webpay.
+
 ```bash
 cd servichile-frontend
 python3 -m http.server 5500
@@ -89,7 +91,44 @@ python3 -m http.server 5500
 ```
 API:       http://localhost:8000/docs
 Frontend:  http://localhost:5500/index.html
+Salud:     http://localhost:8000/salud
 ```
+
+### VPS / production — migraciones compras_informe (antes del deploy)
+
+El arranque con `APP_ENV=production` **falla** si faltan FKs o el índice único. En el VPS, con la misma `DATABASE_URL` del `.env`:
+
+```bash
+cd ~/servichile-backend   # o la ruta del deploy
+source .venv/bin/activate
+python -m scripts.aplicar_migraciones_compras
+# o solo desde FKs si 046 ya está:
+# python -m scripts.aplicar_migraciones_compras --desde 047
+```
+
+Si `047`/`048`/`051` fallan por privilegios: `GRANT REFERENCES ON usuarios, business_entities TO rol_app;` (o correr el `psql -f` como owner). Luego reinicie uvicorn.
+
+Pagos Webpay — informe `$9.990` (`SCI…`) y publicación de ficha `$8.990` (`SCP…`, `PAGOS_PUBLICACION_MONTO`).
+`POST /v1/businesses` (salvo pytest con `APP_ENV=test` + `PYTEST_CURRENT_TEST`, o `SERVICHILE_SKIP_PAGO_PUBLICACION=1`) hace **una sola TX**: reserva + ficha + consumo → `commit`. Si falla, `rollback` (el pago vuelve a quedar usable). Reservas `reservado` huérfanas de deploys viejos se limpian a ~180 s. No se recicla al borrar la ficha.
+Un servidor con solo `APP_ENV=test` (sin pytest) **sí** exige pago.
+Migraciones `050` + `051` (tabla + FKs publicación; script arriba). Tras 051, confirme FKs en `pg_constraint` si hubo `NOTICE` por privilegios.
+Aviso de cupón listo: requiere SMTP (`SMTP_HOST`/`SMTP_DESDE`); sin buzón no hay correo (el FE/retorno sigue siendo la vía principal).
+
+`APP_ENV=production` exige:
+- Transbank real (no `webpay3gint` / commerce TEST)
+- `PUBLIC_FRONTEND_URL` + `CORS_ORIGINS` sin localhost
+- `REDIS_URL` (ping al arrancar)
+- `PRINT_TOKEN_SECRET` ≠ `JWT_SECRET` (≥32 chars)
+- Arranque verifica FKs/índices informe (046–049) y publicación (`uq_compras_publicacion_cupon_libre` + FKs 051)
+- Loop de reconciliación TBK (`PAGOS_RECONCILIAR_SECONDS`, default 120; min edad 180 s; `0` = off): commit + correo informe + aviso cupón publicación; estado en `GET /salud` → `pagos_reconciliar`
+- Cloud (Render/Fly/K8s/…), `SERVICHILE_DEPLOY=1` / `SERVICHILE_REQUIRE_PRODUCTION=1`, o `DATABASE_URL` remota → obliga `APP_ENV=production`
+- `APP_ENV=test` fuera de pytest: sin pasarela memoria (salvo `SERVICHILE_ALLOW_MEMORIA_PASARELA=1`; prohibido en production)
+
+GET `/reputation` público oculta `observables`/`docs_empresa`; con Bearer y compra/titular vienen completos.
+
+Front: `SERVICHILE_API_BASE` / meta; `SERVICHILE_APP_VERSION`; JWT y pago en `sessionStorage`.
+
+Integración Postgres (opcional): `TEST_DATABASE_URL=...servichile_test... pytest tests/integration`.
 
 ## Tests
 

@@ -17,6 +17,11 @@ from app.dominio.ficha_negocio import (
     logo_efectivo,
     logo_texto,
 )
+from app.dominio.transparencia.trabajos_indice import (
+    ID_TRABAJOS_CONCRETADOS,
+    es_observable_trabajos,
+    observable_trabajos_concretados,
+)
 from app.dominio.transparencia.valoracion import (
     ValoracionDocumentos,
     calcular_valoracion_documentos,
@@ -90,7 +95,14 @@ def observables_de(metricas: Metricas) -> list[ObservableSenal]:
             score = 0
         score = max(0, min(100, score))
         grupo = str(item.get("grupo") or "operativa")
-        if grupo not in ("ciber", "operativa", "contractual", "legal", "documentos"):
+        if grupo not in (
+            "ciber",
+            "operativa",
+            "contractual",
+            "legal",
+            "documentos",
+            "plataforma",
+        ):
             grupo = "operativa"
         razones = item.get("razones") if isinstance(item.get("razones"), list) else []
         out.append(
@@ -112,8 +124,9 @@ def persistir_indice(
     *,
     senales: list[ObservableSenal] | None = None,
     pct_evaluador: float | None = None,
+    trabajos_concretados: int | None = None,
 ) -> ValoracionDocumentos:
-    """Fusiona señales públicas + docs en final_score y observables."""
+    """Fusiona señales públicas + docs + trabajos en final_score y observables."""
     metricas = metricas_de(negocio)
     docs = negocio.docs_empresa or {}
     docs_rating = calcular_valoracion_documentos(docs)
@@ -130,11 +143,32 @@ def persistir_indice(
     if senales is not None:
         vistos = {o.id for o in base}
         for prev in observables_de(metricas):
-            if es_observable_documento(prev.id) or prev.id in vistos:
+            if (
+                es_observable_documento(prev.id)
+                or es_observable_trabajos(prev.id)
+                or prev.id in vistos
+            ):
                 continue
             if prev.score > 0:
                 base.append(prev)
                 vistos.add(prev.id)
+    prev_trabajos = next(
+        (o for o in base if o.id == ID_TRABAJOS_CONCRETADOS), None
+    )
+    if prev_trabajos is None:
+        prev_trabajos = next(
+            (
+                o
+                for o in observables_de(metricas)
+                if o.id == ID_TRABAJOS_CONCRETADOS
+            ),
+            None,
+        )
+    base = [o for o in base if o.id != ID_TRABAJOS_CONCRETADOS]
+    if trabajos_concretados is not None:
+        base.append(observable_trabajos_concretados(trabajos_concretados))
+    elif prev_trabajos is not None:
+        base.append(prev_trabajos)
     if pct_evaluador is None:
         pct_evaluador = pct_evaluador_desde_observables(base)
     indice, _pct = score_unificado(pct_evaluador=pct_evaluador, docs_pct=docs_rating.pct)
@@ -190,6 +224,12 @@ def a_mapa(negocio: Negocio) -> NegocioEnMapa:
         indice_pct=pct,
         requiere_nivel=negocio.requiere_nivel,
         is_claimed=bool(negocio.is_claimed),
+        servicios=tuple(negocio.servicios or ()),
+        industrias=tuple(negocio.industrias or ()),
+        contrataciones=tuple(negocio.contrataciones or ()),
+        monto=negocio.monto,
+        plazo=negocio.plazo,
+        referencias=tuple(negocio.referencias or ()),
     )
 
 
@@ -218,6 +258,12 @@ def a_titular(negocio: Negocio) -> NegocioTitular:
         telefono=negocio.telefono,
         sitio_web=negocio.sitio_web,
         rater_listo=bool(metricas.rater_escaneado_en),
+        servicios=tuple(negocio.servicios or ()),
+        industrias=tuple(negocio.industrias or ()),
+        contrataciones=tuple(negocio.contrataciones or ()),
+        monto=negocio.monto,
+        plazo=negocio.plazo,
+        referencias=tuple(negocio.referencias or ()),
     )
 
 

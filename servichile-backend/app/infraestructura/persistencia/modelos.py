@@ -9,12 +9,14 @@ from functools import lru_cache
 from sqlalchemy import (
     Float,
     ForeignKey,
+    Index,
     Integer,
     SmallInteger,
     String,
     Text,
     UniqueConstraint,
     create_engine,
+    text,
 )
 
 from sqlalchemy.dialects.postgresql import JSONB
@@ -198,6 +200,18 @@ class EntidadNegocio(Base):
 
     descripcion: Mapped[str | None] = mapped_column(Text)
 
+    servicios: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    industrias: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    contrataciones: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    monto: Mapped[str | None] = mapped_column(String(20))
+
+    plazo: Mapped[str | None] = mapped_column(String(20))
+
+    referencias: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
     imagen_url: Mapped[str | None] = mapped_column(String(500))
 
     logo_url: Mapped[str | None] = mapped_column(String(500))
@@ -275,6 +289,111 @@ class Trabajo(Base):
 
     creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
 
+    actualizado_en: Mapped[datetime] = mapped_column(
+        default=ahora_utc, onupdate=ahora_utc
+    )
+
+
+class CorreoOAuth(Base):
+    __tablename__ = "correo_oauth"
+
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True
+    )
+    email: Mapped[str] = mapped_column(String(254))
+    refresh_token: Mapped[str] = mapped_column(Text)
+    access_token: Mapped[str | None] = mapped_column(Text, default=None)
+    expira_en: Mapped[datetime | None] = mapped_column(default=None)
+    actualizado_en: Mapped[datetime] = mapped_column(default=ahora_utc, onupdate=ahora_utc)
+
+
+class MensajeCorreo(Base):
+    __tablename__ = "mensajes_correo"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE")
+    )
+    business_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("business_entities.id", ondelete="SET NULL"), default=None
+    )
+    tipo: Mapped[str] = mapped_column(String(20))
+    destino: Mapped[str] = mapped_column(String(254))
+    asunto: Mapped[str] = mapped_column(String(200))
+    cuerpo: Mapped[str] = mapped_column(Text)
+    estado: Mapped[str] = mapped_column(String(20))
+    creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
+
+
+class CompraInforme(Base):
+    __tablename__ = "compras_informe"
+    __table_args__ = (
+        # Espejo de 049 (parcial): una autorizada por (usuario, negocio).
+        Index(
+            "uq_compras_informe_autorizada",
+            "usuario_id",
+            "business_id",
+            unique=True,
+            postgresql_where=text("estado = 'autorizado'"),
+            sqlite_where=text("estado = 'autorizado'"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE")
+    )
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("business_entities.id", ondelete="CASCADE")
+    )
+    buy_order: Mapped[str] = mapped_column(String(26), unique=True)
+    monto: Mapped[int] = mapped_column(Integer)
+    estado: Mapped[str] = mapped_column(String(20), default="pendiente")
+    token: Mapped[str | None] = mapped_column(String(128), default=None)
+    response_code: Mapped[int | None] = mapped_column(Integer, default=None)
+    authorization_code: Mapped[str | None] = mapped_column(String(32), default=None)
+    payment_type_code: Mapped[str | None] = mapped_column(String(16), default=None)
+    card_last4: Mapped[str | None] = mapped_column(String(4), default=None)
+    error_codigo: Mapped[str | None] = mapped_column(String(64), default=None)
+    error_detalle: Mapped[str | None] = mapped_column(Text, default=None)
+    creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
+    actualizado_en: Mapped[datetime] = mapped_column(
+        default=ahora_utc, onupdate=ahora_utc
+    )
+
+
+class CompraPublicacion(Base):
+    __tablename__ = "compras_publicacion"
+    __table_args__ = (
+        Index(
+            "uq_compras_publicacion_cupon_libre",
+            "usuario_id",
+            unique=True,
+            postgresql_where=text("estado = 'autorizado' AND business_id IS NULL"),
+            sqlite_where=text("estado = 'autorizado' AND business_id IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE")
+    )
+    business_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("business_entities.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+    )
+    buy_order: Mapped[str] = mapped_column(String(26), unique=True)
+    monto: Mapped[int] = mapped_column(Integer)
+    estado: Mapped[str] = mapped_column(String(20), default="pendiente")
+    token: Mapped[str | None] = mapped_column(String(128), default=None)
+    response_code: Mapped[int | None] = mapped_column(Integer, default=None)
+    authorization_code: Mapped[str | None] = mapped_column(String(32), default=None)
+    payment_type_code: Mapped[str | None] = mapped_column(String(16), default=None)
+    card_last4: Mapped[str | None] = mapped_column(String(4), default=None)
+    error_codigo: Mapped[str | None] = mapped_column(String(64), default=None)
+    error_detalle: Mapped[str | None] = mapped_column(Text, default=None)
+    creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
     actualizado_en: Mapped[datetime] = mapped_column(
         default=ahora_utc, onupdate=ahora_utc
     )

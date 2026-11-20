@@ -10,6 +10,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.api.esquemas.comunes import CategoriaNegocio, telefono_opcional
 from app.dominio.ficha_negocio import normalizar_url_recurso
+from app.dominio.oferta_negocio import (
+    contrataciones_de,
+    industrias_de,
+    monto_de,
+    plazo_de,
+    referencias_de,
+    servicios_de,
+)
 
 class NegocioEnMapaSalida(BaseModel):
     """Listado público: sin RUT, teléfono, sitio ni docs."""
@@ -46,6 +54,20 @@ class NegocioEnMapaSalida(BaseModel):
 
     indice_pct: int = Field(default=0, ge=0, le=100)
 
+    servicios: list[str] = Field(default_factory=list)
+
+    industrias: list[str] = Field(default_factory=list)
+
+    contrataciones: list[str] = Field(default_factory=list)
+
+    monto: str | None = None
+
+    plazo: str | None = None
+
+    referencias: list[str] = Field(default_factory=list)
+
+    trabajos_concretados: int = Field(default=0, ge=0)
+
 
 class NegocioTitularSalida(NegocioEnMapaSalida):
     """Alta /mias / PATCH: datos de contacto y docs del titular."""
@@ -61,6 +83,52 @@ class NegocioTitularSalida(NegocioEnMapaSalida):
     rater_listo: bool = False
 
 
+class OfertaEntrada(BaseModel):
+    """Campos declarados por el proveedor. El catálogo lo cierra el dominio."""
+
+    servicios: list[str] = Field(default_factory=list)
+
+    industrias: list[str] = Field(default_factory=list)
+
+    contrataciones: list[str] = Field(default_factory=list)
+
+    monto: str | None = None
+
+    plazo: str | None = None
+
+    referencias: list[str] = Field(default_factory=list)
+
+    @field_validator("servicios")
+    @classmethod
+    def _servicios(cls, value: list[str]) -> list[str]:
+        return list(servicios_de(value))
+
+    @field_validator("industrias")
+    @classmethod
+    def _industrias(cls, value: list[str]) -> list[str]:
+        return list(industrias_de(value))
+
+    @field_validator("contrataciones")
+    @classmethod
+    def _contrataciones(cls, value: list[str]) -> list[str]:
+        return list(contrataciones_de(value))
+
+    @field_validator("monto")
+    @classmethod
+    def _monto(cls, value: str | None) -> str | None:
+        return monto_de(value)
+
+    @field_validator("plazo")
+    @classmethod
+    def _plazo(cls, value: str | None) -> str | None:
+        return plazo_de(value)
+
+    @field_validator("referencias")
+    @classmethod
+    def _referencias(cls, value: list[str]) -> list[str]:
+        return list(referencias_de(value))
+
+
 class NegocioRutEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
@@ -68,7 +136,7 @@ class NegocioRutEntrada(BaseModel):
     rut_empresa: str = Field(min_length=3, max_length=20)
 
 
-class NegocioActualizarEntrada(BaseModel):
+class NegocioActualizarEntrada(OfertaEntrada):
 
     model_config = ConfigDict(extra="forbid")
 
@@ -170,7 +238,7 @@ class DocEmpresaSalida(BaseModel):
 
     glosa: str | None = None
 
-    motivo: str = "Documento de empresa validado. El PDF no se almacenó."
+    motivo: str = "Documento de empresa validado."
 
 
 class ObservableSenalSalida(BaseModel):
@@ -187,9 +255,9 @@ class ObservableSenalSalida(BaseModel):
 
     peso: str = "3.0%"
 
-    grupo: Literal["ciber", "operativa", "contractual", "legal", "documentos"] = (
-        "operativa"
-    )
+    grupo: Literal[
+        "ciber", "operativa", "contractual", "legal", "documentos", "plataforma"
+    ] = ("operativa")
 
     razones: list[str] = Field(default_factory=list)
 
@@ -222,6 +290,9 @@ class ReputacionSalida(BaseModel):
 
     observables: list[ObservableSenalSalida] = Field(default_factory=list)
 
+    # Sin compra: teaser de 3; este campo indica cuántos indicadores faltan en el informe.
+    observables_restantes: int = Field(default=0, ge=0)
+
     rater_listo: bool = False
 
     descargo: str = (
@@ -230,7 +301,7 @@ class ReputacionSalida(BaseModel):
     )
 
 
-class NegocioCrearEntrada(BaseModel):
+class NegocioCrearEntrada(OfertaEntrada):
 
     model_config = ConfigDict(extra="forbid")
 
@@ -253,6 +324,9 @@ class NegocioCrearEntrada(BaseModel):
     rut_empresa: str | None = Field(
         default=None, min_length=3, max_length=20
     )
+
+    # Cupón Webpay de publicación (SCP…). Obligatorio fuera de APP_ENV=test.
+    buy_order: str | None = Field(default=None, min_length=3, max_length=26)
 
     @field_validator("telefono")
     @classmethod

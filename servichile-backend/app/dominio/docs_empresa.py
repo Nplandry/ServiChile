@@ -477,9 +477,7 @@ def validar_doc_empresa(
             motivo = f"No alcanza el umbral ({score}/100) para {reglas['label']}."
     else:
         extra = " con PAdES confiable" if exige_pades and pades_ok else ""
-        motivo = (
-            f"{reglas['label']} válido{extra} ({score}/100). El PDF no se retuvo."
-        )
+        motivo = f"{reglas['label']} válido{extra} ({score}/100)."
 
     return ResultadoDocEmpresa(
         aceptado=aceptado,

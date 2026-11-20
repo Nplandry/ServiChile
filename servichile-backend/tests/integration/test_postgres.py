@@ -27,6 +27,7 @@ pytestmark = pytest.mark.skipif(not URL, reason="TEST_DATABASE_URL no definido")
 INIT_SQL = pathlib.Path(__file__).resolve().parents[2] / "db" / "init_script.sql"
 
 TABLAS = (
+    "compras_informe",
     "trabajos",
     "business_reputation_metrics",
     "business_entities",
@@ -182,3 +183,40 @@ def test_registro_y_patch_perfil_en_postgres(client, db):
         fila = s.execute(text("select edad, tipo_cuenta from perfiles")).one()
 
     assert tuple(fila) == (68, "persona")
+
+
+def test_indice_unico_compra_autorizada(db):
+    """049: solo una fila autorizada por (usuario, business)."""
+    with db() as s:
+        uid = s.scalar(
+            text(
+                "insert into usuarios (email, nombre, password_hash) "
+                "values ('pago.uq@x.cl','A','h') returning id"
+            )
+        )
+        bid = s.scalar(
+            text(
+                "insert into business_entities "
+                "(nombre, categoria) values ('UQ Co', 'tecnologia') returning id"
+            )
+        )
+        s.execute(
+            text(
+                "insert into compras_informe "
+                "(id, usuario_id, business_id, buy_order, monto, estado) "
+                "values (gen_random_uuid(), :u, :b, 'SCI001UQTESTAAAAAAA', 9990, 'autorizado')"
+            ),
+            {"u": uid, "b": bid},
+        )
+        s.commit()
+        with pytest.raises(IntegrityError):
+            s.execute(
+                text(
+                    "insert into compras_informe "
+                    "(id, usuario_id, business_id, buy_order, monto, estado) "
+                    "values (gen_random_uuid(), :u, :b, 'SCI002UQTESTAAAAAAA', 9990, 'autorizado')"
+                ),
+                {"u": uid, "b": bid},
+            )
+            s.commit()
+        s.rollback()

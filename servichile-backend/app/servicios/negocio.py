@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-
+from dataclasses import replace
 from datetime import timedelta
 
 from app.dominio.docs_empresa import (
@@ -30,12 +30,22 @@ from app.dominio.errores import (
     EvaluadorIndisponible,
 )
 from app.dominio.ficha_negocio import normalizar_url_recurso
+from app.dominio.oferta_negocio import (
+    FiltroListado,
+    contrataciones_de,
+    industrias_de,
+    monto_de,
+    plazo_de,
+    referencias_de,
+    servicios_de,
+)
 from app.dominio.rut import RutInvalido, normalizar_rut
 from app.dominio.telefono import TelefonoInvalido, normalizar_telefono
 from app.dominio.puertos import (
     AnalizadorDocEmpresa,
     PuertoEvaluador,
     RepositorioNegocios,
+    RepositorioTrabajos,
 )
 from app.dominio.transparencia.valoracion import calcular_valoracion_documentos
 from app.servicios.negocio_reputacion import (
@@ -106,11 +116,24 @@ class ServicioNegocio:
         analizador_docs: AnalizadorDocEmpresa | None = None,
         evaluador: PuertoEvaluador | None = None,
         geocodificador=None,
+        trabajos: RepositorioTrabajos | None = None,
     ) -> None:
         self.negocios = negocios
         self.analizador_docs = analizador_docs
         self.evaluador = evaluador
         self.geocodificador = geocodificador
+        self.trabajos = trabajos
+
+    def _conteos_concretados(
+        self, negocio_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, int]:
+        if self.trabajos is None or not negocio_ids:
+            return {}
+        return self.trabajos.contar_concretados_por_negocios(negocio_ids)
+
+    def _proyeccion_titular(self, negocio: Negocio) -> NegocioTitular:
+        conteo = self._conteos_concretados([negocio.id]).get(negocio.id, 0)
+        return replace(a_titular(negocio), trabajos_concretados=conteo)
 
     def _aplicar_coordenadas(self, negocio: Negocio, direccion: str | None) -> None:
         if self.geocodificador is None:
@@ -137,16 +160,33 @@ class ServicioNegocio:
             raise NegocioNoEncontrado()
         return negocio
 
-    def listar_para_mapa(
-        self, categoria: str | None = None, q: str | None = None
-    ) -> list[NegocioEnMapa]:
-        return [a_mapa(n) for n in self.negocios.listar(categoria, q)]
+    def listar_para_mapa(self, filtro: FiltroListado | None = None) -> list[NegocioEnMapa]:
+        filtro = filtro or FiltroListado()
+        filas = self.negocios.listar(filtro)
+        conteos = self._conteos_concretados([n.id for n in filas])
+        out = [
+            replace(a_mapa(n), trabajos_concretados=conteos.get(n.id, 0))
+            for n in filas
+        ]
+        minimo = filtro.concretados_min
+        if minimo is not None and minimo > 0:
+            out = [m for m in out if m.trabajos_concretados >= minimo]
+        return out
 
     def listar_mios(self, usuario_id: uuid.UUID) -> list[NegocioTitular]:
-        return [a_titular(n) for n in self.negocios.listar_de(usuario_id)]
+        filas = self.negocios.listar_de(usuario_id)
+        conteos = self._conteos_concretados([n.id for n in filas])
+        return [
+            replace(a_titular(n), trabajos_concretados=conteos.get(n.id, 0))
+            for n in filas
+        ]
 
     def obtener_reputacion(self, business_id: uuid.UUID) -> Reputacion:
-        return reputacion_de(self._buscar(business_id))
+        """Lectura: sincroniza la señal de trabajos en memoria (sin pisar el índice en disco)."""
+        negocio = self._buscar(business_id)
+        conteo = self._conteos_concretados([negocio.id]).get(negocio.id, 0)
+        persistir_indice(negocio, trabajos_concretados=conteo)
+        return reputacion_de(negocio)
 
     def respuesta_doc_empresa(
         self, negocio: Negocio, tipo: str, resultado: ResultadoDocEmpresa
@@ -174,7 +214,7 @@ class ServicioNegocio:
             sha256_hash=resultado.sha256_hash,
             glosa=resultado.glosa,
             motivo=resultado.motivo
-            or "Documento de empresa validado. El PDF no se almacenó.",
+            or "Documento de empresa validado.",
         )
 
     def respuesta_doc_revocado(
@@ -225,21 +265,31 @@ class ServicioNegocio:
         metricas = metricas_de(negocio)
         meta = resultado.metadatos or {}
         places_rl = meta.get("places", {}).get("modo") == "limite_cuota"
+        places_sin_fisica = not any(
+            o.id.startswith("fis_") for o in observables
+        )
         rastreador_fail = meta.get("rastreador_web", {}).get("modo") == "fallido"
-        if places_rl:
+        if places_rl or places_sin_fisica:
+            # 429 o Places sin fis_* medidos: no borrar local/teléfono/reseñas previos.
             observables = self._conservar_fisica_previa(metricas, observables)
         if rastreador_fail:
             # Ciber/contractual: rastreo fresco falló → no borrar lo persistido.
             observables = self._conservar_sitio_previa(metricas, observables)
         global_pts = resultado.puntaje_global
         pct_eval = float(global_pts) if global_pts is not None else 0.0
-        if places_rl or rastreador_fail:
+        if places_rl or places_sin_fisica or rastreador_fail:
             from app.servicios.negocio_reputacion import pct_evaluador_desde_observables
 
             recal = pct_evaluador_desde_observables(observables)
             if recal is not None:
                 pct_eval = float(recal)
-        persistir_indice(negocio, senales=observables, pct_evaluador=pct_eval)
+        conteo_trab = self._conteos_concretados([negocio.id]).get(negocio.id, 0)
+        persistir_indice(
+            negocio,
+            senales=observables,
+            pct_evaluador=pct_eval,
+            trabajos_concretados=conteo_trab,
+        )
         metricas.rater_escaneado_en = ahora_utc()
         for obs in observables:
             if obs.id == "fis_rating" and obs.score > 0:
@@ -367,6 +417,13 @@ class ServicioNegocio:
         imagen_url: str | None = None,
         logo_url: str | None = None,
         rut_empresa: str | None = None,
+        servicios: list[str] | None = None,
+        industrias: list[str] | None = None,
+        contrataciones: list[str] | None = None,
+        monto: str | None = None,
+        plazo: str | None = None,
+        referencias: list[str] | None = None,
+        commit: bool = True,
     ) -> NegocioTitular:
         negocio_id = uuid.uuid4()
         negocio = Negocio(
@@ -379,6 +436,12 @@ class ServicioNegocio:
             sitio_web=normalizar_sitio_web(sitio_web),
             imagen_url=normalizar_url_recurso(imagen_url),
             logo_url=normalizar_url_recurso(logo_url),
+            servicios=servicios_de(servicios),
+            industrias=industrias_de(industrias),
+            contrataciones=contrataciones_de(contrataciones),
+            monto=monto_de(monto),
+            plazo=plazo_de(plazo),
+            referencias=referencias_de(referencias),
             is_claimed=True,
             reclamado_por=usuario_id,
             rut_empresa=rut_desde_documento(rut_empresa),
@@ -391,9 +454,9 @@ class ServicioNegocio:
             ),
         )
         self._aplicar_coordenadas(negocio, negocio.direccion)
-        # Persistir altiro; el evaluador corre en segundo plano (API) para no bloquear el alta.
-        guardado = self.negocios.guardar(negocio)
-        return a_titular(guardado)
+        # commit=False: flush para empaquetar con consumo de cupón en una TX.
+        guardado = self.negocios.guardar(negocio, commit=commit)
+        return self._proyeccion_titular(guardado)
 
     def eliminar(self, business_id: uuid.UUID, usuario_id: uuid.UUID) -> None:
         negocio = self._buscar(business_id)
@@ -414,7 +477,7 @@ class ServicioNegocio:
         metricas = metricas_de(negocio)
         metricas.rater_escaneado_en = None
         guardado = self.negocios.guardar(negocio)
-        return a_titular(guardado), True
+        return self._proyeccion_titular(guardado), True
 
     @staticmethod
     def _firma_evaluador(negocio: Negocio) -> tuple[str, ...]:
@@ -442,6 +505,12 @@ class ServicioNegocio:
         imagen_url: str | None = None,
         logo_url: str | None = None,
         rut_empresa: str | None = None,
+        servicios: list[str] | None = None,
+        industrias: list[str] | None = None,
+        contrataciones: list[str] | None = None,
+        monto: str | None = None,
+        plazo: str | None = None,
+        referencias: list[str] | None = None,
     ) -> tuple[NegocioTitular, bool]:
         negocio = self._buscar(business_id)
         if negocio.reclamado_por != usuario_id:
@@ -455,6 +524,12 @@ class ServicioNegocio:
         negocio.sitio_web = normalizar_sitio_web(sitio_web)
         negocio.imagen_url = normalizar_url_recurso(imagen_url)
         negocio.logo_url = normalizar_url_recurso(logo_url)
+        negocio.servicios = servicios_de(servicios)
+        negocio.industrias = industrias_de(industrias)
+        negocio.contrataciones = contrataciones_de(contrataciones)
+        negocio.monto = monto_de(monto)
+        negocio.plazo = plazo_de(plazo)
+        negocio.referencias = referencias_de(referencias)
         if rut_empresa is not None and str(rut_empresa).strip():
             normalizado = rut_desde_documento(rut_empresa)
             if not normalizado:
@@ -466,10 +541,10 @@ class ServicioNegocio:
             metricas = metricas_de(guardado)
             metricas.rater_escaneado_en = None
             guardado = self.negocios.guardar(guardado)
-            return a_titular(guardado), True
+            return self._proyeccion_titular(guardado), True
         persistir_indice(guardado)
         guardado = self.negocios.guardar(guardado)
-        return a_titular(guardado), False
+        return self._proyeccion_titular(guardado), False
 
     def eliminar_todos_del_usuario(self, usuario_id: uuid.UUID) -> None:
         self.negocios.eliminar_de(usuario_id)

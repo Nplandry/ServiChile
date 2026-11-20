@@ -287,10 +287,7 @@ def validar_aval(
                 "Suba un PDF textual de aval, boleta de garantía o póliza."
             )
     else:
-        motivo = (
-            f"Aval/garantía válido ({tipo}, {score}/100). "
-            "El PDF no se retuvo."
-        )
+        motivo = f"Aval/garantía válido ({tipo}, {score}/100)."
 
     return ResultadoAval(
         aceptado=aceptado,

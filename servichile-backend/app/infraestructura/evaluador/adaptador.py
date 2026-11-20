@@ -257,9 +257,22 @@ class AdaptadorEvaluador:
                 for pid in pistas_rastreador:
                     fuentes[pid] = "rastreador_web"
                     estados[pid] = "ok"
+                # Solo contractuales con_*: ruta corta en evidencia (nunca cyb_*).
+                rutas = rastreador_out.get("rutas_evidencia") or {}
+                if isinstance(rutas, dict):
+                    for pid, ruta in rutas.items():
+                        key = str(pid or "").strip()
+                        val = str(ruta or "").strip()
+                        if key.startswith("con_") and val.startswith("/"):
+                            evidencia[key] = val
                 meta["rastreador_web"] = {
                     "paginas_escaneadas": paginas,
                     "hallazgos": hallazgos,
+                    "rutas": {
+                        k: v
+                        for k, v in (rutas.items() if isinstance(rutas, dict) else [])
+                        if str(k).startswith("con_")
+                    },
                 }
         elif need_rastreador:
             meta["rastreador_web"] = {"modo": "fallido", "razon": "sin_respuesta"}

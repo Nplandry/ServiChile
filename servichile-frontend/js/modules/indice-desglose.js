@@ -1,6 +1,7 @@
 const IndiceDesglose = {
   FILTROS: Object.freeze([
     { id: 'documentos', etiqueta: 'Documentos legales' },
+    { id: 'plataforma', etiqueta: 'Trabajos concretados' },
     { id: 'ciber', etiqueta: 'Ciberseguridad' },
     { id: 'contractual', etiqueta: 'Privacidad y condiciones' },
     { id: 'operativa', etiqueta: 'Local, teléfono y reseñas' },
@@ -9,12 +10,25 @@ const IndiceDesglose = {
 
   factoresDesdeObservables(rep) {
     const obs = (rep && Array.isArray(rep.observables) && rep.observables) || [];
-    return obs.map((o) => ({
-      id: o.id,
-      grupo: o.grupo || 'operativa',
-      etiqueta: o.etiqueta || o.id,
-      pct: o.score != null ? Math.max(0, Math.min(100, Number(o.score))) : 0
-    }));
+    return obs.map((o) => {
+      const id = o.id || '';
+      // Solo contractuales del crawler (con_*): ruta corta en texto pequeño.
+      // Nunca headers cyb_* ni "rastreador_web" suelto.
+      let detalle = '';
+      if (String(id).indexOf('con_') === 0) {
+        const raw = String((o && o.detalle) || '').trim();
+        if (raw.charAt(0) === '/') {
+          detalle = raw.split('·')[0].trim();
+        }
+      }
+      return {
+        id: id,
+        grupo: o.grupo || 'operativa',
+        etiqueta: o.etiqueta || o.id,
+        pct: o.score != null ? Math.max(0, Math.min(100, Number(o.score))) : 0,
+        detalle: detalle
+      };
+    });
   },
 
   indiceGlobal(n, rep, indiceValor) {
@@ -62,10 +76,16 @@ const IndiceDesglose = {
   bloqueDesgloseIndice(n, rep, indiceValor, verificado) {
     const factores = IndiceDesglose.factoresIndice(n, rep, indiceValor, verificado);
     const detalleFactores = factores.filter((f) => f.grupo !== 'resumen');
+    const restantes = Math.max(
+      0,
+      Math.round(Number((rep && rep.observables_restantes) || 0))
+    );
+    const esTeaser = restantes > 0;
     const estado = {
       todos: true,
       activos: {
         documentos: false,
+        plataforma: false,
         ciber: false,
         contractual: false,
         operativa: false,
@@ -75,6 +95,7 @@ const IndiceDesglose = {
 
     const sec = document.createElement('section');
     sec.className = 'indice-desglose';
+    if (esTeaser) sec.classList.add('indice-desglose--teaser');
     sec.setAttribute('aria-label', 'Desglose del índice global');
 
     const titulo = document.createElement('h3');
@@ -93,8 +114,9 @@ const IndiceDesglose = {
 
     const lead = document.createElement('p');
     lead.className = 'indice-desglose__lead';
-    lead.textContent =
-      'Un solo índice: señales públicas y documentos legales verificados.';
+    lead.textContent = esTeaser
+      ? 'Vista previa gratuita de 3 indicadores.'
+      : 'Un solo índice: señales públicas, trabajos concretados en ServiChile y documentos legales verificados.';
 
     const filtros = document.createElement('div');
     filtros.className = 'indice-desglose__filtros';
@@ -171,9 +193,40 @@ const IndiceDesglose = {
       visibles.forEach((f) => lista.appendChild(IndiceDesglose.itemFactorIndice(f)));
     }
 
-    pintarFiltros();
+    if (esTeaser) {
+      // Muestra los filtros bloqueados + aviso de compra en el mismo bloque.
+      IndiceDesglose.filtrosIndiceGrupos().forEach((g) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className =
+          'indice-desglose__filtro indice-desglose__filtro--bloqueado';
+        btn.textContent = g.etiqueta;
+        btn.disabled = true;
+        btn.setAttribute('aria-disabled', 'true');
+        btn.title = 'Compre el informe para desbloquear este filtro';
+        filtros.appendChild(btn);
+      });
+      const todos = document.createElement('button');
+      todos.type = 'button';
+      todos.className =
+        'indice-desglose__filtro indice-desglose__filtro--todos indice-desglose__filtro--bloqueado';
+      todos.textContent = 'Ver todos';
+      todos.disabled = true;
+      todos.setAttribute('aria-disabled', 'true');
+      filtros.appendChild(todos);
+    } else {
+      pintarFiltros();
+    }
     pintarLista();
-    sec.append(titulo, cabecera, lead, filtros, vacio, lista);
+    const nodos = [titulo, cabecera, lead, filtros, vacio, lista];
+    if (esTeaser) {
+      const lock = document.createElement('p');
+      lock.className = 'indice-desglose__teaser-cta';
+      lock.textContent =
+        'Hay 31 filtros más. Compre el informe a la derecha si quiere desbloquearlos.';
+      nodos.push(lock);
+    }
+    sec.append.apply(sec, nodos);
     return sec;
   },
 
@@ -183,10 +236,20 @@ const IndiceDesglose = {
 
     const cabezal = document.createElement('div');
     cabezal.className = 'indice-desglose__cabezal';
+    const tituloFila = document.createElement('div');
+    tituloFila.className = 'indice-desglose__titulo-fila';
     const nombre = document.createElement('span');
     nombre.className = 'indice-desglose__nombre';
     nombre.textContent = f.etiqueta;
-    cabezal.appendChild(nombre);
+    tituloFila.appendChild(nombre);
+    if (f.detalle) {
+      const detalle = document.createElement('span');
+      detalle.className = 'indice-desglose__detalle';
+      detalle.textContent = f.detalle;
+      detalle.title = f.detalle;
+      tituloFila.appendChild(detalle);
+    }
+    cabezal.appendChild(tituloFila);
     if (f.valor) {
       const meta = document.createElement('span');
       meta.className = 'indice-desglose__meta';
@@ -239,18 +302,13 @@ const IndiceDesglose = {
       if (f.grupo === 'ciber') barra.classList.add('indice-desglose__barra--ciber');
       if (f.grupo === 'contractual') barra.classList.add('indice-desglose__barra--contractual');
       if (f.grupo === 'operativa') barra.classList.add('indice-desglose__barra--operativa');
+      if (f.grupo === 'plataforma') barra.classList.add('indice-desglose__barra--plataforma');
       if (f.grupo === 'legal') barra.classList.add('indice-desglose__barra--legal');
       barra.style.width = Math.max(0, Math.min(100, Number(f.pct) || 0)) + '%';
       pista.appendChild(barra);
       li.appendChild(pista);
     }
 
-    if (f.detalle) {
-      const detalle = document.createElement('p');
-      detalle.className = 'indice-desglose__detalle';
-      detalle.textContent = f.detalle;
-      li.appendChild(detalle);
-    }
     return li;
   }
 };

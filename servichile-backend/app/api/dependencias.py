@@ -27,6 +27,7 @@ from app.dominio.puertos import (
     AnalizadorAval,
     AnalizadorCedula,
     AnalizadorDocEmpresa,
+    EnviadorPlataforma,
     EmisorReporte,
     EmisorSesion,
     HasheadorContrasena,
@@ -51,7 +52,11 @@ from app.infraestructura.limite_solicitudes import (
     construir_limite_solicitudes,
 )
 
+from app.infraestructura.correo_plataforma import EnviadorMemoria, EnviadorSmtp
 from app.infraestructura.persistencia.repositorios import (
+    RepositorioCompraInforme,
+    RepositorioCompraPublicacion,
+    RepositorioCorreo,
     RepositorioNegocio,
     RepositorioTrabajo,
     RepositorioUsuario,
@@ -74,6 +79,9 @@ from app.servicios.cuenta import ServicioCuenta
 
 from app.servicios.negocio import ServicioNegocio
 
+from app.servicios.radar_comercial import ServicioRadarComercial
+from app.servicios.pago_informe import ServicioPagoInforme
+from app.servicios.pago_publicacion import ServicioPagoPublicacion
 from app.servicios.reporte_identidad import ServicioReporteIdentidad
 
 from app.servicios.reporte import ServicioReporte
@@ -81,6 +89,10 @@ from app.servicios.reporte import ServicioReporte
 from app.servicios.trabajo import ServicioTrabajo
 
 from app.servicios.progreso_cliente import ServicioProgresoCliente
+from app.ensamblado.pagos import (
+    obtener_pasarela_webpay,
+    permitir_pasarela_memoria,
+)
 
 SesionDep = Annotated[Session, Depends(obtener_sesion)]
 
@@ -226,6 +238,84 @@ def obtener_servicio_negocio(
     return armar_servicio_negocio(session, analizador_docs)
 
 
+@lru_cache
+def obtener_enviador() -> EnviadorPlataforma:
+    settings = obtener_configuracion()
+    if settings.app_env == "test":
+        return EnviadorMemoria(simular=True)
+    if not settings.smtp_host.strip() or not settings.smtp_desde.strip():
+        return EnviadorMemoria(simular=False)
+    return EnviadorSmtp(
+        settings.smtp_host.strip(),
+        settings.smtp_port,
+        settings.smtp_usuario.strip(),
+        settings.smtp_clave.get_secret_value(),
+        settings.smtp_desde.strip(),
+    )
+
+
+def obtener_servicio_radar(
+    session: SesionDep,
+    enviador: Annotated[EnviadorPlataforma, Depends(obtener_enviador)],
+    emisor: Annotated[EmisorReporte, Depends(obtener_emisor_reporte)],
+) -> ServicioRadarComercial:
+    return ServicioRadarComercial(
+        RepositorioNegocio(session),
+        RepositorioUsuario(session),
+        RepositorioCorreo(session),
+        enviador,
+        emisor,
+    )
+
+
+def obtener_servicio_pago_informe(
+    session: SesionDep,
+    radar: Annotated[ServicioRadarComercial, Depends(obtener_servicio_radar)],
+) -> ServicioPagoInforme:
+    settings = obtener_configuracion()
+    retorno = (settings.public_frontend_url or "").strip()
+    if "pago=retorno" not in retorno:
+        sep = "&" if "?" in retorno else "?"
+        retorno = f"{retorno}{sep}pago=retorno"
+    return ServicioPagoInforme(
+        RepositorioCompraInforme(session),
+        RepositorioNegocio(session),
+        obtener_pasarela_webpay(),
+        radar,
+        return_url=retorno,
+        reclamo_email=settings.pagos_reclamo_email,
+        reclamo_whatsapp=settings.pagos_reclamo_whatsapp,
+        monto=settings.pagos_informe_monto,
+        origenes_permitidos=list(settings.cors_origins or []),
+        print_secret=settings.secreto_print_token(),
+        usuarios=RepositorioUsuario(session),
+    )
+
+
+def obtener_servicio_pago_publicacion(
+    session: SesionDep,
+    enviador: Annotated[EnviadorPlataforma, Depends(obtener_enviador)],
+) -> ServicioPagoPublicacion:
+    settings = obtener_configuracion()
+    retorno = (settings.public_frontend_url or "").strip()
+    if "pago=retorno" not in retorno:
+        sep = "&" if "?" in retorno else "?"
+        retorno = f"{retorno}{sep}pago=retorno"
+    if "producto=publicacion" not in retorno:
+        retorno = f"{retorno}&producto=publicacion"
+    return ServicioPagoPublicacion(
+        RepositorioCompraPublicacion(session),
+        obtener_pasarela_webpay(),
+        return_url=retorno,
+        reclamo_email=settings.pagos_reclamo_email,
+        reclamo_whatsapp=settings.pagos_reclamo_whatsapp,
+        monto=settings.pagos_publicacion_monto,
+        origenes_permitidos=list(settings.cors_origins or []),
+        usuarios=RepositorioUsuario(session),
+        enviador=enviador,
+    )
+
+
 def obtener_servicio_trabajo(session: SesionDep) -> ServicioTrabajo:
 
     return ServicioTrabajo(
@@ -271,6 +361,16 @@ ServicioReporteDep = Annotated[ServicioReporte, Depends(obtener_servicio_reporte
 
 ServicioNegocioDep = Annotated[ServicioNegocio, Depends(obtener_servicio_negocio)]
 
+ServicioRadarDep = Annotated[ServicioRadarComercial, Depends(obtener_servicio_radar)]
+
+ServicioPagoInformeDep = Annotated[
+    ServicioPagoInforme, Depends(obtener_servicio_pago_informe)
+]
+
+ServicioPagoPublicacionDep = Annotated[
+    ServicioPagoPublicacion, Depends(obtener_servicio_pago_publicacion)
+]
+
 ServicioCuentaDep = Annotated[ServicioCuenta, Depends(obtener_servicio_cuenta)]
 
 _bearer = HTTPBearer(auto_error=False)
@@ -294,6 +394,18 @@ def obtener_usuario_actual(
         raise _no_autorizado() from None
 
 
+def obtener_usuario_opcional(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    auth: Annotated[ServicioAutenticacion, Depends(obtener_servicio_autenticacion)],
+) -> Usuario | None:
+    if credentials is None:
+        return None
+    try:
+        return auth.usuario_desde_token(credentials.credentials)
+    except CredencialesInvalidas:
+        return None
+
+
 def _no_autorizado() -> HTTPException:
 
     return HTTPException(
@@ -308,6 +420,7 @@ ServicioAutenticacionDep = Annotated[
 ]
 
 UsuarioActualDep = Annotated[Usuario, Depends(obtener_usuario_actual)]
+UsuarioOpcionalDep = Annotated[Usuario | None, Depends(obtener_usuario_opcional)]
 
 LimiteSolicitudesDep = Annotated[LimiteSolicitudes, Depends(obtener_limite_solicitudes)]
 

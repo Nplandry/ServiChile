@@ -103,12 +103,59 @@ def test_reputacion_incluye_observables_evaluador(client, token_empresa):
     )
     assert alta.status_code == 201, alta.text
     bid = alta.json()["id"]
-    r = client.get(f"/v1/businesses/{bid}/reputation")
+    # Público: teaser de 3 observables (monetización); el resto en el informe.
+    publico = client.get(f"/v1/businesses/{bid}/reputation")
+    assert publico.status_code == 200
+    pub = publico.json()
+    assert {o["id"] for o in pub["observables"]} == {
+        "doc_patente",
+        "fis_reviews",
+        "cyb_referrer",
+    }
+    assert pub["observables_restantes"] >= 31
+    assert pub["docs_empresa"] is None
+    # Titular con Bearer: desglose completo.
+    r = client.get(
+        f"/v1/businesses/{bid}/reputation",
+        headers={"Authorization": f"Bearer {token_empresa}"},
+    )
     assert r.status_code == 200
     cuerpo = r.json()
     assert len(cuerpo["observables"]) >= len(PARAMETROS)
     ids = {o["id"] for o in cuerpo["observables"]}
     assert "fis_address" in ids and "est_proveedor" in ids and "cyb_https" in ids
+
+
+def test_reputacion_bearer_sin_compra_oculta_observables(
+    client, token_empresa, token
+):
+    alta = client.post(
+        "/v1/businesses",
+        headers={"Authorization": f"Bearer {token_empresa}"},
+        json={
+            "nombre": "Privada SpA",
+            "categoria": "tecnologia",
+            "direccion": "Av. Las Condes 100, Santiago",
+            "sitio_web": "https://privada-demo.cl",
+            "rut_empresa": "76777666-K",
+        },
+    )
+    assert alta.status_code == 201, alta.text
+    bid = alta.json()["id"]
+    # Usuario autenticado sin compra ni titularidad: solo teaser.
+    ajeno = client.get(
+        f"/v1/businesses/{bid}/reputation",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert ajeno.status_code == 200
+    cuerpo_ajeno = ajeno.json()
+    assert {o["id"] for o in cuerpo_ajeno["observables"]} == {
+        "doc_patente",
+        "fis_reviews",
+        "cyb_referrer",
+    }
+    assert cuerpo_ajeno["observables_restantes"] >= 31
+    assert cuerpo_ajeno["docs_empresa"] is None
 
 
 def test_refresco_evaluador_titular_refresca_indice(client, token_empresa):

@@ -94,6 +94,32 @@ class Configuracion(BaseSettings):
     chilecompra_ticket: str = ""
     google_places_api_key: str = ""
 
+    # Correo de salida de ServiChile. El destinatario es el correo del registro.
+    smtp_host: str = ""
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_usuario: str = ""
+    smtp_clave: SecretStr = SecretStr("")
+    smtp_desde: str = ""
+
+    # Webpay Plus. En local/test se permiten defaults de integración Transbank.
+    # En production deben ser credenciales reales (fail-fast si no).
+    public_frontend_url: str = "http://localhost:5500/index.html"
+    transbank_commerce_code: str = "597055555532"
+    transbank_api_key: SecretStr = SecretStr(
+        "579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C"
+    )
+    transbank_host: str = "https://webpay3gint.transbank.cl"
+    pagos_informe_monto: int = Field(default=9990, ge=50, le=10_000_000)
+    pagos_publicacion_monto: int = Field(default=8990, ge=50, le=10_000_000)
+    pagos_reclamo_email: str = "pagos@servichile.cl"
+    pagos_reclamo_whatsapp: str = "+56912345678"
+    # Polling TBK de pendientes sin retorno del navegador. 0 = desactivado.
+    # En APP_ENV=test no arranca. Min edad: no tocar órdenes aún en checkout.
+    pagos_reconciliar_seconds: float = Field(default=120.0, ge=0.0, le=3600.0)
+    pagos_reconciliar_min_edad_seg: int = Field(default=180, ge=60, le=7200)
+    # Sello de impresión del PDF. Vacío → usa jwt_secret (compat).
+    print_token_secret: SecretStr | None = None
+
     def pades_ca_ruta(self) -> Path:
         ruta = Path(self.pades_ca_pem)
         if not ruta.is_absolute():
@@ -125,6 +151,100 @@ class Configuracion(BaseSettings):
             self.rut_verifier = "chilecompra"
         else:
             self.rut_verifier = "estricto"
+        return self
+
+    def secreto_print_token(self) -> str:
+        if self.print_token_secret is not None:
+            val = self.print_token_secret.get_secret_value().strip()
+            if val:
+                return val
+        return self.jwt_secret.get_secret_value()
+
+    @staticmethod
+    def _es_origen_local(valor: str) -> bool:
+        v = (valor or "").strip().lower()
+        return (
+            "://localhost" in v
+            or "://127.0.0.1" in v
+            or v.startswith("localhost")
+            or v.startswith("127.0.0.1")
+        )
+
+    @model_validator(mode="after")
+    def _exigir_transbank_prod(self) -> Self:
+        if self.app_env != "production":
+            return self
+        host = (self.transbank_host or "").strip().lower()
+        commerce = (self.transbank_commerce_code or "").strip()
+        api_key = self.transbank_api_key.get_secret_value().strip()
+        test_commerce = "597055555532"
+        test_key = (
+            "579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C"
+        )
+        if not host or not commerce or not api_key:
+            raise ValueError(
+                "En production debe configurar TRANSBANK_HOST, "
+                "TRANSBANK_COMMERCE_CODE y TRANSBANK_API_KEY."
+            )
+        if "webpay3gint" in host:
+            raise ValueError(
+                "TRANSBANK_HOST de integración (webpay3gint) no permitido "
+                "en production. Use el host de producción Transbank."
+            )
+        if commerce == test_commerce or api_key == test_key:
+            raise ValueError(
+                "Credenciales Transbank de integración (TEST) no permitidas "
+                "en production."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _exigir_front_prod(self) -> Self:
+        if self.app_env != "production":
+            return self
+        front = (self.public_frontend_url or "").strip()
+        if not front or self._es_origen_local(front):
+            raise ValueError(
+                "En production debe configurar PUBLIC_FRONTEND_URL con el "
+                "origen real del front (no localhost/127.0.0.1)."
+            )
+        origenes = list(self.cors_origins or [])
+        if not origenes:
+            raise ValueError(
+                "En production debe configurar CORS_ORIGINS con al menos "
+                "un origen real."
+            )
+        locales = [o for o in origenes if self._es_origen_local(str(o))]
+        if locales:
+            raise ValueError(
+                "En production CORS_ORIGINS no puede incluir localhost/"
+                f"127.0.0.1: {', '.join(locales)}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _exigir_redis_y_print_prod(self) -> Self:
+        if self.app_env != "production":
+            return self
+        if not (self.redis_url or "").strip():
+            raise ValueError(
+                "En production debe configurar REDIS_URL para rate limits "
+                "compartidos entre réplicas."
+            )
+        if self.print_token_secret is None or not self.print_token_secret.get_secret_value().strip():
+            raise ValueError(
+                "En production debe configurar PRINT_TOKEN_SECRET "
+                "(distinto del JWT) para el sello del PDF."
+            )
+        print_sec = self.print_token_secret.get_secret_value().strip()
+        if print_sec == self.jwt_secret.get_secret_value():
+            raise ValueError(
+                "PRINT_TOKEN_SECRET no puede ser igual a JWT_SECRET en production."
+            )
+        if len(print_sec) < 32:
+            raise ValueError(
+                "PRINT_TOKEN_SECRET debe tener al menos 32 caracteres."
+            )
         return self
 
 

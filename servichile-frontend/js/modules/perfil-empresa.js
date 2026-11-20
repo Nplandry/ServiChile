@@ -2,8 +2,10 @@
 const PerfilEmpresa = {
   modo: null,
   editandoId: null,
-  PRECIO_PUBLICAR: 29990,
   PREFIJO_TEL: '+56 9 ',
+  PRECIO_PUBLICACION: 8990,
+  STORAGE_BORRADOR: 'servichile.publicacion.borrador',
+  STORAGE_PAGO: 'servichile.publicacion.pago',
 
   esProveedor() {
     return typeof ProgresoCuenta !== 'undefined'
@@ -22,6 +24,95 @@ const PerfilEmpresa = {
     return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   },
 
+  precioPublicacionTxt() {
+    return (
+      '$' + PerfilEmpresa.formatoClp(PerfilEmpresa.PRECIO_PUBLICACION) + ' CLP'
+    );
+  },
+
+  guardarBorrador(datos) {
+    try {
+      sessionStorage.setItem(
+        PerfilEmpresa.STORAGE_BORRADOR,
+        JSON.stringify(datos || {})
+      );
+    } catch (_) {
+      /* ignore */
+    }
+  },
+
+  leerBorrador() {
+    try {
+      const raw = sessionStorage.getItem(PerfilEmpresa.STORAGE_BORRADOR);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  },
+
+  limpiarBorrador() {
+    try {
+      sessionStorage.removeItem(PerfilEmpresa.STORAGE_BORRADOR);
+    } catch (_) {
+      /* ignore */
+    }
+  },
+
+  guardarPagoPendiente(data) {
+    try {
+      sessionStorage.setItem(
+        PerfilEmpresa.STORAGE_PAGO,
+        JSON.stringify(
+          Object.assign({}, data || {}, { producto: 'publicacion' })
+        )
+      );
+      if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.guardarPagoPendiente) {
+        MarketMonetizacion.guardarPagoPendiente({
+          buy_order: data && data.buy_order,
+          token: data && data.token,
+          producto: 'publicacion'
+        });
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  },
+
+  leerPagoPendiente() {
+    try {
+      const raw = sessionStorage.getItem(PerfilEmpresa.STORAGE_PAGO);
+      if (raw) return JSON.parse(raw);
+    } catch (_) {
+      /* ignore */
+    }
+    if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.leerPagoPendiente) {
+      const p = MarketMonetizacion.leerPagoPendiente() || {};
+      if (p.producto === 'publicacion') return p;
+    }
+    return null;
+  },
+
+  limpiarPagoPendiente() {
+    try {
+      sessionStorage.removeItem(PerfilEmpresa.STORAGE_PAGO);
+    } catch (_) {
+      /* ignore */
+    }
+  },
+
+  esRetornoPublicacion() {
+    const p = PerfilEmpresa.leerPagoPendiente() || {};
+    if (p.producto === 'publicacion') return true;
+    try {
+      return (
+        new URLSearchParams(window.location.search || '').get('producto') ===
+        'publicacion'
+      );
+    } catch (_) {
+      return false;
+    }
+  },
+
   init() {
     try {
       localStorage.removeItem('servichile.rut_empresa_pendiente');
@@ -36,6 +127,29 @@ const PerfilEmpresa = {
     host.hidden = false;
     host.appendChild(PerfilEmpresa.render());
     PerfilEmpresa.cargarMias();
+    PerfilEmpresa.cargarCatalogoPublicacion();
+  },
+
+  async cargarCatalogoPublicacion() {
+    try {
+      const res = await Auth.request('/v1/pagos/publicacion/catalogo');
+      if (res.ok && res.data && res.data.monto) {
+        PerfilEmpresa.PRECIO_PUBLICACION = Number(res.data.monto) || 8990;
+        PerfilEmpresa._aplicarTextosPrecio();
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  },
+
+  _aplicarTextosPrecio() {
+    const txt = PerfilEmpresa.precioPublicacionTxt();
+    const btn = document.getElementById('peBtnPublicarPagar');
+    if (btn) btn.textContent = 'Pagar y publicar · ' + txt;
+    const enviar = document.getElementById('peBtnEnviarPublicar');
+    if (enviar && PerfilEmpresa.modo === 'crear') {
+      enviar.textContent = 'Pagar ' + txt + ' y publicar';
+    }
   },
 
   categorias() {
@@ -72,9 +186,9 @@ const PerfilEmpresa = {
     const valorLista = document.createElement('ul');
     valorLista.className = 'perfil-empresa__valor-lista';
     [
-      'Crear y publicar ficha: $' +
-        PerfilEmpresa.formatoClp(PerfilEmpresa.PRECIO_PUBLICAR) +
-        ' CLP / mes',
+      'Publicar ficha cuesta ' +
+        PerfilEmpresa.precioPublicacionTxt() +
+        ' (Webpay). El informe de proveedor se vende aparte.',
       'La ficha queda a su nombre. No hay directorio previo para reclamar.',
       'Si la quita del perfil, se elimina del marketplace.'
     ].forEach((t) => {
@@ -90,8 +204,9 @@ const PerfilEmpresa = {
     const btnCrear = document.createElement('button');
     btnCrear.type = 'button';
     btnCrear.className = 'submit-btn';
+    btnCrear.id = 'peBtnPublicarPagar';
     btnCrear.textContent =
-      'Crear empresa · $' + PerfilEmpresa.formatoClp(PerfilEmpresa.PRECIO_PUBLICAR) + '/mes';
+      'Pagar y publicar · ' + PerfilEmpresa.precioPublicacionTxt();
     btnCrear.addEventListener('click', () => PerfilEmpresa.mostrarModo('crear'));
 
     acciones.appendChild(btnCrear);
@@ -129,14 +244,6 @@ const PerfilEmpresa = {
 
     wrap.append(titulo, lead, valor, acciones, panel, miasTitulo, mias, status);
     return wrap;
-  },
-
-  confirmarPago() {
-    return window.confirm(
-      'Activar publicación por $' +
-        PerfilEmpresa.formatoClp(PerfilEmpresa.PRECIO_PUBLICAR) +
-        ' CLP / mes?\n\nDemo: no se cobra de verdad. Su ficha quedará visible en Explorar.'
-    );
   },
 
   mostrarModo(modo, negocio) {
@@ -275,9 +382,9 @@ const PerfilEmpresa = {
     intro.className = 'field__hint';
     intro.textContent = editando
       ? 'Actualice los datos de la ficha. Al guardar se refrescan las consultas de transparencia (ChileCompra, cabeceras, etc.).'
-      : 'Al publicar se activa el plan de ficha ($' +
-        PerfilEmpresa.formatoClp(PerfilEmpresa.PRECIO_PUBLICAR) +
-        ' CLP/mes, demo). Quedará asociada a su cuenta como titular.';
+      : 'Al pagar y publicar (' +
+        PerfilEmpresa.precioPublicacionTxt() +
+        '), la ficha queda a su nombre y visible en Explorar. El informe de proveedor se vende aparte.';
 
     const campoRut = PerfilEmpresa.campoTexto(
       'peRut',
@@ -321,7 +428,8 @@ const PerfilEmpresa = {
         'URL del logo',
         true
       ),
-      PerfilEmpresa.campoTextoarea('peDesc', 'Descripción', 2000)
+      PerfilEmpresa.campoTextoarea('peDesc', 'Descripción', 2000),
+      PerfilEmpresa.bloqueOferta()
     );
 
     const peRut = campoRut.querySelector('#peRut');
@@ -353,11 +461,10 @@ const PerfilEmpresa = {
     const enviar = document.createElement('button');
     enviar.type = 'submit';
     enviar.className = 'submit-btn';
+    enviar.id = 'peBtnEnviarPublicar';
     enviar.textContent = editando
       ? 'Guardar cambios'
-      : 'Pagar y publicar · $' +
-        PerfilEmpresa.formatoClp(PerfilEmpresa.PRECIO_PUBLICAR) +
-        '/mes';
+      : 'Pagar ' + PerfilEmpresa.precioPublicacionTxt() + ' y publicar';
     const cancelar = document.createElement('button');
     cancelar.type = 'button';
     cancelar.className = 'history__clear';
@@ -392,6 +499,12 @@ const PerfilEmpresa = {
     set('peBanner', n.imagen_url || '');
     set('peLogo', n.logo_url || '');
     set('peDesc', n.descripcion || '');
+    PerfilEmpresa.pintarTags('peServicios', n.servicios, raiz);
+    PerfilEmpresa.pintarTags('peReferencias', n.referencias, raiz);
+    PerfilEmpresa.marcarChecks('peIndustrias', n.industrias, raiz);
+    PerfilEmpresa.marcarChecks('peContrataciones', n.contrataciones, raiz);
+    set('peMonto', n.monto || '');
+    set('pePlazo', n.plazo || '');
   },
 
   leerForm() {
@@ -406,6 +519,9 @@ const PerfilEmpresa = {
     const imagen_url = ((document.getElementById('peBanner') || {}).value || '').trim();
     const logo_url = ((document.getElementById('peLogo') || {}).value || '').trim();
     const descripcion = ((document.getElementById('peDesc') || {}).value || '').trim();
+    const servicios = PerfilEmpresa.leerTags('peServicios');
+    const referencias = PerfilEmpresa.leerTags('peReferencias');
+    if (!Array.isArray(servicios) || !Array.isArray(referencias)) return null;
     return {
       nombre,
       rut_empresa,
@@ -415,11 +531,18 @@ const PerfilEmpresa = {
       sitio_web,
       imagen_url,
       logo_url,
-      descripcion
+      descripcion,
+      servicios,
+      referencias,
+      industrias: PerfilEmpresa.leerChecks('peIndustrias'),
+      contrataciones: PerfilEmpresa.leerChecks('peContrataciones'),
+      monto: ((document.getElementById('peMonto') || {}).value || '').trim(),
+      plazo: ((document.getElementById('pePlazo') || {}).value || '').trim()
     };
   },
 
   validarForm(datos) {
+    if (!datos) return null;
     if (datos.nombre.length < 2) {
       PerfilEmpresa.setStatus('Ingrese el nombre de la empresa.');
       return null;
@@ -699,6 +822,253 @@ const PerfilEmpresa = {
     }
   },
 
+  catalogo() {
+    if (typeof Oferta !== 'undefined') return Oferta;
+    return {
+      MAX_SERVICIOS: 6,
+      MAX_REFERENCIAS: 8,
+      MAX_LARGO_SERVICIO: 40,
+      MAX_LARGO_REFERENCIA: 80,
+      INDUSTRIAS: [],
+      CONTRATACIONES: [],
+      MONTOS: [],
+      PLAZOS: []
+    };
+  },
+
+  bloqueOferta() {
+    const cat = PerfilEmpresa.catalogo();
+    const bloque = document.createElement('fieldset');
+    bloque.className = 'pe-oferta';
+    const titulo = document.createElement('legend');
+    titulo.className = 'pe-oferta__titulo';
+    titulo.textContent = 'Oferta declarada';
+    const nota = document.createElement('p');
+    nota.className = 'field__hint';
+    nota.textContent =
+      'Estos datos los declara la empresa. No entran al índice de transparencia.';
+    bloque.append(
+      titulo,
+      nota,
+      PerfilEmpresa.campoTags(
+        'peServicios',
+        'Servicios que ofrece',
+        'Hasta 6 etiquetas cortas. Por ejemplo: bodega, transporte, última milla.',
+        cat.MAX_SERVICIOS,
+        cat.MAX_LARGO_SERVICIO
+      ),
+      PerfilEmpresa.campoChecks(
+        'peIndustrias',
+        'Le vende a',
+        cat.INDUSTRIAS,
+        'Rubro de sus clientes. No es el tipo de proveedor.'
+      ),
+      PerfilEmpresa.campoChecks(
+        'peContrataciones',
+        'Cómo se contrata',
+        cat.CONTRATACIONES
+      ),
+      PerfilEmpresa.campoSelect(
+        'peMonto',
+        'Monto que acepta',
+        'El tramo de operación que toma.',
+        cat.MONTOS
+      ),
+      PerfilEmpresa.campoSelect(
+        'pePlazo',
+        'Plazo para responder una cotización',
+        '',
+        cat.PLAZOS
+      ),
+      PerfilEmpresa.campoTags(
+        'peReferencias',
+        'Referencias',
+        'Empresas a las que ha prestado servicios. Es un dato declarado, sin verificación.',
+        cat.MAX_REFERENCIAS,
+        cat.MAX_LARGO_REFERENCIA
+      )
+    );
+    return bloque;
+  },
+
+  campoTags(id, label, hint, maxItems, maxLen) {
+    const field = document.createElement('div');
+    field.className = 'field';
+    field.id = id;
+    field.dataset.max = String(maxItems || 6);
+    field.dataset.maxlen = String(maxLen || 40);
+    const lab = document.createElement('label');
+    lab.className = 'field__label';
+    lab.htmlFor = id + 'Input';
+    lab.textContent = label;
+    const lista = document.createElement('ul');
+    lista.className = 'pe-tags';
+    const input = document.createElement('input');
+    input.id = id + 'Input';
+    input.className = 'field__input';
+    input.type = 'text';
+    input.maxLength = maxLen || 40;
+    input.autocomplete = 'off';
+    input.placeholder = 'Escriba y presione Enter';
+    const agregar = (crudo) => {
+      const error = PerfilEmpresa.agregarTag(field, crudo);
+      if (error) PerfilEmpresa.setStatus(error);
+      else PerfilEmpresa.setStatus('');
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        agregar(input.value);
+        input.value = '';
+      }
+    });
+    input.addEventListener('blur', () => {
+      if (!input.value.trim()) return;
+      agregar(input.value);
+      input.value = '';
+    });
+    field.append(lab, lista, input);
+    if (hint) {
+      const hintEl = document.createElement('p');
+      hintEl.className = 'field__hint';
+      hintEl.textContent = hint;
+      field.appendChild(hintEl);
+    }
+    return field;
+  },
+
+  agregarTag(field, crudo) {
+    const texto = String(crudo || '').replace(/\s+/g, ' ').replace(/,+$/g, '').trim();
+    if (!texto) return '';
+    const max = Number(field.dataset.max || 6);
+    const maxLen = Number(field.dataset.maxlen || 40);
+    const lista = field.querySelector('.pe-tags');
+    const actuales = lista ? lista.querySelectorAll('li').length : 0;
+    if (texto.length < 2 || texto.length > maxLen) {
+      return 'Cada etiqueta debe tener entre 2 y ' + maxLen + ' caracteres.';
+    }
+    if (!/^[0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ][0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ .,&'’/\-]*$/.test(texto)) {
+      return "Use solo letras, números y los signos . , & ' / -";
+    }
+    const ya = Array.prototype.some.call(lista.querySelectorAll('li'), (li) => {
+      return (li.dataset.valor || '').toLowerCase() === texto.toLowerCase();
+    });
+    if (ya) return '';
+    if (actuales >= max) return 'Puede indicar hasta ' + max + ' etiquetas.';
+    const li = document.createElement('li');
+    li.className = 'pe-tag';
+    li.dataset.valor = texto;
+    const nombre = document.createElement('span');
+    nombre.textContent = texto;
+    const quitar = document.createElement('button');
+    quitar.type = 'button';
+    quitar.textContent = '×';
+    quitar.setAttribute('aria-label', 'Quitar ' + texto);
+    quitar.addEventListener('click', () => li.remove());
+    li.append(nombre, quitar);
+    lista.appendChild(li);
+    return '';
+  },
+
+  pintarTags(id, valores, raiz) {
+    const field = (raiz && raiz.querySelector('#' + id)) || document.getElementById(id);
+    if (!field) return;
+    const lista = field.querySelector('.pe-tags');
+    if (lista) while (lista.firstChild) lista.removeChild(lista.firstChild);
+    (Array.isArray(valores) ? valores : []).forEach((valor) => {
+      PerfilEmpresa.agregarTag(field, valor);
+    });
+  },
+
+  leerTags(id) {
+    const field = document.getElementById(id);
+    if (!field) return [];
+    const input = field.querySelector('input');
+    if (input && input.value.trim()) {
+      const error = PerfilEmpresa.agregarTag(field, input.value);
+      input.value = '';
+      if (error) {
+        PerfilEmpresa.setStatus(error);
+        return null;
+      }
+    }
+    return Array.prototype.map.call(field.querySelectorAll('li'), (li) => li.dataset.valor);
+  },
+
+  campoChecks(id, label, opciones, hint) {
+    const field = document.createElement('fieldset');
+    field.className = 'field pe-checks';
+    field.id = id;
+    const legend = document.createElement('legend');
+    legend.className = 'field__label';
+    legend.textContent = label;
+    field.appendChild(legend);
+    (opciones || []).forEach((opcion) => {
+      const lab = document.createElement('label');
+      lab.className = 'pe-check';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = opcion.id;
+      const texto = document.createElement('span');
+      texto.textContent = opcion.label;
+      lab.append(input, texto);
+      field.appendChild(lab);
+    });
+    if (hint) {
+      const hintEl = document.createElement('p');
+      hintEl.className = 'field__hint';
+      hintEl.textContent = hint;
+      field.appendChild(hintEl);
+    }
+    return field;
+  },
+
+  marcarChecks(id, valores, raiz) {
+    const field = (raiz && raiz.querySelector('#' + id)) || document.getElementById(id);
+    if (!field) return;
+    const elegidos = new Set(Array.isArray(valores) ? valores : []);
+    field.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.checked = elegidos.has(input.value);
+    });
+  },
+
+  leerChecks(id) {
+    const field = document.getElementById(id);
+    if (!field) return [];
+    return Array.prototype.map
+      .call(field.querySelectorAll('input[type="checkbox"]:checked'), (input) => input.value);
+  },
+
+  campoSelect(id, label, hint, opciones) {
+    const field = document.createElement('div');
+    field.className = 'field';
+    const lab = document.createElement('label');
+    lab.className = 'field__label';
+    lab.htmlFor = id;
+    lab.textContent = label;
+    const select = document.createElement('select');
+    select.id = id;
+    select.className = 'field__input';
+    const vacio = document.createElement('option');
+    vacio.value = '';
+    vacio.textContent = 'Sin indicar';
+    select.appendChild(vacio);
+    (opciones || []).forEach((opcion) => {
+      const opt = document.createElement('option');
+      opt.value = opcion.id;
+      opt.textContent = opcion.label;
+      select.appendChild(opt);
+    });
+    field.append(lab, select);
+    if (hint) {
+      const hintEl = document.createElement('p');
+      hintEl.className = 'field__hint';
+      hintEl.textContent = hint;
+      field.appendChild(hintEl);
+    }
+    return field;
+  },
+
   campoTexto(id, label, required, max, type, hint) {
     const field = document.createElement('div');
     field.className = 'field';
@@ -744,7 +1114,7 @@ const PerfilEmpresa = {
     const lab = document.createElement('label');
     lab.className = 'field__label';
     lab.htmlFor = id;
-    lab.textContent = 'Categoría';
+    lab.textContent = 'Tipo de proveedor';
     const select = document.createElement('select');
     select.id = id;
     select.className = 'field__input';
@@ -756,6 +1126,10 @@ const PerfilEmpresa = {
       select.appendChild(opt);
     });
     field.append(lab, select);
+    const hint = document.createElement('p');
+    hint.className = 'field__hint';
+    hint.textContent = 'Qué es la empresa. No es el rubro de sus clientes.';
+    field.appendChild(hint);
     return field;
   },
 
@@ -933,6 +1307,19 @@ const PerfilEmpresa = {
     PerfilEmpresa.cargarMias();
   },
 
+  urlRetornoPublicacion() {
+    let base = window.location.origin + window.location.pathname;
+    if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.urlRetornoPago) {
+      base = MarketMonetizacion.urlRetornoPago();
+    } else {
+      base = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'pago=retorno';
+    }
+    if (base.indexOf('producto=publicacion') < 0) {
+      base += (base.indexOf('?') >= 0 ? '&' : '?') + 'producto=publicacion';
+    }
+    return base;
+  },
+
   async enviarCrear() {
     if (!PerfilEmpresa.esProveedor()) {
       PerfilEmpresa.setStatus('Solo una cuenta proveedor puede crear fichas.');
@@ -944,12 +1331,62 @@ const PerfilEmpresa = {
     }
     const datos = PerfilEmpresa.validarForm(PerfilEmpresa.leerForm());
     if (!datos) return;
-    if (!PerfilEmpresa.confirmarPago()) {
-      PerfilEmpresa.setStatus('Publicación cancelada. Sin pago no se publica la ficha.');
+    PerfilEmpresa.guardarBorrador(datos);
+    PerfilEmpresa.setStatus(
+      'Iniciando pago de publicación (' +
+        PerfilEmpresa.precioPublicacionTxt() +
+        ')…'
+    );
+
+    // Si ya hay cupón autorizado, crear directo.
+    const acceso = await Auth.request('/v1/pagos/publicacion/acceso', {
+      method: 'GET',
+      token: Auth.sesion.token
+    });
+    if (acceso.ok && acceso.data && acceso.data.autorizado && !acceso.data.consumido) {
+      await PerfilEmpresa.crearConBuyOrder(datos, acceso.data.buy_order);
       return;
     }
-    PerfilEmpresa.setStatus('Activando plan (demo) y publicando…');
-    // Pintar altiro en «Sus empresas» sin ★ (el índice llega en segundo plano).
+
+    const ini = await Auth.request('/v1/pagos/publicacion', {
+      method: 'POST',
+      token: Auth.sesion.token,
+      body: { return_url: PerfilEmpresa.urlRetornoPublicacion() }
+    });
+    if (!ini.ok) {
+      const detail = ini.data && ini.data.detail;
+      const codigo = detail && detail.codigo;
+      if (codigo === 'cupon_disponible' && detail.buy_order) {
+        await PerfilEmpresa.crearConBuyOrder(datos, detail.buy_order);
+        return;
+      }
+      PerfilEmpresa.setStatus(
+        (detail && detail.mensaje) || ini.error || 'No se pudo iniciar el pago.'
+      );
+      return;
+    }
+    PerfilEmpresa.guardarPagoPendiente({
+      buy_order: ini.data.buy_order,
+      token: ini.data.token,
+      reclamo: ini.data.reclamo
+    });
+    PerfilEmpresa.setStatus('Redirigiendo a Webpay…');
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = ini.data.url;
+    form.style.display = 'none';
+    const tokenField = document.createElement('input');
+    tokenField.type = 'hidden';
+    tokenField.name = 'token_ws';
+    tokenField.value = ini.data.token;
+    form.appendChild(tokenField);
+    document.body.appendChild(form);
+    form.submit();
+  },
+
+  async crearConBuyOrder(datos, buyOrder) {
+    const host = document.getElementById('perfilEmpresaMias');
+    const prev = Array.isArray(PerfilEmpresa._mias) ? PerfilEmpresa._mias.slice() : [];
     const provisional = {
       id: null,
       nombre: datos.nombre,
@@ -959,14 +1396,19 @@ const PerfilEmpresa = {
       sitio_web: datos.sitio_web || null,
       direccion: datos.direccion,
       descripcion: datos.descripcion || null,
+      servicios: datos.servicios,
+      industrias: datos.industrias,
+      contrataciones: datos.contrataciones,
+      monto: datos.monto || null,
+      plazo: datos.plazo || null,
+      referencias: datos.referencias,
       rater_listo: false
     };
-    const host = document.getElementById('perfilEmpresaMias');
-    const prev = Array.isArray(PerfilEmpresa._mias) ? PerfilEmpresa._mias.slice() : [];
     const listaOptimistic = [provisional].concat(prev);
     PerfilEmpresa._mias = listaOptimistic;
     if (host) PerfilEmpresa.pintarListaMias(host, listaOptimistic);
     PerfilEmpresa.cerrarPanel();
+    PerfilEmpresa.setStatus('Publicando ficha…');
 
     const res = await Auth.request('/v1/businesses', {
       method: 'POST',
@@ -979,24 +1421,35 @@ const PerfilEmpresa = {
         imagen_url: datos.imagen_url || null,
         logo_url: datos.logo_url || null,
         descripcion: datos.descripcion || null,
-        rut_empresa: datos.rut_empresa
+        rut_empresa: datos.rut_empresa,
+        servicios: datos.servicios,
+        industrias: datos.industrias,
+        contrataciones: datos.contrataciones,
+        monto: datos.monto || null,
+        plazo: datos.plazo || null,
+        referencias: datos.referencias,
+        buy_order: buyOrder
       },
       token: Auth.sesion.token
     });
     if (!res.ok) {
       PerfilEmpresa._mias = prev;
       if (host) PerfilEmpresa.pintarListaMias(host, prev);
-      PerfilEmpresa.setStatus(res.error || 'No se pudo crear la empresa.');
-      return;
+      const detail = res.data && res.data.detail;
+      PerfilEmpresa.setStatus(
+        (detail && detail.mensaje) || res.error || 'No se pudo crear la empresa.'
+      );
+      return false;
     }
     const creado = res.data || {};
     Object.assign(provisional, creado, { rater_listo: !!creado.rater_listo });
     if (host) PerfilEmpresa.pintarListaMias(host, PerfilEmpresa._mias);
-    PerfilEmpresa.setStatus(
-      'Empresa publicada (demo · $' +
-        PerfilEmpresa.formatoClp(PerfilEmpresa.PRECIO_PUBLICAR) +
-        '/mes).'
-    );
+    PerfilEmpresa.limpiarBorrador();
+    PerfilEmpresa.limpiarPagoPendiente();
+    if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.limpiarPagoPendiente) {
+      MarketMonetizacion.limpiarPagoPendiente();
+    }
+    PerfilEmpresa.setStatus('Empresa publicada. Ya aparece en Explorar.');
     if (typeof SubirConfianza !== 'undefined') {
       SubirConfianza.empresas = null;
       SubirConfianza.reputacionMia = null;
@@ -1006,6 +1459,122 @@ const PerfilEmpresa = {
       Market._firma = '';
     }
     PerfilEmpresa.completarIndicesMias(PerfilEmpresa._mias);
+    return true;
+  },
+
+  async procesarRetornoPublicacion() {
+    if (PerfilEmpresa._confirmandoPublicacion) return true;
+    if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.capturarRetornoDesdeUrl) {
+      MarketMonetizacion.capturarRetornoDesdeUrl();
+    }
+    const sesion = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
+    if (!sesion || !sesion.token) {
+      const status = document.getElementById('loginStatus');
+      if (status) {
+        status.textContent =
+          'Pago de publicación recibido. Inicie sesión para crear la ficha.';
+      }
+      return true;
+    }
+    PerfilEmpresa._confirmandoPublicacion = true;
+    try {
+      return await PerfilEmpresa._procesarRetornoPublicacionAutenticado(sesion);
+    } finally {
+      PerfilEmpresa._confirmandoPublicacion = false;
+    }
+  },
+
+  async _procesarRetornoPublicacionAutenticado(sesion) {
+    const params = new URLSearchParams(window.location.search || '');
+    const guardado =
+      (typeof MarketMonetizacion !== 'undefined' &&
+        MarketMonetizacion.leerRetornoPago &&
+        MarketMonetizacion.leerRetornoPago()) ||
+      {};
+    const tokenWs = params.get('token_ws') || guardado.token_ws || null;
+    const tbkToken = params.get('TBK_TOKEN') || guardado.tbk_token || null;
+    const pendiente = PerfilEmpresa.leerPagoPendiente() || {};
+    const orden =
+      pendiente.buy_order ||
+      params.get('TBK_ORDEN_COMPRA') ||
+      guardado.tbk_orden ||
+      null;
+
+    async function irAPerfil() {
+      if (typeof App !== 'undefined' && App.openSection) {
+        await App.openSection('perfil');
+      } else if (typeof App !== 'undefined' && App.showView) {
+        App.showView('perfilView');
+        if (typeof PerfilEmpresa.init === 'function') PerfilEmpresa.init();
+      }
+    }
+
+    if (tbkToken && !tokenWs) {
+      if (orden) {
+        await Auth.request('/v1/pagos/publicacion/anular', {
+          method: 'POST',
+          token: sesion.token,
+          body: { buy_order: orden, motivo: 'Cancelado o abortado en Webpay' }
+        });
+      }
+      PerfilEmpresa.limpiarPagoPendiente();
+      await irAPerfil();
+      PerfilEmpresa.setStatus('Pago de publicación cancelado en Webpay.');
+      return true;
+    }
+
+    await irAPerfil();
+    PerfilEmpresa.setStatus('Confirmando pago de publicación…');
+    let conf;
+    if (tokenWs) {
+      conf = await Auth.request('/v1/pagos/publicacion/confirmar', {
+        method: 'POST',
+        token: sesion.token,
+        body: { token: tokenWs }
+      });
+    } else if (orden) {
+      conf = await Auth.request('/v1/pagos/publicacion/recuperar', {
+        method: 'POST',
+        token: sesion.token,
+        body: { buy_order: orden }
+      });
+    } else {
+      PerfilEmpresa.setStatus('No se pudo recuperar el pago de publicación.');
+      return true;
+    }
+
+    if (!conf.ok || !conf.data || !conf.data.autorizado) {
+      const detail = conf.data && conf.data.detail;
+      PerfilEmpresa.setStatus(
+        (detail && detail.mensaje) ||
+          (conf.data && conf.data.error_detalle) ||
+          conf.error ||
+          'El pago de publicación no fue autorizado.'
+      );
+      return true;
+    }
+
+    // Evita re-procesar el mismo retorno (Market.init / login).
+    if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.limpiarPagoPendiente) {
+      try {
+        sessionStorage.removeItem(MarketMonetizacion.STORAGE_PAGO_RETORNO);
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    const datos = PerfilEmpresa.leerBorrador();
+    if (!datos) {
+      PerfilEmpresa.setStatus(
+        'Pago OK (orden ' +
+          conf.data.buy_order +
+          '). Complete el formulario y publique para usar el cupón.'
+      );
+      PerfilEmpresa.mostrarModo('crear');
+      return true;
+    }
+    await PerfilEmpresa.crearConBuyOrder(datos, conf.data.buy_order);
+    return true;
   },
 
   async enviarActualizar() {
@@ -1036,7 +1605,13 @@ const PerfilEmpresa = {
         imagen_url: datos.imagen_url || null,
         logo_url: datos.logo_url || null,
         descripcion: datos.descripcion || null,
-        rut_empresa: datos.rut_empresa
+        rut_empresa: datos.rut_empresa,
+        servicios: datos.servicios,
+        industrias: datos.industrias,
+        contrataciones: datos.contrataciones,
+        monto: datos.monto || null,
+        plazo: datos.plazo || null,
+        referencias: datos.referencias
       },
       token: Auth.sesion.token
     });

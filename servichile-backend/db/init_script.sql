@@ -88,6 +88,14 @@ CREATE TABLE business_entities (
     longitud       double precision,
     direccion      varchar(200),
     descripcion    text,
+    servicios      jsonb NOT NULL DEFAULT '[]'::jsonb,
+    industrias     jsonb NOT NULL DEFAULT '[]'::jsonb,
+    contrataciones jsonb NOT NULL DEFAULT '[]'::jsonb,
+    monto          varchar(20)
+                     CHECK (monto IS NULL OR monto IN ('bajo', 'medio', 'alto')),
+    plazo          varchar(20)
+                     CHECK (plazo IS NULL OR plazo IN ('menos-2h', 'en-el-dia', '24-48h')),
+    referencias    jsonb NOT NULL DEFAULT '[]'::jsonb,
     imagen_url     varchar(500),
     logo_url       varchar(500),
     requiere_nivel smallint NOT NULL DEFAULT 1 CHECK (requiere_nivel IN (1, 2)),
@@ -145,5 +153,82 @@ CREATE INDEX business_entities_categoria_nombre_idx ON business_entities (catego
 CREATE INDEX business_entities_reclamado_por_idx ON business_entities (reclamado_por);
 CREATE INDEX trabajos_usuario_idx ON trabajos (usuario_id, creado_en DESC);
 CREATE INDEX trabajos_negocio_idx ON trabajos (business_id);
+
+CREATE TABLE compras_informe (
+    id                  uuid PRIMARY KEY,
+    usuario_id          uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    business_id         uuid NOT NULL REFERENCES business_entities(id) ON DELETE CASCADE,
+    buy_order           varchar(26) NOT NULL UNIQUE,
+    monto               integer NOT NULL,
+    estado              varchar(20) NOT NULL DEFAULT 'pendiente',
+    token               varchar(128),
+    response_code       integer,
+    authorization_code  varchar(32),
+    payment_type_code   varchar(16),
+    card_last4          varchar(4),
+    error_codigo        varchar(64),
+    error_detalle       text,
+    creado_en           timestamptz NOT NULL DEFAULT now(),
+    actualizado_en      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_compras_informe_token ON compras_informe (token);
+CREATE INDEX idx_compras_informe_usuario ON compras_informe (usuario_id, creado_en DESC);
+CREATE INDEX idx_compras_informe_autorizada
+  ON compras_informe (usuario_id, business_id, estado);
+CREATE UNIQUE INDEX uq_compras_informe_autorizada
+  ON compras_informe (usuario_id, business_id)
+  WHERE estado = 'autorizado';
+
+CREATE TABLE compras_publicacion (
+    id                  uuid PRIMARY KEY,
+    usuario_id          uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    business_id         uuid REFERENCES business_entities(id) ON DELETE SET NULL,
+    buy_order           varchar(26) NOT NULL UNIQUE,
+    monto               integer NOT NULL,
+    estado              varchar(20) NOT NULL DEFAULT 'pendiente',
+    token               varchar(128),
+    response_code       integer,
+    authorization_code  varchar(32),
+    payment_type_code   varchar(16),
+    card_last4          varchar(4),
+    error_codigo        varchar(64),
+    error_detalle       text,
+    creado_en           timestamptz NOT NULL DEFAULT now(),
+    actualizado_en      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_compras_publicacion_token ON compras_publicacion (token);
+CREATE INDEX idx_compras_publicacion_usuario
+  ON compras_publicacion (usuario_id, creado_en DESC);
+CREATE INDEX idx_compras_publicacion_cupon
+  ON compras_publicacion (usuario_id, estado)
+  WHERE business_id IS NULL;
+-- Cupón libre: solo estado autorizado + business_id NULL.
+-- Tras consumir → estado 'consumido' (no se recicla si DELETE SET NULL).
+CREATE UNIQUE INDEX uq_compras_publicacion_cupon_libre
+  ON compras_publicacion (usuario_id)
+  WHERE estado = 'autorizado' AND business_id IS NULL;
+
+CREATE TABLE correo_oauth (
+    usuario_id     uuid PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+    email          varchar(254) NOT NULL,
+    refresh_token  text NOT NULL,
+    access_token   text,
+    expira_en      timestamptz,
+    actualizado_en timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE mensajes_correo (
+    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id   uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    business_id  uuid REFERENCES business_entities(id) ON DELETE SET NULL,
+    tipo         varchar(20) NOT NULL,
+    destino      varchar(254) NOT NULL,
+    asunto       varchar(200) NOT NULL,
+    cuerpo       text NOT NULL,
+    estado       varchar(20) NOT NULL,
+    creado_en    timestamptz NOT NULL DEFAULT now()
+);
 
 COMMIT;

@@ -127,7 +127,7 @@ const ProgresoCuenta = {
     },
 
     notaDocumentos() {
-      return 'El PDF no se guarda (zero-retention): solo se valida y el resultado queda en su perfil.';
+      return '';
     },
 
     tiposDocumento() {
@@ -567,7 +567,7 @@ ProgresoCuenta.registrar('proveedor', {
   },
 
   notaDocumentos() {
-    return 'Los documentos legales quedan en la ficha (vigencia 365 días; puede revocar o revalidar). El ★ público lo define el índice global de señales. El PDF no se guarda (zero-retention).';
+    return '';
   },
 
   calcularFicha() {

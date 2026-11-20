@@ -92,6 +92,23 @@ def _metricas(m: orm.MetricasReputacionNegocio | None) -> Metricas | None:
     )
 
 
+def _textos(valor) -> tuple[str, ...]:
+    if not isinstance(valor, (list, tuple)):
+        return ()
+    return tuple(str(item) for item in valor if isinstance(item, str) and item.strip())
+
+
+def _oferta(n: orm.EntidadNegocio) -> dict:
+    return {
+        "servicios": _textos(n.servicios),
+        "industrias": _textos(n.industrias),
+        "contrataciones": _textos(n.contrataciones),
+        "monto": n.monto,
+        "plazo": n.plazo,
+        "referencias": _textos(n.referencias),
+    }
+
+
 def _negocio_lista(n: orm.EntidadNegocio) -> Negocio:
 
     m = n.metricas
@@ -123,6 +140,7 @@ def _negocio_lista(n: orm.EntidadNegocio) -> Negocio:
         rut_empresa=n.rut_empresa,
         docs_empresa=docs_empresa_desde_raw(n.docs_empresa),
         metricas=metricas,
+        **_oferta(n),
     )
 
 
@@ -137,6 +155,12 @@ def _opciones_lista():
             orm.EntidadNegocio.longitud,
             orm.EntidadNegocio.direccion,
             orm.EntidadNegocio.descripcion,
+            orm.EntidadNegocio.servicios,
+            orm.EntidadNegocio.industrias,
+            orm.EntidadNegocio.contrataciones,
+            orm.EntidadNegocio.monto,
+            orm.EntidadNegocio.plazo,
+            orm.EntidadNegocio.referencias,
             orm.EntidadNegocio.imagen_url,
             orm.EntidadNegocio.logo_url,
             orm.EntidadNegocio.requiere_nivel,
@@ -174,6 +198,7 @@ def _negocio(n: orm.EntidadNegocio) -> Negocio:
         rut_empresa=n.rut_empresa,
         docs_empresa=docs_empresa_desde_raw(n.docs_empresa),
         metricas=_metricas(n.metricas),
+        **_oferta(n),
     )
 
 

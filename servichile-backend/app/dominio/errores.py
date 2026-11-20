@@ -27,6 +27,10 @@ class EmailYaRegistrado(Exception):
     pass
 
 
+class RutEmpresaEnUso(Exception):
+    pass
+
+
 class CredencialesInvalidas(Exception):
     pass
 
@@ -101,3 +105,71 @@ class EvaluadorIndisponible(Exception):
     ) -> None:
         super().__init__(mensaje)
         self.mensaje = mensaje
+
+
+class RadarInvalido(Exception):
+    def __init__(self, mensaje: str) -> None:
+        self.mensaje = mensaje
+        super().__init__(mensaje)
+
+
+class CorreoRechazado(Exception):
+    def __init__(self, mensaje: str) -> None:
+        self.mensaje = mensaje
+        super().__init__(mensaje)
+
+
+class PagoInformeError(Exception):
+    def __init__(
+        self,
+        mensaje: str,
+        *,
+        codigo: str = "pago_error",
+        buy_order: str | None = None,
+    ) -> None:
+        self.mensaje = mensaje
+        self.codigo = codigo
+        self.buy_order = buy_order
+        super().__init__(mensaje)
+
+
+class InformeSinCompra(Exception):
+    """El informe comercial requiere compra Webpay autorizada (o ser titular)."""
+
+    def __init__(
+        self,
+        mensaje: str = "Debe comprar el informe para acceder.",
+        *,
+        codigo: str = "informe_sin_compra",
+    ) -> None:
+        self.mensaje = mensaje
+        self.codigo = codigo
+        super().__init__(mensaje)
+
+
+class PublicacionSinPago(Exception):
+    """Publicar ficha requiere cupón Webpay autorizado (PAGOS_PUBLICACION_MONTO)."""
+
+    def __init__(
+        self,
+        mensaje: str = "Debe pagar la publicación de la ficha antes de crearla.",
+        *,
+        codigo: str = "publicacion_sin_pago",
+    ) -> None:
+        self.mensaje = mensaje
+        self.codigo = codigo
+        super().__init__(mensaje)
+
+
+class PagoPublicacionError(Exception):
+    def __init__(
+        self,
+        mensaje: str,
+        *,
+        codigo: str = "pago_publicacion_error",
+        buy_order: str | None = None,
+    ) -> None:
+        self.mensaje = mensaje
+        self.codigo = codigo
+        self.buy_order = buy_order
+        super().__init__(mensaje)

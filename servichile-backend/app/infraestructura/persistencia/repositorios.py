@@ -1,11 +1,16 @@
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
+from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.orm import Session, joinedload
 
 from app.dominio.docs_empresa import docs_empresa_a_raw
 from app.dominio.entidades import Negocio, Trabajo, Usuario
+from app.dominio.errores import RutEmpresaEnUso
+from app.dominio.oferta_negocio import FiltroListado
+from app.dominio.pago_informe import CompraInforme
+from app.dominio.pago_publicacion import CompraPublicacion
 from app.infraestructura.persistencia import modelos as orm
 from app.infraestructura.persistencia.mapeo import (
     _negocio,
@@ -15,6 +20,26 @@ from app.infraestructura.persistencia.mapeo import (
     _usuario,
 )
 from app.tiempo import ahora_utc
+
+
+def _compra_informe(r: orm.CompraInforme) -> CompraInforme:
+    return CompraInforme(
+        id=r.id,
+        usuario_id=r.usuario_id,
+        business_id=r.business_id,
+        buy_order=r.buy_order,
+        monto=int(r.monto),
+        estado=r.estado,
+        token=r.token,
+        response_code=r.response_code,
+        authorization_code=r.authorization_code,
+        payment_type_code=r.payment_type_code,
+        card_last4=r.card_last4,
+        error_codigo=r.error_codigo,
+        error_detalle=r.error_detalle,
+        creado_en=r.creado_en,
+        actualizado_en=r.actualizado_en,
+    )
 
 
 class RepositorioUsuario:
@@ -261,6 +286,21 @@ def registrar_hash_pades(
     return True
 
 
+def _like(texto: str) -> str:
+    limpio = (
+        texto.strip()
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+    return f"%{limpio}%"
+
+
+def _json_tiene(columna, valor: str):
+    """Membresía de un id de catálogo dentro de un arreglo JSON (Postgres y SQLite)."""
+    return cast(columna, String).like(_like(f'"{valor}"'), escape="\\")
+
+
 class RepositorioNegocio:
 
     def __init__(self, session: Session) -> None:
@@ -292,8 +332,10 @@ class RepositorioNegocio:
         return _negocio(n) if n else None
 
     def listar(
-        self, categoria: str | None = None, q: str | None = None, limite: int = 100
+        self, filtro: FiltroListado | None = None, limite: int = 100
     ) -> list[Negocio]:
+
+        filtro = filtro or FiltroListado()
 
         stmt = (
             select(orm.EntidadNegocio)
@@ -301,17 +343,37 @@ class RepositorioNegocio:
             .order_by(orm.EntidadNegocio.nombre)
         )
 
-        if categoria:
+        if filtro.categoria:
 
-            stmt = stmt.where(orm.EntidadNegocio.categoria == categoria)
+            stmt = stmt.where(orm.EntidadNegocio.categoria == filtro.categoria)
 
-        if q:
+        if filtro.monto:
 
-            patron = f"%{q.strip()}%"
+            stmt = stmt.where(orm.EntidadNegocio.monto == filtro.monto)
+
+        if filtro.plazo:
+
+            stmt = stmt.where(orm.EntidadNegocio.plazo == filtro.plazo)
+
+        if filtro.industria:
+
+            stmt = stmt.where(_json_tiene(orm.EntidadNegocio.industrias, filtro.industria))
+
+        if filtro.contratacion:
 
             stmt = stmt.where(
-                orm.EntidadNegocio.nombre.ilike(patron)
-                | orm.EntidadNegocio.direccion.ilike(patron)
+                _json_tiene(orm.EntidadNegocio.contrataciones, filtro.contratacion)
+            )
+
+        if filtro.q and filtro.q.strip():
+
+            patron = _like(filtro.q)
+
+            stmt = stmt.where(
+                orm.EntidadNegocio.nombre.ilike(patron, escape="\\")
+                | orm.EntidadNegocio.direccion.ilike(patron, escape="\\")
+                | cast(orm.EntidadNegocio.servicios, String).ilike(patron, escape="\\")
+                | cast(orm.EntidadNegocio.referencias, String).ilike(patron, escape="\\")
             )
 
         return [
@@ -366,7 +428,11 @@ class RepositorioNegocio:
 
         self.session.commit()
 
-    def guardar(self, negocio: Negocio) -> Negocio:
+    def guardar(self, negocio: Negocio, *, commit: bool = True) -> Negocio:
+
+        if self._rut_lo_tiene_otro(negocio.rut_empresa, negocio.id):
+
+            raise RutEmpresaEnUso()
 
         n = self.session.get(orm.EntidadNegocio, negocio.id)
 
@@ -387,6 +453,18 @@ class RepositorioNegocio:
         n.direccion = negocio.direccion
 
         n.descripcion = negocio.descripcion
+
+        n.servicios = list(negocio.servicios or ())
+
+        n.industrias = list(negocio.industrias or ())
+
+        n.contrataciones = list(negocio.contrataciones or ())
+
+        n.monto = negocio.monto
+
+        n.plazo = negocio.plazo
+
+        n.referencias = list(negocio.referencias or ())
 
         n.imagen_url = negocio.imagen_url
 
@@ -434,11 +512,49 @@ class RepositorioNegocio:
                 else None
             )
 
-        self.session.commit()
+        try:
+            if commit:
+                self.session.commit()
+            else:
+                self.session.flush()
+        except IntegrityError as exc:
+            self.session.rollback()
+            if _es_rut_empresa_duplicado(exc):
+                raise RutEmpresaEnUso() from None
+            raise
 
-        self.session.refresh(n)
+        if commit:
+            self.session.refresh(n)
 
         return _negocio(n)
+
+    def _rut_lo_tiene_otro(self, rut: str | None, negocio_id: uuid.UUID) -> bool:
+
+        if not rut:
+
+            return False
+
+        stmt = select(orm.EntidadNegocio.id).where(
+            orm.EntidadNegocio.rut_empresa == rut,
+            orm.EntidadNegocio.id != negocio_id,
+        )
+
+        return self.session.scalar(stmt) is not None
+
+
+def _es_rut_empresa_duplicado(exc: IntegrityError) -> bool:
+
+    orig = getattr(exc, "orig", None)
+
+    diag = getattr(orig, "diag", None)
+
+    if getattr(diag, "constraint_name", None) == "business_entities_rut_empresa_uidx":
+
+        return True
+
+    texto = str(orig or exc).lower()
+
+    return "unique" in texto and "rut_empresa" in texto
 
 
 class RepositorioTrabajo:
@@ -512,6 +628,24 @@ class RepositorioTrabajo:
             estado: cantidad for estado, cantidad in self.session.execute(stmt).all()
         }
 
+    def contar_concretados_por_negocios(
+        self, negocio_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, int]:
+        if not negocio_ids:
+            return {}
+        stmt = (
+            select(orm.Trabajo.business_id, func.count())
+            .where(
+                orm.Trabajo.business_id.in_(negocio_ids),
+                orm.Trabajo.estado == "concretado",
+            )
+            .group_by(orm.Trabajo.business_id)
+        )
+        return {
+            negocio_id: int(cantidad)
+            for negocio_id, cantidad in self.session.execute(stmt).all()
+        }
+
     def guardar(self, trabajo: Trabajo) -> Trabajo:
 
         r = self.session.get(orm.Trabajo, trabajo.id)
@@ -523,3 +657,669 @@ class RepositorioTrabajo:
         self.session.refresh(r)
 
         return _trabajo(r)
+
+
+class RepositorioCorreo:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def registrar(
+        self,
+        usuario_id: uuid.UUID,
+        business_id: uuid.UUID | None,
+        tipo: str,
+        destino: str,
+        asunto: str,
+        cuerpo: str,
+        estado: str,
+    ) -> None:
+        self.session.add(
+            orm.MensajeCorreo(
+                usuario_id=usuario_id,
+                business_id=business_id,
+                tipo=tipo,
+                destino=destino,
+                asunto=asunto[:200],
+                cuerpo=cuerpo,
+                estado=estado,
+            )
+        )
+        self.session.commit()
+
+
+class RepositorioCompraInforme:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def crear(
+        self,
+        usuario_id: uuid.UUID,
+        business_id: uuid.UUID,
+        buy_order: str,
+        monto: int,
+    ) -> CompraInforme:
+        r = orm.CompraInforme(
+            usuario_id=usuario_id,
+            business_id=business_id,
+            buy_order=buy_order[:26],
+            monto=int(monto),
+            estado="pendiente",
+        )
+        self.session.add(r)
+        self.session.commit()
+        self.session.refresh(r)
+        return _compra_informe(r)
+
+    def guardar(self, compra: CompraInforme) -> CompraInforme:
+        from app.dominio.errores import PagoInformeError
+        from app.dominio.pago_informe import ESTADO_AUTORIZADO
+
+        r = self.session.get(orm.CompraInforme, compra.id)
+        if r is None:
+            raise LookupError("compra_informe")
+        r.estado = compra.estado
+        r.token = compra.token
+        r.response_code = compra.response_code
+        r.authorization_code = compra.authorization_code
+        r.payment_type_code = compra.payment_type_code
+        r.card_last4 = compra.card_last4
+        r.error_codigo = compra.error_codigo
+        r.error_detalle = (compra.error_detalle or None)
+        if r.error_detalle and len(r.error_detalle) > 2000:
+            r.error_detalle = r.error_detalle[:2000]
+        try:
+            self.session.commit()
+        except IntegrityError as exc:
+            self.session.rollback()
+            # Unique parcial (usuario, business) WHERE autorizado.
+            if compra.estado == ESTADO_AUTORIZADO:
+                otra = self.ultima_autorizada(compra.usuario_id, compra.business_id)
+                if otra is not None:
+                    raise PagoInformeError(
+                        "Ya tiene el informe de este proveedor.",
+                        codigo="ya_comprado",
+                        buy_order=otra.buy_order,
+                    ) from exc
+            raise
+        self.session.refresh(r)
+        return _compra_informe(r)
+
+    def obtener_por_token(self, token: str) -> CompraInforme | None:
+        stmt = select(orm.CompraInforme).where(orm.CompraInforme.token == token)
+        r = self.session.scalars(stmt).first()
+        return _compra_informe(r) if r else None
+
+    def obtener_por_buy_order(self, buy_order: str) -> CompraInforme | None:
+        stmt = select(orm.CompraInforme).where(
+            orm.CompraInforme.buy_order == buy_order
+        )
+        r = self.session.scalars(stmt).first()
+        return _compra_informe(r) if r else None
+
+    def reclamar_para_confirmar(
+        self, token: str, usuario_id: uuid.UUID
+    ) -> tuple[str, CompraInforme | None]:
+        """CAS pendiente|confirmando-stale → confirmando. Retorna (ya_ok|ok|ajena|en_curso|no|estado)."""
+        from datetime import datetime, timedelta, timezone
+
+        from sqlalchemy import update
+
+        from app.dominio.pago_informe import (
+            ESTADO_AUTORIZADO,
+            ESTADO_CONFIRMANDO,
+            ESTADO_PENDIENTE,
+        )
+
+        token = (token or "").strip()
+        stmt = select(orm.CompraInforme).where(orm.CompraInforme.token == token)
+        r = self.session.scalars(stmt).first()
+        if r is None:
+            return ("no", None)
+        if r.usuario_id != usuario_id:
+            return ("ajena", _compra_informe(r))
+        if r.estado == ESTADO_AUTORIZADO:
+            return ("ya_ok", _compra_informe(r))
+        ahora = datetime.now(timezone.utc)
+        stale = False
+        if r.estado == ESTADO_CONFIRMANDO:
+            ref = r.actualizado_en or r.creado_en
+            if ref is not None:
+                if ref.tzinfo is None:
+                    ref = ref.replace(tzinfo=timezone.utc)
+                stale = ref < (ahora - timedelta(seconds=180))
+            if not stale:
+                return ("en_curso", _compra_informe(r))
+        elif r.estado != ESTADO_PENDIENTE:
+            return ("estado", _compra_informe(r))
+
+        res = self.session.execute(
+            update(orm.CompraInforme)
+            .where(
+                orm.CompraInforme.id == r.id,
+                orm.CompraInforme.estado.in_(
+                    [ESTADO_PENDIENTE, ESTADO_CONFIRMANDO]
+                ),
+            )
+            .values(estado=ESTADO_CONFIRMANDO)
+        )
+        self.session.commit()
+        if not res.rowcount:
+            r2 = self.session.get(orm.CompraInforme, r.id)
+            if r2 and r2.estado == ESTADO_AUTORIZADO:
+                return ("ya_ok", _compra_informe(r2))
+            return ("en_curso", _compra_informe(r2) if r2 else None)
+        self.session.refresh(r)
+        return ("ok", _compra_informe(r))
+
+    def tiene_autorizada(
+        self, usuario_id: uuid.UUID, business_id: uuid.UUID
+    ) -> bool:
+        return self.ultima_autorizada(usuario_id, business_id) is not None
+
+    def ultima_autorizada(
+        self, usuario_id: uuid.UUID, business_id: uuid.UUID
+    ) -> CompraInforme | None:
+        from app.dominio.pago_informe import ESTADO_AUTORIZADO
+
+        stmt = (
+            select(orm.CompraInforme)
+            .where(
+                orm.CompraInforme.usuario_id == usuario_id,
+                orm.CompraInforme.business_id == business_id,
+                orm.CompraInforme.estado == ESTADO_AUTORIZADO,
+            )
+            .order_by(orm.CompraInforme.creado_en.desc())
+            .limit(1)
+        )
+        r = self.session.scalars(stmt).first()
+        return _compra_informe(r) if r else None
+
+    def pendiente_reutilizable(
+        self,
+        usuario_id: uuid.UUID,
+        business_id: uuid.UUID,
+        *,
+        max_edad_seg: int = 7200,
+    ) -> CompraInforme | None:
+        from datetime import datetime, timedelta, timezone
+
+        from app.dominio.pago_informe import ESTADO_PENDIENTE
+
+        limite = datetime.now(timezone.utc) - timedelta(seconds=max(60, max_edad_seg))
+        stmt = (
+            select(orm.CompraInforme)
+            .where(
+                orm.CompraInforme.usuario_id == usuario_id,
+                orm.CompraInforme.business_id == business_id,
+                orm.CompraInforme.estado == ESTADO_PENDIENTE,
+                orm.CompraInforme.token.is_not(None),
+                orm.CompraInforme.creado_en >= limite,
+            )
+            .order_by(orm.CompraInforme.creado_en.desc())
+            .limit(1)
+        )
+        r = self.session.scalars(stmt).first()
+        return _compra_informe(r) if r else None
+
+    def listar_pendientes_reconciliar(
+        self,
+        *,
+        min_edad_seg: int = 180,
+        max_edad_seg: int = 7200,
+        limite: int = 25,
+    ) -> list[CompraInforme]:
+        """Pendientes con token, demasiado viejos para el retorno del usuario
+        pero aún dentro de la ventana TBK."""
+        from datetime import datetime, timedelta, timezone
+
+        from app.dominio.pago_informe import ESTADO_PENDIENTE
+
+        ahora = datetime.now(timezone.utc)
+        max_creado = ahora - timedelta(seconds=max(30, min_edad_seg))
+        min_creado = ahora - timedelta(seconds=max(min_edad_seg + 1, max_edad_seg))
+        stmt = (
+            select(orm.CompraInforme)
+            .where(
+                orm.CompraInforme.estado == ESTADO_PENDIENTE,
+                orm.CompraInforme.token.is_not(None),
+                orm.CompraInforme.creado_en <= max_creado,
+                orm.CompraInforme.creado_en >= min_creado,
+            )
+            .order_by(orm.CompraInforme.creado_en.asc())
+            .limit(max(1, min(100, limite)))
+        )
+        return [_compra_informe(r) for r in self.session.scalars(stmt).all()]
+
+    def anular_pendientes_abiertos(
+        self,
+        usuario_id: uuid.UUID,
+        business_id: uuid.UUID,
+        *,
+        excepto_id: uuid.UUID | None = None,
+    ) -> int:
+        from sqlalchemy import update
+
+        from app.dominio.pago_informe import (
+            ESTADO_ANULADO,
+            ESTADO_CONFIRMANDO,
+            ESTADO_PENDIENTE,
+        )
+
+        cond = [
+            orm.CompraInforme.usuario_id == usuario_id,
+            orm.CompraInforme.business_id == business_id,
+            orm.CompraInforme.estado.in_([ESTADO_PENDIENTE, ESTADO_CONFIRMANDO]),
+        ]
+        if excepto_id is not None:
+            cond.append(orm.CompraInforme.id != excepto_id)
+        res = self.session.execute(
+            update(orm.CompraInforme)
+            .where(*cond)
+            .values(
+                estado=ESTADO_ANULADO,
+                error_codigo="pendiente_reemplazado",
+                error_detalle="Reemplazado por un nuevo intento de pago",
+            )
+        )
+        self.session.commit()
+        return int(res.rowcount or 0)
+
+    def resumen_mes(self, usuario_id: uuid.UUID, mes_clave: str) -> tuple[int, int]:
+        """mes_clave = 'YYYY-MM'. Cuenta y suma montos autorizados del mes."""
+        from sqlalchemy import extract, func
+
+        from app.dominio.pago_informe import ESTADO_AUTORIZADO
+
+        try:
+            anio, mes = [int(x) for x in mes_clave.split("-", 1)]
+        except (TypeError, ValueError):
+            return (0, 0)
+        stmt = select(
+            func.count(orm.CompraInforme.id),
+            func.coalesce(func.sum(orm.CompraInforme.monto), 0),
+        ).where(
+            orm.CompraInforme.usuario_id == usuario_id,
+            orm.CompraInforme.estado == ESTADO_AUTORIZADO,
+            extract("year", orm.CompraInforme.creado_en) == anio,
+            extract("month", orm.CompraInforme.creado_en) == mes,
+        )
+        row = self.session.execute(stmt).one()
+        return (int(row[0] or 0), int(row[1] or 0))
+
+
+def _compra_publicacion(r: orm.CompraPublicacion) -> CompraPublicacion:
+    return CompraPublicacion(
+        id=r.id,
+        usuario_id=r.usuario_id,
+        business_id=r.business_id,
+        buy_order=r.buy_order,
+        monto=int(r.monto),
+        estado=r.estado,
+        token=r.token,
+        response_code=r.response_code,
+        authorization_code=r.authorization_code,
+        payment_type_code=r.payment_type_code,
+        card_last4=r.card_last4,
+        error_codigo=r.error_codigo,
+        error_detalle=r.error_detalle,
+        creado_en=r.creado_en,
+        actualizado_en=r.actualizado_en,
+    )
+
+
+class RepositorioCompraPublicacion:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def crear(
+        self, usuario_id: uuid.UUID, buy_order: str, monto: int
+    ) -> CompraPublicacion:
+        r = orm.CompraPublicacion(
+            usuario_id=usuario_id,
+            business_id=None,
+            buy_order=buy_order[:26],
+            monto=int(monto),
+            estado="pendiente",
+        )
+        self.session.add(r)
+        self.session.commit()
+        self.session.refresh(r)
+        return _compra_publicacion(r)
+
+    def guardar(self, compra: CompraPublicacion) -> CompraPublicacion:
+        r = self.session.get(orm.CompraPublicacion, compra.id)
+        if r is None:
+            raise LookupError("compra_publicacion")
+        r.estado = compra.estado
+        r.business_id = compra.business_id
+        r.token = compra.token
+        r.response_code = compra.response_code
+        r.authorization_code = compra.authorization_code
+        r.payment_type_code = compra.payment_type_code
+        r.card_last4 = compra.card_last4
+        r.error_codigo = compra.error_codigo
+        r.error_detalle = (compra.error_detalle or None)
+        if r.error_detalle and len(r.error_detalle) > 2000:
+            r.error_detalle = r.error_detalle[:2000]
+        self.session.commit()
+        self.session.refresh(r)
+        return _compra_publicacion(r)
+
+    def obtener_por_token(self, token: str) -> CompraPublicacion | None:
+        stmt = select(orm.CompraPublicacion).where(
+            orm.CompraPublicacion.token == token
+        )
+        r = self.session.scalars(stmt).first()
+        return _compra_publicacion(r) if r else None
+
+    def obtener_por_buy_order(self, buy_order: str) -> CompraPublicacion | None:
+        stmt = select(orm.CompraPublicacion).where(
+            orm.CompraPublicacion.buy_order == buy_order
+        )
+        r = self.session.scalars(stmt).first()
+        return _compra_publicacion(r) if r else None
+
+    def cupon_libre(self, usuario_id: uuid.UUID) -> CompraPublicacion | None:
+        """Alias: cupón listo (autorizado o reservado) sin business."""
+        return self.cupon_listo_alta(usuario_id)
+
+    def cupon_listo_alta(self, usuario_id: uuid.UUID) -> CompraPublicacion | None:
+        """Cupón autorizado o reservado (sin business) listo para publicar."""
+        from app.dominio.pago_publicacion import ESTADO_AUTORIZADO, ESTADO_RESERVADO
+
+        stmt = (
+            select(orm.CompraPublicacion)
+            .where(
+                orm.CompraPublicacion.usuario_id == usuario_id,
+                orm.CompraPublicacion.estado.in_(
+                    [ESTADO_AUTORIZADO, ESTADO_RESERVADO]
+                ),
+                orm.CompraPublicacion.business_id.is_(None),
+            )
+            .order_by(orm.CompraPublicacion.creado_en.desc())
+            .limit(1)
+        )
+        r = self.session.scalars(stmt).first()
+        return _compra_publicacion(r) if r else None
+
+    def reservar_para_alta(
+        self,
+        usuario_id: uuid.UUID,
+        buy_order: str,
+        *,
+        commit: bool = True,
+    ) -> CompraPublicacion | None:
+        """Toma el cupón antes del alta (autorizado → reservado)."""
+        from sqlalchemy import update
+
+        from app.dominio.pago_publicacion import ESTADO_AUTORIZADO, ESTADO_RESERVADO
+
+        orden = (buy_order or "").strip()
+        res = self.session.execute(
+            update(orm.CompraPublicacion)
+            .where(
+                orm.CompraPublicacion.buy_order == orden,
+                orm.CompraPublicacion.usuario_id == usuario_id,
+                orm.CompraPublicacion.estado == ESTADO_AUTORIZADO,
+                orm.CompraPublicacion.business_id.is_(None),
+            )
+            .values(estado=ESTADO_RESERVADO)
+        )
+        if commit:
+            self.session.commit()
+        else:
+            self.session.flush()
+        if res.rowcount:
+            return self.obtener_por_buy_order(orden)
+        actual = self.obtener_por_buy_order(orden)
+        if (
+            actual is not None
+            and actual.usuario_id == usuario_id
+            and actual.estado == ESTADO_RESERVADO
+            and actual.business_id is None
+        ):
+            return actual
+        return None
+
+    def liberar_reserva(
+        self,
+        usuario_id: uuid.UUID,
+        buy_order: str,
+        *,
+        commit: bool = True,
+    ) -> CompraPublicacion | None:
+        """Devuelve cupón reservado a autorizado (alta falló o abortó)."""
+        from sqlalchemy import update
+
+        from app.dominio.pago_publicacion import ESTADO_AUTORIZADO, ESTADO_RESERVADO
+
+        orden = (buy_order or "").strip()
+        res = self.session.execute(
+            update(orm.CompraPublicacion)
+            .where(
+                orm.CompraPublicacion.buy_order == orden,
+                orm.CompraPublicacion.usuario_id == usuario_id,
+                orm.CompraPublicacion.estado == ESTADO_RESERVADO,
+                orm.CompraPublicacion.business_id.is_(None),
+            )
+            .values(estado=ESTADO_AUTORIZADO)
+        )
+        if commit:
+            self.session.commit()
+        else:
+            self.session.flush()
+        if res.rowcount:
+            return self.obtener_por_buy_order(orden)
+        return None
+
+    def liberar_reservas_stale(self, *, max_edad_seg: int = 180) -> int:
+        """Reservas viejas sin alta → otra vez autorizadas (default 3 min)."""
+        from datetime import datetime, timedelta, timezone
+
+        from sqlalchemy import update
+
+        from app.dominio.pago_publicacion import ESTADO_AUTORIZADO, ESTADO_RESERVADO
+
+        limite = datetime.now(timezone.utc) - timedelta(seconds=max(60, max_edad_seg))
+        res = self.session.execute(
+            update(orm.CompraPublicacion)
+            .where(
+                orm.CompraPublicacion.estado == ESTADO_RESERVADO,
+                orm.CompraPublicacion.business_id.is_(None),
+                orm.CompraPublicacion.actualizado_en < limite,
+            )
+            .values(
+                estado=ESTADO_AUTORIZADO,
+                error_codigo="reserva_expirada",
+                error_detalle="Reserva de alta expiró sin consumir",
+            )
+        )
+        self.session.commit()
+        return int(res.rowcount or 0)
+
+    def consumir_atomico(
+        self,
+        usuario_id: uuid.UUID,
+        buy_order: str,
+        business_id: uuid.UUID,
+        *,
+        commit: bool = True,
+    ) -> CompraPublicacion | None:
+        """Vincula cupón reservado/autorizado → consumido (UPDATE atómico).
+
+        Prefiere ``reservado`` (flujo reserva→alta). Acepta ``autorizado``
+        como fallback. ``consumido`` evita reciclaje tras DELETE SET NULL.
+        Con ``commit=False`` solo hace flush (alta+consumo en una transacción).
+        """
+        from sqlalchemy import update
+
+        from app.dominio.pago_publicacion import (
+            ESTADO_AUTORIZADO,
+            ESTADO_CONSUMIDO,
+            ESTADO_RESERVADO,
+        )
+
+        orden = (buy_order or "").strip()
+        res = self.session.execute(
+            update(orm.CompraPublicacion)
+            .where(
+                orm.CompraPublicacion.buy_order == orden,
+                orm.CompraPublicacion.usuario_id == usuario_id,
+                orm.CompraPublicacion.estado.in_(
+                    [ESTADO_RESERVADO, ESTADO_AUTORIZADO]
+                ),
+                orm.CompraPublicacion.business_id.is_(None),
+            )
+            .values(business_id=business_id, estado=ESTADO_CONSUMIDO)
+        )
+        if commit:
+            self.session.commit()
+        else:
+            self.session.flush()
+        if res.rowcount:
+            return self.obtener_por_buy_order(orden)
+        actual = self.obtener_por_buy_order(orden)
+        if (
+            actual is not None
+            and actual.usuario_id == usuario_id
+            and actual.business_id == business_id
+            and actual.estado == ESTADO_CONSUMIDO
+        ):
+            return actual
+        return None
+
+    def pendiente_reutilizable(
+        self, usuario_id: uuid.UUID, *, max_edad_seg: int = 7200
+    ) -> CompraPublicacion | None:
+        from datetime import datetime, timedelta, timezone
+
+        from app.dominio.pago_publicacion import ESTADO_PENDIENTE
+
+        limite = datetime.now(timezone.utc) - timedelta(seconds=max(60, max_edad_seg))
+        stmt = (
+            select(orm.CompraPublicacion)
+            .where(
+                orm.CompraPublicacion.usuario_id == usuario_id,
+                orm.CompraPublicacion.estado == ESTADO_PENDIENTE,
+                orm.CompraPublicacion.token.is_not(None),
+                orm.CompraPublicacion.business_id.is_(None),
+                orm.CompraPublicacion.creado_en >= limite,
+            )
+            .order_by(orm.CompraPublicacion.creado_en.desc())
+            .limit(1)
+        )
+        r = self.session.scalars(stmt).first()
+        return _compra_publicacion(r) if r else None
+
+    def anular_pendientes_abiertos(
+        self, usuario_id: uuid.UUID, *, excepto_id=None
+    ) -> int:
+        from sqlalchemy import update
+
+        from app.dominio.pago_publicacion import (
+            ESTADO_ANULADO,
+            ESTADO_CONFIRMANDO,
+            ESTADO_PENDIENTE,
+        )
+
+        cond = [
+            orm.CompraPublicacion.usuario_id == usuario_id,
+            orm.CompraPublicacion.business_id.is_(None),
+            orm.CompraPublicacion.estado.in_([ESTADO_PENDIENTE, ESTADO_CONFIRMANDO]),
+        ]
+        if excepto_id is not None:
+            cond.append(orm.CompraPublicacion.id != excepto_id)
+        res = self.session.execute(
+            update(orm.CompraPublicacion)
+            .where(*cond)
+            .values(
+                estado=ESTADO_ANULADO,
+                error_codigo="pendiente_reemplazado",
+                error_detalle="Reemplazado por un nuevo intento de pago",
+            )
+        )
+        self.session.commit()
+        return int(res.rowcount or 0)
+
+    def reclamar_para_confirmar(
+        self, token: str, usuario_id: uuid.UUID
+    ) -> tuple[str, CompraPublicacion | None]:
+        from datetime import datetime, timedelta, timezone
+
+        from sqlalchemy import update
+
+        from app.dominio.pago_publicacion import (
+            ESTADO_AUTORIZADO,
+            ESTADO_CONFIRMANDO,
+            ESTADO_PENDIENTE,
+        )
+
+        token = (token or "").strip()
+        stmt = select(orm.CompraPublicacion).where(
+            orm.CompraPublicacion.token == token
+        )
+        r = self.session.scalars(stmt).first()
+        if r is None:
+            return ("no", None)
+        if r.usuario_id != usuario_id:
+            return ("ajena", _compra_publicacion(r))
+        if r.estado == ESTADO_AUTORIZADO:
+            return ("ya_ok", _compra_publicacion(r))
+        ahora = datetime.now(timezone.utc)
+        stale = False
+        if r.estado == ESTADO_CONFIRMANDO:
+            ref = r.actualizado_en or r.creado_en
+            if ref is not None:
+                if ref.tzinfo is None:
+                    ref = ref.replace(tzinfo=timezone.utc)
+                stale = ref < (ahora - timedelta(seconds=180))
+            if not stale:
+                return ("en_curso", _compra_publicacion(r))
+        elif r.estado != ESTADO_PENDIENTE:
+            return ("estado", _compra_publicacion(r))
+
+        res = self.session.execute(
+            update(orm.CompraPublicacion)
+            .where(
+                orm.CompraPublicacion.id == r.id,
+                orm.CompraPublicacion.estado.in_(
+                    [ESTADO_PENDIENTE, ESTADO_CONFIRMANDO]
+                ),
+            )
+            .values(estado=ESTADO_CONFIRMANDO)
+        )
+        self.session.commit()
+        if not res.rowcount:
+            r2 = self.session.get(orm.CompraPublicacion, r.id)
+            if r2 and r2.estado == ESTADO_AUTORIZADO:
+                return ("ya_ok", _compra_publicacion(r2))
+            return ("en_curso", _compra_publicacion(r2) if r2 else None)
+        self.session.refresh(r)
+        return ("ok", _compra_publicacion(r))
+
+    def listar_pendientes_reconciliar(
+        self,
+        *,
+        min_edad_seg: int = 180,
+        max_edad_seg: int = 7200,
+        limite: int = 25,
+    ) -> list[CompraPublicacion]:
+        from datetime import datetime, timedelta, timezone
+
+        from app.dominio.pago_publicacion import ESTADO_PENDIENTE
+
+        ahora = datetime.now(timezone.utc)
+        max_creado = ahora - timedelta(seconds=max(30, min_edad_seg))
+        min_creado = ahora - timedelta(seconds=max(min_edad_seg + 1, max_edad_seg))
+        stmt = (
+            select(orm.CompraPublicacion)
+            .where(
+                orm.CompraPublicacion.estado == ESTADO_PENDIENTE,
+                orm.CompraPublicacion.token.is_not(None),
+                orm.CompraPublicacion.creado_en <= max_creado,
+                orm.CompraPublicacion.creado_en >= min_creado,
+            )
+            .order_by(orm.CompraPublicacion.creado_en.asc())
+            .limit(max(1, min(100, limite)))
+        )
+        return [_compra_publicacion(r) for r in self.session.scalars(stmt).all()]
