@@ -174,6 +174,8 @@ class NegocioActualizarEntrada(OfertaEntrada):
 class DocEmpresaFlagSalida(BaseModel):
     """Flags públicos de un documento (sin hashes ni glosas)."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     verificado: bool = False
     verificado_en: str | None = None
     vence_en: str | None = None

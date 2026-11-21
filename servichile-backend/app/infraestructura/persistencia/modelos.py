@@ -416,12 +416,15 @@ class HashDocumentoPades(Base):
 
 @lru_cache
 def obtener_motor() -> Engine:
-
+    cfg = obtener_configuracion()
+    pool = 5 if cfg.app_env == "test" else cfg.db_pool_size
+    overflow = 5 if cfg.app_env == "test" else cfg.db_pool_max_overflow
     return create_engine(
-        obtener_configuracion().database_url,
+        cfg.database_url,
         pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
+        pool_size=pool,
+        max_overflow=overflow,
+        pool_timeout=30,
     )
 
 

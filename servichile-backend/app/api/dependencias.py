@@ -15,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.configuracion import Configuracion, obtener_configuracion
+from app.infraestructura.cache_respuesta import CacheRespuesta
 
 from app.dominio.entidades import Usuario
 
@@ -103,6 +104,16 @@ ConfiguracionDep = Annotated[Configuracion, Depends(obtener_configuracion)]
 def obtener_limite_solicitudes() -> LimiteSolicitudes:
 
     return construir_limite_solicitudes(obtener_configuracion().redis_url)
+
+
+@lru_cache
+def obtener_cache_respuesta():
+    from app.infraestructura.cache_respuesta import construir_cache_respuesta
+
+    cfg = obtener_configuracion()
+    return construir_cache_respuesta(
+        cfg.redis_url, activo=cfg.app_env != "test"
+    )
 
 
 def obtener_servicio_progreso(session: SesionDep) -> ServicioProgresoCliente:
@@ -251,6 +262,7 @@ def obtener_enviador() -> EnviadorPlataforma:
         settings.smtp_usuario.strip(),
         settings.smtp_clave.get_secret_value(),
         settings.smtp_desde.strip(),
+        starttls=settings.smtp_starttls,
     )
 
 
@@ -277,6 +289,8 @@ def obtener_servicio_pago_informe(
     if "pago=retorno" not in retorno:
         sep = "&" if "?" in retorno else "?"
         retorno = f"{retorno}{sep}pago=retorno"
+    from app.dominio.pago_informe import PRECIO_INFORME_CLP
+
     return ServicioPagoInforme(
         RepositorioCompraInforme(session),
         RepositorioNegocio(session),
@@ -285,7 +299,7 @@ def obtener_servicio_pago_informe(
         return_url=retorno,
         reclamo_email=settings.pagos_reclamo_email,
         reclamo_whatsapp=settings.pagos_reclamo_whatsapp,
-        monto=settings.pagos_informe_monto,
+        monto=PRECIO_INFORME_CLP,
         origenes_permitidos=list(settings.cors_origins or []),
         print_secret=settings.secreto_print_token(),
         usuarios=RepositorioUsuario(session),
@@ -303,13 +317,15 @@ def obtener_servicio_pago_publicacion(
         retorno = f"{retorno}{sep}pago=retorno"
     if "producto=publicacion" not in retorno:
         retorno = f"{retorno}&producto=publicacion"
+    from app.dominio.pago_publicacion import PRECIO_PUBLICACION_CLP
+
     return ServicioPagoPublicacion(
         RepositorioCompraPublicacion(session),
         obtener_pasarela_webpay(),
         return_url=retorno,
         reclamo_email=settings.pagos_reclamo_email,
         reclamo_whatsapp=settings.pagos_reclamo_whatsapp,
-        monto=settings.pagos_publicacion_monto,
+        monto=PRECIO_PUBLICACION_CLP,
         origenes_permitidos=list(settings.cors_origins or []),
         usuarios=RepositorioUsuario(session),
         enviador=enviador,
@@ -423,6 +439,8 @@ UsuarioActualDep = Annotated[Usuario, Depends(obtener_usuario_actual)]
 UsuarioOpcionalDep = Annotated[Usuario | None, Depends(obtener_usuario_opcional)]
 
 LimiteSolicitudesDep = Annotated[LimiteSolicitudes, Depends(obtener_limite_solicitudes)]
+
+CacheRespuestaDep = Annotated[CacheRespuesta, Depends(obtener_cache_respuesta)]
 
 
 def demasiadas_solicitudes() -> HTTPException:

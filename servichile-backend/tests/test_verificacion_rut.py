@@ -39,6 +39,7 @@ def test_settings_rut_verifier_derivado():
         database_url="sqlite://",
         chilecompra_ticket="",
         google_places_api_key="",
+        redis_url="redis://localhost:6379/0",
     )
     assert Configuracion(**base, app_env="test").rut_verifier == "muestra"
     assert Configuracion(**base, app_env="local").rut_verifier == "estricto"

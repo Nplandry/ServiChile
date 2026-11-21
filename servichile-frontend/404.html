@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2563EB">
+  <title>Página no encontrada</title>
+  <style>
+    :root {
+      --color-primary: #2563EB;
+      --color-primary-dark: #1E40AF;
+      --color-secondary: #EFF6FF;
+      --color-text: #0F172A;
+      --color-muted: #64748B;
+      --color-border: #93C5FD;
+      --color-bg: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--color-text);
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, #DBEAFE 0%, transparent 55%),
+        var(--color-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .box {
+      width: min(28rem, 100%);
+      text-align: center;
+      padding: 2rem 1.5rem;
+      border: 1px solid var(--color-border);
+      border-radius: 1rem;
+      background: var(--color-bg);
+      box-shadow: 0 12px 40px rgba(37, 99, 235, 0.08);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+      text-decoration: none;
+      color: inherit;
+    }
+    .brand__mark {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.55rem;
+      background: var(--color-primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: 1.15rem;
+      display: grid;
+      place-items: center;
+    }
+    .brand__name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .code {
+      display: inline-block;
+      margin: 0 0 0.75rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      background: var(--color-secondary);
+      color: var(--color-primary-dark);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: clamp(1.35rem, 4vw, 1.75rem);
+      letter-spacing: -0.03em;
+    }
+    p {
+      margin: 0 0 1.5rem;
+      color: var(--color-muted);
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+    .acciones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      justify-content: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.6rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 0.55rem;
+      font-weight: 650;
+      font-size: 0.95rem;
+      text-decoration: none;
+      border: 2px solid transparent;
+    }
+    .btn--primary {
+      background: var(--color-primary);
+      color: #fff;
+    }
+    .btn--primary:hover,
+    .btn--primary:focus-visible {
+      background: var(--color-primary-dark);
+      outline: none;
+    }
+    .btn--ghost {
+      background: transparent;
+      color: var(--color-primary-dark);
+      border-color: var(--color-border);
+    }
+    .btn--ghost:hover,
+    .btn--ghost:focus-visible {
+      background: var(--color-secondary);
+      outline: none;
+    }
+    .ruta {
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      color: var(--color-muted);
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <main class="box" role="main">
+    <a class="brand" href="/index.html">
+      <span class="brand__mark" aria-hidden="true">S</span>
+      <span class="brand__name">ServiChile</span>
+    </a>
+    <p class="code">Error 404</p>
+    <h1>No encontramos esta página</h1>
+    <p>
+      La dirección no existe o se movió. Vuelva al inicio para explorar proveedores,
+      reportes o su perfil.
+    </p>
+    <div class="acciones">
+      <a class="btn btn--primary" href="/index.html">Ir al inicio</a>
+      <a class="btn btn--ghost" href="/onboarding/">Crear cuenta</a>
+    </div>
+    <p class="ruta" id="rutaPedida" hidden></p>
+  </main>
+  <script>
+    (function () {
+      var el = document.getElementById('rutaPedida');
+      if (!el) return;
+      var path = location.pathname || '';
+      if (!path || path === '/404.html') return;
+      el.hidden = false;
+      el.textContent = 'Ruta pedida: ' + path;
+    })();
+  </script>
+</body>
+</html>

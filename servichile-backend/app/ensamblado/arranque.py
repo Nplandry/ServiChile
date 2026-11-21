@@ -203,25 +203,21 @@ def verificar_entorno_produccion(config: Configuracion) -> None:
 
 
 def verificar_redis(config: Configuracion) -> None:
-    """En production hace ping a REDIS_URL (fail-fast si no responde)."""
-    if config.app_env != "production":
+    """Ping a REDIS_URL fuera de test (caché + rate limits)."""
+    if config.app_env == "test":
         return
     url = (config.redis_url or "").strip()
     if not url:
-        raise RuntimeError("REDIS_URL ausente en production.")
-    try:
-        import redis
-
-        client = redis.Redis.from_url(
-            url,
-            socket_connect_timeout=2,
-            socket_timeout=2,
+        raise RuntimeError(
+            "REDIS_URL ausente. Ejemplo local: redis://localhost:6379/0"
         )
-        if client.ping() is not True:
-            raise RuntimeError("Redis PING no devolvió True.")
+    try:
+        from app.infraestructura.redis_cliente import ping_redis
+
+        ping_redis(url)
     except RuntimeError:
         raise
     except Exception as exc:
         raise RuntimeError(
-            "No se pudo conectar a REDIS_URL en production: " + str(exc)
+            "No se pudo conectar a REDIS_URL: " + str(exc)
         ) from exc

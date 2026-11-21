@@ -160,6 +160,11 @@ const ReporteEmpresa = {
     lead.textContent =
       'Consulte su índice de transparencia, muestre su QR y valide el de otra parte. Puede imprimir o guardar el informe en PDF.';
 
+    const selector = ReporteEmpresa.renderSelectorEmpresas(
+      info.lista || [],
+      info.negocio || null
+    );
+
     const acciones = document.createElement('div');
     acciones.className = 'reporte__acciones no-print';
 
@@ -203,9 +208,47 @@ const ReporteEmpresa = {
         ? ReporteQr.renderModalValidador()
         : document.createComment('sin-modal-qr');
 
-    wrap.append(lead, acciones, doc, pieAcciones, modal);
+    wrap.append(lead);
+    if (selector) wrap.appendChild(selector);
+    wrap.append(acciones, doc, pieAcciones, modal);
     setTimeout(() => ReporteEmpresa.cargarQrInforme(), 0);
     return wrap;
+  },
+
+  renderSelectorEmpresas(lista, actual) {
+    if (!Array.isArray(lista) || lista.length < 2) return null;
+
+    const box = document.createElement('div');
+    box.className = 'reporte__selector no-print';
+    box.setAttribute('aria-label', 'Seleccionar empresa');
+
+    const label = document.createElement('label');
+    label.className = 'reporte__selector-label';
+    label.htmlFor = 'reporteEmpresaSelect';
+    label.textContent = 'Empresa';
+
+    const select = document.createElement('select');
+    select.id = 'reporteEmpresaSelect';
+    select.className = 'reporte__selector-select';
+    select.setAttribute('aria-label', 'Elija qué empresa ver en el reporte');
+
+    lista.forEach((n) => {
+      const opt = document.createElement('option');
+      opt.value = String(n.id);
+      opt.textContent = n.nombre || 'Empresa';
+      if (actual && String(actual.id) === String(n.id)) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    select.addEventListener('change', () => {
+      const id = select.value;
+      ReporteEmpresa.guardarSeleccionId(id);
+      select.disabled = true;
+      ReporteEmpresa.init({ businessId: id });
+    });
+
+    box.append(label, select);
+    return box;
   },
 
   renderAvisoSinFicha() {

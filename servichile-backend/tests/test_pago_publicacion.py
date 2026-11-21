@@ -47,9 +47,11 @@ def _pagar_cupon(client: TestClient, headers: dict) -> dict:
 
 
 def test_catalogo_pago_publicacion(client: TestClient):
+    from app.dominio.pago_publicacion import PRECIO_PUBLICACION_CLP
+
     r = client.get("/v1/pagos/publicacion/catalogo")
     assert r.status_code == 200, r.text
-    assert r.json()["monto"] == 8990
+    assert r.json()["monto"] == PRECIO_PUBLICACION_CLP
     assert r.json()["moneda"] == "CLP"
     assert r.json()["producto"] == "publicacion_empresa"
 
@@ -124,6 +126,7 @@ def test_doble_consumo_mismo_buy_order_da_402(
     buy_order = conf["buy_order"]
 
     monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     obtener_configuracion.cache_clear()
     try:
         a = client.post(
@@ -165,6 +168,7 @@ def test_borrar_ficha_no_recicla_cupon_con_set_null(
     buy_order = conf["buy_order"]
 
     monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     obtener_configuracion.cache_clear()
     try:
         alta = client.post(
@@ -280,6 +284,7 @@ def test_crear_empresa_exige_pago_fuera_de_test(
     from app.configuracion import obtener_configuracion
 
     monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     obtener_configuracion.cache_clear()
     try:
         h = {"Authorization": f"Bearer {token_empresa}"}
@@ -353,6 +358,7 @@ def test_reserva_en_misma_tx_rollback_deja_autorizado(
         assert otra.estado == ESTADO_AUTORIZADO
 
     monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     obtener_configuracion.cache_clear()
     try:
         alta = client.post(
@@ -428,6 +434,7 @@ def test_alta_atomica_no_deja_ficha_si_consumir_falla(
     buy_order = conf["buy_order"]
 
     monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     obtener_configuracion.cache_clear()
 
     real = ServicioPagoPublicacion.consumir_para_publicar
@@ -502,6 +509,7 @@ def test_alta_libera_reserva_si_rut_duplicado(
     buy_order = conf["buy_order"]
 
     monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     obtener_configuracion.cache_clear()
     try:
         # Reserva ocurre; crear falla por RUT en uso → libera cupón.
@@ -539,6 +547,7 @@ def test_alta_integrity_error_no_rut_da_409_alta_conflicto(
     buy_order = conf["buy_order"]
 
     monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     obtener_configuracion.cache_clear()
 
     real_crear = ServicioNegocio.crear

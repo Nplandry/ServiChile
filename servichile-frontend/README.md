@@ -41,11 +41,12 @@ Vistas internas:
 
 ```bash
 # API
-cd servichile-backend && source .venv/bin/activate && uvicorn app.main:app --reload
+cd servichile-backend && source .venv/bin/activate && uvicorn app.principal:app --reload
 
-# Frontend
-cd servichile-frontend && python3 -m http.server 5500
+# Frontend (incluye página 404 con diseño ServiChile)
+cd servichile-frontend && python3 serve.py 5500
 ```
 
 - App: http://localhost:5500/index.html  
 - API: http://localhost:8000/docs  
+- 404: cualquier ruta inexistente (p. ej. `/no-existe`) muestra `404.html`

@@ -32,16 +32,13 @@
     const h = document.createElement('h3');
     h.id = 'paywallModalTitulo';
     h.textContent = 'Antes de contactar a ' + n.nombre;
-    const lead = document.createElement('p');
-    lead.textContent =
-      '3 preguntas rápidas. Luego WhatsApp o correo. El informe de proveedor se compra aparte.';
     const cerrar = document.createElement('button');
     cerrar.type = 'button';
     cerrar.className = 'paywall-modal__cerrar';
     cerrar.setAttribute('aria-label', 'Cerrar');
     cerrar.textContent = '×';
     cerrar.addEventListener('click', MarketMonetizacion.cerrarModal);
-    head.append(h, lead, cerrar);
+    head.append(h, cerrar);
 
     const body = document.createElement('div');
     body.className = 'paywall-modal__body';

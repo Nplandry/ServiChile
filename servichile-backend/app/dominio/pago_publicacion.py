@@ -6,6 +6,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
+# Precio oficial del producto (única fuente de verdad; no hay override por env).
 PRECIO_PUBLICACION_CLP = 8990
 
 ESTADO_PENDIENTE = "pendiente"
