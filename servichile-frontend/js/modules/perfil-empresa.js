@@ -3,6 +3,7 @@ const PerfilEmpresa = {
   modo: null,
   editandoId: null,
   PREFIJO_TEL: '+56 9 ',
+  // Fallback UI; el precio oficial lo entrega el catálogo BE (dominio PRECIO_PUBLICACION_CLP).
   PRECIO_PUBLICACION: 8990,
   STORAGE_BORRADOR: 'servichile.publicacion.borrador',
   STORAGE_PAGO: 'servichile.publicacion.pago',

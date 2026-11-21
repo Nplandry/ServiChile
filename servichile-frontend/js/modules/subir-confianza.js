@@ -535,7 +535,7 @@ const SubirConfianza = {
         }
         return estado === 'ok'
           ? 'Certificado de antecedentes cargado.'
-          : 'Debe cargar el PDF textual oficial del Registro Civil (con firma electrónica avanzada, sin editar).';
+          : 'Debe cargar el certificado de antecedentes.';
       }
       case 'n3-biometria':
         return estado === 'ok'
@@ -550,7 +550,7 @@ const SubirConfianza = {
         }
         return estado === 'ok'
           ? 'Aval o garantía registrado.'
-          : 'Debe cargar un PDF textual de aval, boleta o póliza (sin fotos).';
+          : 'Debe cargar un aval, boleta o póliza.';
       }
       default:
         return SubirConfianza.etiquetaPunto(estado);
@@ -647,8 +647,7 @@ const SubirConfianza = {
     lista.forEach((n) => {
       const opt = document.createElement('option');
       opt.value = String(n.id);
-      opt.textContent =
-        (n.nombre || 'Empresa') + (n.rut_empresa ? ' · ' + n.rut_empresa : '');
+      opt.textContent = n.nombre || 'Empresa';
       if (actual && String(actual.id) === String(n.id)) opt.selected = true;
       select.appendChild(opt);
     });
@@ -665,14 +664,7 @@ const SubirConfianza = {
       if (raiz) SubirConfianza.render(raiz);
     });
 
-    const ayuda = document.createElement('p');
-    ayuda.className = 'reporte__selector-ayuda';
-    ayuda.textContent =
-      'Tiene ' +
-      lista.length +
-      ' empresas. Los documentos y el índice se aplican a la seleccionada.';
-
-    box.append(label, select, ayuda);
+    box.append(label, select);
     return box;
   },
 
@@ -993,15 +985,11 @@ const SubirConfianza = {
     dropTitulo.className = 'confianza-docs__drop-titulo';
     dropTitulo.textContent = 'Elegir archivo';
 
-    const dropHint = document.createElement('span');
-    dropHint.className = 'confianza-docs__drop-hint';
-    dropHint.textContent = 'PDF, JPG o PNG';
-
     const dropNombre = document.createElement('span');
     dropNombre.className = 'confianza-docs__drop-nombre';
     dropNombre.textContent = 'Ningún archivo seleccionado';
 
-    dropLabel.append(dropTitulo, dropHint, dropNombre);
+    dropLabel.append(dropTitulo, dropNombre);
     drop.append(input, dropLabel);
 
     const actualizarArchivo = () => {
@@ -1033,16 +1021,6 @@ const SubirConfianza = {
           : esDocEmpresa
             ? 'PDF del documento legal'
             : 'Elegir archivo';
-      const esPades =
-        select.value === 'antecedentes' ||
-        SubirConfianza.tiposDocEmpresaPades().includes(select.value);
-      dropHint.textContent = esCarnet
-        ? 'Solo el frente · JPG o PNG · sin reverso'
-        : esPades
-          ? 'PDF textual oficial · PAdES íntegro + CA Chile · sin editar'
-          : soloPdf
-            ? 'Solo PDF con texto real · sin fotos ni escaneos'
-            : 'PDF, JPG o PNG';
       if (esCarnet && input.files && input.files[0]) {
         const tipo = (input.files[0].type || '').toLowerCase();
         if (tipo && !tipo.startsWith('image/')) {
@@ -1163,8 +1141,7 @@ const SubirConfianza = {
         const mime = (archivo.type || '').toLowerCase();
         const esPdf = mime === 'application/pdf' || /\.pdf$/i.test(archivo.name || '');
         if (!esPdf) {
-          status.textContent =
-            'Del aval/garantía solo se acepta PDF con texto real (sin fotos ni escaneos).';
+          status.textContent = 'Del aval/garantía solo se acepta PDF.';
           return;
         }
         if (SubirConfianza.perfil().aval_verificado) {
@@ -1202,8 +1179,7 @@ const SubirConfianza = {
         const mime = (archivo.type || '').toLowerCase();
         const esPdf = mime === 'application/pdf' || /\.pdf$/i.test(archivo.name || '');
         if (!esPdf) {
-          status.textContent =
-            'Solo se acepta PDF con texto real (sin fotos ni escaneos).';
+          status.textContent = 'Solo se acepta PDF.';
           return;
         }
         const empresa = SubirConfianza.empresaActual();

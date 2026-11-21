@@ -29,9 +29,9 @@ from app.dominio.puertos import (
     EnviadorPlataforma,
     MensajeSaliente,
     PasarelaWebpay,
+    RepositorioComprasPublicacion,
     RepositorioUsuarios,
 )
-from app.infraestructura.persistencia.repositorios import RepositorioCompraPublicacion
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 class ServicioPagoPublicacion:
     def __init__(
         self,
-        compras: RepositorioCompraPublicacion,
+        compras: RepositorioComprasPublicacion,
         pasarela: PasarelaWebpay,
         *,
         return_url: str,

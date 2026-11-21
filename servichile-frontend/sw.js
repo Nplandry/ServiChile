@@ -1,4 +1,4 @@
-const CACHE_NAME = 'servichile-v191';
+const CACHE_NAME = 'servichile-v203';
 
 self.addEventListener('install', function () {
   self.skipWaiting();
@@ -21,7 +21,7 @@ self.addEventListener('activate', function (event) {
 });
 
 function guardar(request, response) {
-  if (!response || response.status !== 200) return response;
+  if (!response || response.status !== 203) return response;
   const copia = response.clone();
   caches.open(CACHE_NAME).then(function (cache) {
     cache.put(request, copia);

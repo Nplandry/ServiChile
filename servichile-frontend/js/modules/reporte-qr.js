@@ -186,11 +186,6 @@ const ReporteQr = {
     titulo.className = 'reporte-qr__lector-titulo';
     titulo.textContent = 'Validar QR del reporte';
 
-    const ayuda = document.createElement('p');
-    ayuda.className = 'reporte-qr__lector-ayuda';
-    ayuda.textContent =
-      'Apunte al QR del reporte, suba una foto o pegue el código firmado.';
-
     const btnCam = document.createElement('button');
     btnCam.type = 'button';
     btnCam.className = 'reporte-qr__cam-btn';
@@ -234,7 +229,7 @@ const ReporteQr = {
     hint.textContent = 'Centre el QR dentro del marco';
     videoWrap.append(video, mira, hint);
 
-    sec.append(titulo, ayuda, btnCam, videoWrap, acciones);
+    sec.append(titulo, btnCam, videoWrap, acciones);
 
     const form = document.createElement('form');
     form.className = 'reporte-qr__pegar';

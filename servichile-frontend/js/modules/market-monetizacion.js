@@ -5,6 +5,7 @@ const MarketMonetizacion = {
   STORAGE_PAGO_RETORNO: 'servichile.pago.informe.retorno',
   STORAGE_PRINT: 'servichile.pago.informe.print',
   _confirmandoPago: false,
+  // Fallback UI; el precio oficial lo entrega el catálogo BE (dominio PRECIO_INFORME_CLP).
   PRECIO_INFORME: 9990,
   PRECIO_PLAN: 89990,
   _catalogoCargado: false,
@@ -332,12 +333,7 @@ const MarketMonetizacion = {
       pagar.textContent = 'Pagar ' + demo.precioTxt;
       pagar.addEventListener('click', () => MarketMonetizacion.iniciarPagoDesdeCheckout());
 
-      const nota = document.createElement('p');
-      nota.className = 'checkout-sheet__nota';
-      nota.textContent =
-        'Lo llevaremos a Webpay para autorizar. Al volver, la compra se confirma aquí.';
-
-      resumen.append(item, incluye, metodo, pagar, nota);
+      resumen.append(item, incluye, metodo, pagar);
       body.appendChild(resumen);
       return;
     }

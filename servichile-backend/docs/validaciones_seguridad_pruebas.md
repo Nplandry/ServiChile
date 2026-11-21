@@ -55,8 +55,8 @@ Principio: **el servicio lanza error de negocio; el router decide el status code
 
 Implementación en `app/infraestructura/limite_solicitudes.py`, inyectada vía `dependencias.py`:
 
-1. Sin `REDIS_URL`: contador **en memoria** del proceso (adecuado solo a desarrollo / una instancia).
-2. Con `REDIS_URL`: límite compartido entre instancias.
+1. Con `REDIS_URL` (obligatorio fuera de `APP_ENV=test`): límite compartido entre instancias.
+2. En `APP_ENV=test` sin Redis: contador **en memoria** del proceso.
 
 Límites configurables en `.env` (`app/configuracion.py`):
 
@@ -182,7 +182,7 @@ Cobertura representativa en `tests/`:
 1. Solo cuenta **proveedor** puede iniciar/confirmar/acceder al cupón (`exige_cuenta_proveedor`).
 2. `POST /v1/businesses` exige `buy_order` listo (salvo pytest/`SERVICHILE_SKIP_PAGO_PUBLICACION=1`): **una TX** (reserva+ficha+consumo) → `commit`; `rollback` si falla (sin cupón “tomado” huérfano). `IntegrityError` → 409 `alta_conflicto`.
 3. Consumo atómico (`UPDATE`); borrar la ficha no reabre el cupón aunque `business_id` quede NULL.
-4. Monto desde `PAGOS_PUBLICACION_MONTO` (catálogo + mensajes 402).
+4. Monto desde dominio `PRECIO_PUBLICACION_CLP` (sin override por env; catálogo + mensajes 402).
 5. Correo «cupón listo» en `/confirmar` y en reconciliación TBK (requiere SMTP disponible).
 6. Production: migraciones `050`/`051` + check de arranque (`verificar_compras_publicacion`).
 

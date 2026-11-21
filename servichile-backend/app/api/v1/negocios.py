@@ -11,6 +11,7 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Response,
     UploadFile,
     status,
 )
@@ -38,7 +39,14 @@ from app.api.dependencias import (
     ServicioPagoInformeDep,
     ServicioPagoPublicacionDep,
     LimiteSolicitudesDep,
+    CacheRespuestaDep,
+    ConfiguracionDep,
     demasiadas_solicitudes,
+)
+from app.infraestructura.cache_respuesta import (
+    clave_mapa,
+    clave_reputacion,
+    invalidar_negocio,
 )
 from app.ensamblado.evaluador import encolar_evaluador
 
@@ -110,7 +118,10 @@ def _catalogo_query(valor: str | None, normalizar) -> str | None:
 
 @router.get("", response_model=list[NegocioEnMapaSalida])
 def listar(
+    response: Response,
     servicio: ServicioNegocioDep,
+    cache: CacheRespuestaDep,
+    settings: ConfiguracionDep,
     categoria: CategoriaQuery = None,
     q: BusquedaQuery = None,
     industria: Annotated[str | None, Query(max_length=40)] = None,
@@ -119,19 +130,45 @@ def listar(
     plazo: Annotated[str | None, Query(max_length=20)] = None,
     concretados: Annotated[str | None, Query(max_length=10)] = None,
 ):
-    return servicio.listar_para_mapa(
-        FiltroListado(
-            categoria=(categoria or "").strip() or None,
-            q=(q or "").strip() or None,
-            industria=_catalogo_query(industria, industrias_de),
-            contratacion=_catalogo_query(contratacion, contrataciones_de),
-            monto=_opcion_query(monto, monto_de),
-            plazo=_opcion_query(plazo, plazo_de),
-            concretados_min=concretados_minimo(
-                _opcion_query(concretados, concretados_de)
-            ),
-        )
+    filtro = FiltroListado(
+        categoria=(categoria or "").strip() or None,
+        q=(q or "").strip() or None,
+        industria=_catalogo_query(industria, industrias_de),
+        contratacion=_catalogo_query(contratacion, contrataciones_de),
+        monto=_opcion_query(monto, monto_de),
+        plazo=_opcion_query(plazo, plazo_de),
+        concretados_min=concretados_minimo(
+            _opcion_query(concretados, concretados_de)
+        ),
     )
+    clave = clave_mapa(
+        {
+            "categoria": filtro.categoria,
+            "q": filtro.q,
+            "industria": filtro.industria,
+            "contratacion": filtro.contratacion,
+            "monto": filtro.monto,
+            "plazo": filtro.plazo,
+            "concretados_min": filtro.concretados_min,
+        }
+    )
+    hit = cache.obtener_json(clave)
+    if hit is not None:
+        response.headers["X-Cache"] = "HIT"
+        response.headers["Cache-Control"] = (
+            f"public, max-age={max(5, settings.cache_ttl_mapa_seconds // 3)}"
+        )
+        return hit
+    filas = servicio.listar_para_mapa(filtro)
+    payload = [
+        NegocioEnMapaSalida.model_validate(f).model_dump(mode="json") for f in filas
+    ]
+    cache.guardar_json(clave, payload, settings.cache_ttl_mapa_seconds)
+    response.headers["X-Cache"] = "MISS"
+    response.headers["Cache-Control"] = (
+        f"public, max-age={max(5, settings.cache_ttl_mapa_seconds // 3)}"
+    )
+    return payload
 
 
 @router.get("/mias", response_model=list[NegocioTitularSalida])
@@ -147,6 +184,7 @@ def crear(
     servicio: ServicioNegocioDep,
     pagos_pub: ServicioPagoPublicacionDep,
     background_tasks: BackgroundTasks,
+    cache: CacheRespuestaDep,
 ):
     from app.configuracion import obtener_configuracion
     from app.dominio.errores import PublicacionSinPago
@@ -158,7 +196,9 @@ def crear(
     settings = obtener_configuracion()
     exige_pago = _exige_pago_publicacion(settings)
     buy_order = (datos.buy_order or "").strip() or None
-    precio_txt = formato_monto_clp(settings.pagos_publicacion_monto)
+    from app.dominio.pago_publicacion import PRECIO_PUBLICACION_CLP
+
+    precio_txt = formato_monto_clp(PRECIO_PUBLICACION_CLP)
     session = servicio.negocios.session
 
     def _kwargs_crear(*, commit: bool):
@@ -248,6 +288,7 @@ def crear(
         session.rollback()
         log.exception("Alta de empresa falló (buy_order=%s)", buy_order)
         raise
+    invalidar_negocio(cache, creado.id if creado else None)
     return encolar_evaluador(background_tasks, creado.id, servicio=servicio) or creado
 
 
@@ -265,6 +306,7 @@ async def verificar_doc_empresa(
     usuario: UsuarioActualDep,
     servicio: ServicioNegocioDep,
     limiter: LimiteSolicitudesDep,
+    cache: CacheRespuestaDep,
     archivo: Annotated[
         UploadFile,
         File(
@@ -316,6 +358,7 @@ async def verificar_doc_empresa(
     finally:
         del contenido
 
+    invalidar_negocio(cache, business_id)
     return to_doc_empresa_out(
         servicio.respuesta_doc_empresa(actualizado, tipo_norm, resultado)
     )
@@ -330,6 +373,7 @@ def revocar_doc_empresa(
     tipo: str,
     usuario: UsuarioActualDep,
     servicio: ServicioNegocioDep,
+    cache: CacheRespuestaDep,
 ):
     """Revoca un documento verificado (el titular debe revalidar subiendo otro PDF)."""
     exige_cuenta_proveedor(usuario)
@@ -356,6 +400,7 @@ def revocar_doc_empresa(
             "Solo el titular de la empresa puede revocar documentos legales.",
         ) from None
 
+    invalidar_negocio(cache, business_id)
     return to_doc_empresa_out(
         servicio.respuesta_doc_revocado(actualizado, tipo_norm)
     )
@@ -364,28 +409,59 @@ def revocar_doc_empresa(
 @router.get("/{business_id}/reputation", response_model=ReputacionSalida)
 def reputacion(
     business_id: uuid.UUID,
+    response: Response,
     servicio: ServicioNegocioDep,
     pagos: ServicioPagoInformeDep,
     usuario: UsuarioOpcionalDep,
+    cache: CacheRespuestaDep,
+    settings: ConfiguracionDep,
 ):
-    """Público: índice + teaser de 3 observables; desglose completo con compra/titular."""
+    """Público: teaser cacheable; compra/titular: desglose completo sin caché HTTP/Redis."""
     from app.dominio.transparencia.valoracion import teaser_observables_publico
+
+    # Respuesta varía por Authorization: nunca Cache-Control: public (CDN).
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Vary"] = "Authorization"
+
+    tiene_acceso = usuario is not None and pagos.tiene_acceso_informe(
+        usuario, business_id
+    )
+    if tiene_acceso:
+        try:
+            rep = servicio.obtener_reputacion(business_id)
+        except NegocioNoEncontrado:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
+        response.headers["X-Cache"] = "BYPASS"
+        out = ReputacionSalida.model_validate(rep)
+        return out.model_copy(update={"observables_restantes": 0})
+
+    clave = clave_reputacion(business_id)
+    hit = cache.obtener_json(clave)
+    if hit is not None:
+        response.headers["X-Cache"] = "HIT"
+        return ReputacionSalida.model_validate(hit)
 
     try:
         rep = servicio.obtener_reputacion(business_id)
     except NegocioNoEncontrado:
         raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
     out = ReputacionSalida.model_validate(rep)
-    if usuario is not None and pagos.tiene_acceso_informe(usuario, business_id):
-        return out.model_copy(update={"observables_restantes": 0})
-    teaser, restantes = teaser_observables_publico(rep.observables)
-    return out.model_copy(
+    teaser, restantes = teaser_observables_publico(out.observables)
+    publico = out.model_copy(
         update={
             "observables": teaser,
             "observables_restantes": restantes,
             "docs_empresa": None,
         }
     )
+    # Redis solo guarda la vista pública (sin docs ni desglose completo).
+    cache.guardar_json(
+        clave,
+        publico.model_dump(mode="json"),
+        settings.cache_ttl_reputacion_seconds,
+    )
+    response.headers["X-Cache"] = "MISS"
+    return publico
 
 
 REFRESCO_EVALUADOR_POR_MINUTO = 5
@@ -397,6 +473,7 @@ def refrescar_evaluador(
     usuario: UsuarioActualDep,
     servicio: ServicioNegocioDep,
     limiter: LimiteSolicitudesDep,
+    cache: CacheRespuestaDep,
 ):
     """Re-evalúa Places / rastreador_web / ChileCompra y persiste el índice."""
     exige_cuenta_proveedor(usuario)
@@ -405,7 +482,7 @@ def refrescar_evaluador(
     ):
         raise demasiadas_solicitudes()
     try:
-        return servicio.refrescar_indice_titular(business_id, usuario.id)
+        out = servicio.refrescar_indice_titular(business_id, usuario.id)
     except NegocioNoEncontrado:
         raise HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO) from None
     except NoEsTitularDelNegocio:
@@ -414,6 +491,8 @@ def refrescar_evaluador(
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, error.mensaje
         ) from None
+    invalidar_negocio(cache, business_id)
+    return out
 
 
 @router.patch("/{business_id}/rut", response_model=NegocioTitularSalida)
@@ -423,6 +502,7 @@ def actualizar_rut(
     usuario: UsuarioActualDep,
     servicio: ServicioNegocioDep,
     background_tasks: BackgroundTasks,
+    cache: CacheRespuestaDep,
 ):
     exige_cuenta_proveedor(usuario)
     try:
@@ -439,6 +519,7 @@ def actualizar_rut(
         raise HTTPException(status.HTTP_403_FORBIDDEN, NO_TITULAR) from None
     except RutEmpresaEnUso:
         raise HTTPException(status.HTTP_409_CONFLICT, RUT_EN_USO) from None
+    invalidar_negocio(cache, business_id)
     if pendiente:
         return encolar_evaluador(background_tasks, business_id, servicio=servicio) or titular
     return titular
@@ -451,6 +532,7 @@ def actualizar(
     usuario: UsuarioActualDep,
     servicio: ServicioNegocioDep,
     background_tasks: BackgroundTasks,
+    cache: CacheRespuestaDep,
 ):
     exige_cuenta_proveedor(usuario)
     try:
@@ -487,6 +569,7 @@ def actualizar(
         raise HTTPException(status.HTTP_403_FORBIDDEN, NO_TITULAR) from None
     except RutEmpresaEnUso:
         raise HTTPException(status.HTTP_409_CONFLICT, RUT_EN_USO) from None
+    invalidar_negocio(cache, business_id)
     if pendiente:
         return encolar_evaluador(background_tasks, business_id, servicio=servicio) or titular
     return titular
@@ -494,7 +577,10 @@ def actualizar(
 
 @router.delete("/{business_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar(
-    business_id: uuid.UUID, usuario: UsuarioActualDep, servicio: ServicioNegocioDep
+    business_id: uuid.UUID,
+    usuario: UsuarioActualDep,
+    servicio: ServicioNegocioDep,
+    cache: CacheRespuestaDep,
 ):
 
     try:
@@ -508,3 +594,5 @@ def eliminar(
     except NoEsTitularDelNegocio:
 
         raise HTTPException(status.HTTP_403_FORBIDDEN, NO_TITULAR_ELIMINAR) from None
+
+    invalidar_negocio(cache, business_id)

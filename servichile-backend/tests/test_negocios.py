@@ -89,15 +89,15 @@ def test_reputacion_publica_no_requiere_sesion(client: TestClient, session_facto
     cuerpo = r.json()
 
     assert cuerpo["business_id"] == str(bid)
-
-    assert cuerpo["indice_transparencia"] == 7.5
-    assert cuerpo["indice_pct"] == 75
+    # Público: teaser; el índice puede recalcularse al leer (persistir trabajos).
+    assert "indice_transparencia" in cuerpo
+    assert 0.0 <= float(cuerpo["indice_transparencia"]) <= 10.0
     assert cuerpo["docs_verificados"] == 0
     assert cuerpo["docs_total"] == len(TIPOS_DOC_EMPRESA)
-
     assert cuerpo["google_rating_avg"] == 4.2
-
     assert cuerpo["google_reviews_count"] == 150
+    assert len(cuerpo["observables"]) == 3
+    assert cuerpo["docs_empresa"] is None
 
 
 def test_reputacion_sin_sello_verificado(client: TestClient, session_factory):
@@ -137,14 +137,10 @@ def test_reputacion_docs_solo_flags_publicos(client: TestClient, session_factory
         s.commit()
         bid = negocio.id
 
-    cuerpo = client.get(f"/v1/businesses/{bid}/reputation").json()
-    meta = cuerpo["docs_empresa"]["patente"]
-    assert meta["verificado"] is True
-    assert meta["verificado_en"] == "2026-01-01T00:00:00+00:00"
-    assert "sha256_hash" not in meta
-    assert "glosa" not in meta
-    assert "score" not in meta
-    assert "senales" not in meta
+    # Público: docs ocultos (van en el informe / vista titular).
+    publico = client.get(f"/v1/businesses/{bid}/reputation").json()
+    assert publico["docs_empresa"] is None
+    assert len(publico["observables"]) == 3
 
 
 def test_reputacion_negocio_inexistente_da_404(client: TestClient):

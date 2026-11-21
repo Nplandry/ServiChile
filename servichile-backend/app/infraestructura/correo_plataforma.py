@@ -29,12 +29,22 @@ class EnviadorMemoria(EnviadorPlataforma):
 
 
 class EnviadorSmtp(EnviadorPlataforma):
-    def __init__(self, host: str, puerto: int, usuario: str, clave: str, desde: str) -> None:
+    def __init__(
+        self,
+        host: str,
+        puerto: int,
+        usuario: str,
+        clave: str,
+        desde: str,
+        *,
+        starttls: bool = True,
+    ) -> None:
         self.host = host
         self.puerto = puerto
         self.usuario = usuario
         self.clave = clave
         self.desde = desde
+        self.starttls = starttls
 
     def disponible(self) -> bool:
         return bool(self.host and self.desde)
@@ -47,10 +57,13 @@ class EnviadorSmtp(EnviadorPlataforma):
         correo.set_content(mensaje.cuerpo)
         try:
             with smtplib.SMTP(self.host, self.puerto, timeout=15) as smtp:
-                smtp.starttls()
+                if self.starttls:
+                    smtp.starttls()
                 if self.usuario:
                     smtp.login(self.usuario, self.clave)
                 smtp.send_message(correo)
         except (OSError, smtplib.SMTPException) as error:
             log.info("smtp rechazado: %s", type(error).__name__)
-            raise CorreoRechazado("No se pudo enviar el reporte al correo de la cuenta.") from error
+            raise CorreoRechazado(
+                "No se pudo enviar el reporte al correo de la cuenta."
+            ) from error

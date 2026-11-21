@@ -135,12 +135,12 @@ gcloud run deploy servichile-api \
 
 - La cuenta de servicio necesita los roles `roles/cloudsql.client` y `roles/secretmanager.secretAccessor`.
 - `JWT_SECRET` y `DATABASE_URL` se guardan en Secret Manager, nunca en variables de entorno en texto plano.
-- Con más de una instancia, configure `REDIS_URL` (Memorystore). El límite en memoria no se comparte entre instancias.
+- `REDIS_URL` es obligatorio (Memorystore en cloud). Caché, rate limits y estado de workers van por Redis.
 - `TRUST_PROXY=true` solo es seguro detrás de Cloud Run. Con `true` en un servidor expuesto directamente, cualquiera puede falsear su IP y evadir el límite por IP.
 
 ## Configuración
 
-El `.env` solo lleva secretos y claves. Defaults de producto (retención, rates, evaluador, paths) viven en `app/configuracion.py`.
+El `.env` lleva secretos, entorno e integraciones. Los **precios oficiales** viven solo en dominio (`PRECIO_INFORME_CLP`, `PRECIO_PUBLICACION_CLP`; sin override por env). Knobs de rater/biometría/JPEG tienen default en código (documentados comentados en `.env.example`).
 
 | Variable | Obligatoria | Notas |
 |----------|-------------|--------|
@@ -150,7 +150,8 @@ El `.env` solo lleva secretos y claves. Defaults de producto (retención, rates,
 | `CORS_ORIGINS` | sí en prod | coma-separados; en prod no puede ser solo localhost |
 | `CHILECOMPRA_TICKET` | no | vacío → simula solo ChileCompra; con ticket → API + RUT vía Mercado Público |
 | `GOOGLE_PLACES_API_KEY` | no | vacío → simula solo Places |
-| `REDIS_URL` / `TRUST_PROXY` | no | multi-instancia / detrás de proxy |
+| `REDIS_URL` | sí (salvo `test`) | `redis://localhost:6379/0` en local |
+| `TRUST_PROXY` | no | solo detrás de proxy confiable |
 
 Verificador RUT: **no** va en `.env`. Se deriva (`test`→muestra, con ticket→chilecompra, si no→estricto/cédula).
 

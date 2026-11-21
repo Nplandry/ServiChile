@@ -112,11 +112,11 @@ const IndiceDesglose = {
         cabecera.appendChild(item);
       });
 
-    const lead = document.createElement('p');
-    lead.className = 'indice-desglose__lead';
-    lead.textContent = esTeaser
-      ? 'Vista previa gratuita de 3 indicadores.'
-      : 'Un solo índice: señales públicas, trabajos concretados en ServiChile y documentos legales verificados.';
+    const lead = esTeaser ? document.createElement('p') : null;
+    if (lead) {
+      lead.className = 'indice-desglose__lead';
+      lead.textContent = 'Vista previa gratuita de 3 indicadores.';
+    }
 
     const filtros = document.createElement('div');
     filtros.className = 'indice-desglose__filtros';
@@ -218,7 +218,7 @@ const IndiceDesglose = {
       pintarFiltros();
     }
     pintarLista();
-    const nodos = [titulo, cabecera, lead, filtros, vacio, lista];
+    const nodos = [titulo, cabecera, lead, filtros, vacio, lista].filter(Boolean);
     if (esTeaser) {
       const lock = document.createElement('p');
       lock.className = 'indice-desglose__teaser-cta';

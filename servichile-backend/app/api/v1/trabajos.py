@@ -6,7 +6,9 @@ from app.api.dependencias import (
     UsuarioActualDep,
     ServicioReporteIdentidadDep,
     ServicioTrabajoDep,
+    CacheRespuestaDep,
 )
+from app.infraestructura.cache_respuesta import invalidar_negocio
 from app.api.esquemas import ConcretarEntrada, TrabajoEntrada, TrabajoSalida
 from app.dominio.errores import (
     NegocioNoEncontrado,
@@ -100,9 +102,10 @@ def registrar_concretado(
     datos: ConcretarEntrada,
     usuario: UsuarioActualDep,
     servicio: ServicioTrabajoDep,
+    cache: CacheRespuestaDep,
 ):
     try:
-        return servicio.registrar_concretado(business_id, usuario.id, datos.qr_token)
+        out = servicio.registrar_concretado(business_id, usuario.id, datos.qr_token)
     except (
         NegocioNoEncontrado,
         NoEsTitularDelNegocio,
@@ -110,6 +113,8 @@ def registrar_concretado(
         TrabajoYaCerrado,
     ) as exc:
         raise _http_titular_trabajo(exc) from None
+    invalidar_negocio(cache, business_id)
+    return out
 
 
 @titular_router.post(
@@ -120,9 +125,10 @@ def registrar_no_concretado(
     trabajo_id: uuid.UUID,
     usuario: UsuarioActualDep,
     servicio: ServicioTrabajoDep,
+    cache: CacheRespuestaDep,
 ):
     try:
-        return servicio.registrar_no_concretado(business_id, usuario.id, trabajo_id)
+        out = servicio.registrar_no_concretado(business_id, usuario.id, trabajo_id)
     except (
         NegocioNoEncontrado,
         NoEsTitularDelNegocio,
@@ -130,3 +136,5 @@ def registrar_no_concretado(
         TrabajoYaCerrado,
     ) as exc:
         raise _http_titular_trabajo(exc) from None
+    invalidar_negocio(cache, business_id)
+    return out

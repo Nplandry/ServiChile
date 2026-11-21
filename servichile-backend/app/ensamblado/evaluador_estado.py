@@ -7,6 +7,7 @@ multi-réplica (cada pod reporta la suya; Redis centraliza la última marca).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import socket
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ _LOCK = Lock()
 _PATH = Path("var/evaluador_estado.json")
 _REDIS_KEY = "servichile:evaluador_estado"
 _INSTANCIA = os.environ.get("HOSTNAME") or socket.gethostname() or "local"
+_log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,14 +34,14 @@ class EstadoEvaluador:
 def _redis_client():
     try:
         from app.configuracion import obtener_configuracion
+        from app.infraestructura.redis_cliente import cliente_redis
 
         url = (obtener_configuracion().redis_url or "").strip()
         if not url:
             return None
-        import redis
-
-        return redis.Redis.from_url(url, decode_responses=True, socket_timeout=0.5)
+        return cliente_redis(url)
     except Exception:
+        _log.warning("Cliente Redis de evaluador_estado no disponible", exc_info=True)
         return None
 
 
@@ -58,6 +60,7 @@ def _cargar_archivo() -> EstadoEvaluador:
             instancia=str(raw.get("instancia") or _INSTANCIA),
         )
     except Exception:
+        _log.warning("No se pudo leer %s", _PATH, exc_info=True)
         return EstadoEvaluador()
 
 
@@ -80,6 +83,7 @@ def _cargar_redis() -> EstadoEvaluador | None:
             instancia=str(data.get("instancia") or _INSTANCIA),
         )
     except Exception:
+        _log.warning("No se pudo leer estado del evaluador en Redis", exc_info=True)
         return None
 
 
@@ -101,14 +105,14 @@ def _persistir(estado: EstadoEvaluador) -> None:
         tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         tmp.replace(_PATH)
     except Exception:
-        pass
+        _log.warning("No se pudo persistir estado del evaluador en disco", exc_info=True)
     client = _redis_client()
     if client is None:
         return
     try:
         client.set(_REDIS_KEY, json.dumps(data, ensure_ascii=False), ex=86_400)
     except Exception:
-        pass
+        _log.warning("No se pudo persistir estado del evaluador en Redis", exc_info=True)
 
 
 _estado = _cargar_redis() or _cargar_archivo()

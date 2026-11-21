@@ -148,7 +148,7 @@ class InformeSinCompra(Exception):
 
 
 class PublicacionSinPago(Exception):
-    """Publicar ficha requiere cupón Webpay autorizado (PAGOS_PUBLICACION_MONTO)."""
+    """Publicar ficha requiere cupón Webpay autorizado (PRECIO_PUBLICACION_CLP)."""
 
     def __init__(
         self,

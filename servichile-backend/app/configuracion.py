@@ -15,12 +15,14 @@ from app.dominio.cedula import (
     CEDULA_MAX_LADO_DEFAULT,
     CEDULA_RETENCION_DIAS_DEFAULT,
 )
-
-
 class Configuracion(BaseSettings):
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        # REDIS_URL= vacío en el shell no debe tapar el valor del .env.
+        env_ignore_empty=True,
     )
 
     app_env: Literal["local", "test", "production"] = "local"
@@ -47,6 +49,17 @@ class Configuracion(BaseSettings):
     login_ip_rate_per_minute: int = 20
 
     trust_proxy: bool = False
+
+    # Bucles evaluador + reconciliación TBK. En réplicas extra: false.
+    run_background_jobs: bool = True
+
+    # Pool Postgres (lecturas concurrentes del marketplace).
+    db_pool_size: int = Field(default=20, ge=1, le=100)
+    db_pool_max_overflow: int = Field(default=40, ge=0, le=200)
+
+    # Caché de lecturas públicas (mapa / reputación). 0 = desactivar TTL (no guardar).
+    cache_ttl_mapa_seconds: int = Field(default=45, ge=0, le=3600)
+    cache_ttl_reputacion_seconds: int = Field(default=60, ge=0, le=3600)
 
     # Selfie biométrica: filesystem local (no nube) + metadata en Postgres.
     biometria_dir: str = "var/biometria"
@@ -100,6 +113,8 @@ class Configuracion(BaseSettings):
     smtp_usuario: str = ""
     smtp_clave: SecretStr = SecretStr("")
     smtp_desde: str = ""
+    # Mailhog / SMTP local sin TLS: false. Production: true (default).
+    smtp_starttls: bool = True
 
     # Webpay Plus. En local/test se permiten defaults de integración Transbank.
     # En production deben ser credenciales reales (fail-fast si no).
@@ -109,15 +124,14 @@ class Configuracion(BaseSettings):
         "579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C"
     )
     transbank_host: str = "https://webpay3gint.transbank.cl"
-    pagos_informe_monto: int = Field(default=9990, ge=50, le=10_000_000)
-    pagos_publicacion_monto: int = Field(default=8990, ge=50, le=10_000_000)
+    # Precios de producto: solo dominio (PRECIO_INFORME_CLP / PRECIO_PUBLICACION_CLP).
     pagos_reclamo_email: str = "pagos@servichile.cl"
     pagos_reclamo_whatsapp: str = "+56912345678"
     # Polling TBK de pendientes sin retorno del navegador. 0 = desactivado.
     # En APP_ENV=test no arranca. Min edad: no tocar órdenes aún en checkout.
     pagos_reconciliar_seconds: float = Field(default=120.0, ge=0.0, le=3600.0)
     pagos_reconciliar_min_edad_seg: int = Field(default=180, ge=60, le=7200)
-    # Sello de impresión del PDF. Vacío → usa jwt_secret (compat).
+    # Sello de impresión del PDF. Vacío fuera de production → derivado de JWT.
     print_token_secret: SecretStr | None = None
 
     def pades_ca_ruta(self) -> Path:
@@ -158,7 +172,11 @@ class Configuracion(BaseSettings):
             val = self.print_token_secret.get_secret_value().strip()
             if val:
                 return val
-        return self.jwt_secret.get_secret_value()
+        # Distinto del JWT crudo (local/test): no reutilizar la misma clave de sesión.
+        import hashlib
+
+        material = "servichile-print:" + self.jwt_secret.get_secret_value()
+        return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
     @staticmethod
     def _es_origen_local(valor: str) -> bool:
@@ -224,13 +242,14 @@ class Configuracion(BaseSettings):
 
     @model_validator(mode="after")
     def _exigir_redis_y_print_prod(self) -> Self:
+        # Redis: obligatorio en local y production (caché + límites). Tests sin Redis.
+        if self.app_env != "test" and not (self.redis_url or "").strip():
+            raise ValueError(
+                "Configure REDIS_URL (ej. redis://localhost:6379/0). "
+                "Solo APP_ENV=test puede omitirlo."
+            )
         if self.app_env != "production":
             return self
-        if not (self.redis_url or "").strip():
-            raise ValueError(
-                "En production debe configurar REDIS_URL para rate limits "
-                "compartidos entre réplicas."
-            )
         if self.print_token_secret is None or not self.print_token_secret.get_secret_value().strip():
             raise ValueError(
                 "En production debe configurar PRINT_TOKEN_SECRET "

@@ -2,11 +2,11 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import autenticacion, negocios, pagos, perfil, radar, reporte, trabajos
 
@@ -34,17 +34,27 @@ async def lifespan(_app: FastAPI):
     from contextlib import suppress
 
     stop = asyncio.Event()
-    tarea_eval = asyncio.create_task(
-        bucle_evaluador(stop), name="evaluador-segundo-plano"
-    )
-    tarea_pagos = asyncio.create_task(
-        bucle_reconciliar_pagos(stop), name="pagos-reconciliar-tbk"
-    )
+    tareas: list[asyncio.Task] = []
+    if settings.run_background_jobs:
+        tareas.append(
+            asyncio.create_task(
+                bucle_evaluador(stop), name="evaluador-segundo-plano"
+            )
+        )
+        tareas.append(
+            asyncio.create_task(
+                bucle_reconciliar_pagos(stop), name="pagos-reconciliar-tbk"
+            )
+        )
+    else:
+        logging.getLogger(__name__).info(
+            "Bucles de fondo desactivados (RUN_BACKGROUND_JOBS=false)."
+        )
     try:
         yield
     finally:
         stop.set()
-        for tarea in (tarea_eval, tarea_pagos):
+        for tarea in tareas:
             tarea.cancel()
             with suppress(asyncio.CancelledError):
                 await tarea
@@ -114,13 +124,71 @@ def json_version() -> dict[str, str]:
 
 @app.get("/salud", tags=["Sistema"])
 def salud() -> dict:
+    from sqlalchemy import text
+
     from app.ensamblado import evaluador_estado, pagos_estado
+    from app.infraestructura.persistencia.modelos import obtener_motor
 
     ev = evaluador_estado.snapshot()
     pg = pagos_estado.snapshot()
-    ok = bool(ev.get("ok", True)) and bool(pg.get("ok", True))
+    deps: dict[str, str] = {}
+
+    if settings.app_env == "test":
+        deps["redis"] = "omitido"
+        deps["postgres"] = "omitido"
+    else:
+        url = (settings.redis_url or "").strip()
+        try:
+            from app.infraestructura.redis_cliente import ping_redis
+
+            ping_redis(url)
+            deps["redis"] = "ok"
+        except Exception as exc:
+            deps["redis"] = "error:" + type(exc).__name__
+        try:
+            with obtener_motor().connect() as conn:
+                conn.execute(text("SELECT 1"))
+            deps["postgres"] = "ok"
+        except Exception as exc:
+            deps["postgres"] = "error:" + type(exc).__name__
+
+    ok = (
+        bool(ev.get("ok", True))
+        and bool(pg.get("ok", True))
+        and deps.get("redis") in ("ok", "omitido")
+        and deps.get("postgres") in ("ok", "omitido")
+    )
+    smtp_ok = bool(
+        (settings.smtp_host or "").strip() and (settings.smtp_desde or "").strip()
+    )
+    deps["smtp"] = "configurado" if smtp_ok else "omitido"
+
     return {
         "estado": "ok" if ok else "degradado",
+        "dependencias": deps,
         "evaluador": ev,
         "pagos_reconciliar": pg,
+        "background_jobs": bool(settings.run_background_jobs),
     }
+
+
+@app.exception_handler(StarletteHTTPException)
+async def manejador_http(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """404 de ruta inexistente con mensaje en español; el resto conserva su detail."""
+    detalle = exc.detail
+    if exc.status_code == 404 and detalle in (None, "Not Found"):
+        path = request.url.path
+        detalle = (
+            f"Ruta no encontrada: {path}. "
+            "Compruebe el path o use /docs para ver el contrato /v1."
+        )
+        if settings.app_env == "production":
+            detalle = (
+                f"Ruta no encontrada: {path}. "
+                "Compruebe el path o la documentación de la API."
+            )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": detalle},
+        headers=getattr(exc, "headers", None) or None,
+    )

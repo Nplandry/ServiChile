@@ -41,10 +41,43 @@ def _negocio(session_factory, nombre="Gearlabs"):
 
 
 def test_catalogo_pago_informe(client: TestClient):
+    from app.dominio.pago_informe import PRECIO_INFORME_CLP
+
     r = client.get("/v1/pagos/informe/catalogo")
     assert r.status_code == 200, r.text
-    assert r.json()["monto"] == 9990
+    assert r.json()["monto"] == PRECIO_INFORME_CLP
     assert r.json()["moneda"] == "CLP"
+
+
+def test_precios_solo_en_dominio_sin_override_env(monkeypatch):
+    """Precios viven en dominio; PAGOS_*_MONTO en env no aplica."""
+    from app.configuracion import Configuracion, obtener_configuracion
+    from app.dominio.pago_informe import PRECIO_INFORME_CLP
+    from app.dominio.pago_publicacion import PRECIO_PUBLICACION_CLP
+
+    assert "pagos_informe_monto" not in Configuracion.model_fields
+    assert "pagos_publicacion_monto" not in Configuracion.model_fields
+
+    monkeypatch.setenv("PAGOS_INFORME_MONTO", "12345")
+    monkeypatch.setenv("PAGOS_PUBLICACION_MONTO", "6789")
+    obtener_configuracion.cache_clear()
+    try:
+        # extra=ignore: env no cambia el cobro; catálogo usa dominio.
+        from fastapi.testclient import TestClient
+
+        from app.principal import app
+
+        with TestClient(app) as client:
+            inf = client.get("/v1/pagos/informe/catalogo")
+            pub = client.get("/v1/pagos/publicacion/catalogo")
+        assert inf.status_code == 200
+        assert pub.status_code == 200
+        assert inf.json()["monto"] == PRECIO_INFORME_CLP
+        assert pub.json()["monto"] == PRECIO_PUBLICACION_CLP
+    finally:
+        monkeypatch.delenv("PAGOS_INFORME_MONTO", raising=False)
+        monkeypatch.delenv("PAGOS_PUBLICACION_MONTO", raising=False)
+        obtener_configuracion.cache_clear()
 
 
 def test_pago_informe_iniciar_y_confirmar(client: TestClient, session_factory):
@@ -422,17 +455,30 @@ def test_redis_y_print_secret_obligatorios_en_production(monkeypatch):
     monkeypatch.setenv(
         "TRANSBANK_API_KEY", "prod-key-real-no-es-la-de-integracion-xx"
     )
-    monkeypatch.delenv("REDIS_URL", raising=False)
     from app.configuracion import Configuracion, obtener_configuracion
 
     obtener_configuracion.cache_clear()
     try:
-        raised = False
-        try:
-            Configuracion()
-        except Exception:
-            raised = True
-        assert raised
+        # Init gana a .env; redis vacío debe fallar (env_ignore_empty no aplica a kwargs).
+        with pytest.raises(Exception, match="REDIS_URL"):
+            Configuracion(redis_url=None)
+        monkeypatch.delenv("PRINT_TOKEN_SECRET", raising=False)
+        with pytest.raises(Exception, match="PRINT_TOKEN_SECRET"):
+            Configuracion(redis_url="redis://localhost:6379/0", print_token_secret=None)
+    finally:
+        monkeypatch.setenv("APP_ENV", "test")
+        obtener_configuracion.cache_clear()
+
+
+def test_redis_obligatorio_en_local(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-de-al-menos-32-caracteres-xx")
+    from app.configuracion import Configuracion, obtener_configuracion
+
+    obtener_configuracion.cache_clear()
+    try:
+        with pytest.raises(Exception, match="REDIS_URL"):
+            Configuracion(redis_url=None)
     finally:
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
@@ -444,6 +490,7 @@ def test_require_production_en_cloud(monkeypatch):
 
     monkeypatch.setenv("APP_ENV", "local")
     monkeypatch.setenv("JWT_SECRET", "test-secret-de-al-menos-32-caracteres-xx")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv(
         "DATABASE_URL",
         "postgresql+psycopg://servichile:x@localhost:5432/servichile",
@@ -461,6 +508,7 @@ def test_deploy_flag_y_db_remota(monkeypatch):
 
     monkeypatch.setenv("APP_ENV", "local")
     monkeypatch.setenv("JWT_SECRET", "test-secret-de-al-menos-32-caracteres-xx")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv(
         "DATABASE_URL",
         "postgresql+psycopg://servichile:x@localhost:5432/servichile",
@@ -483,20 +531,11 @@ def test_deploy_flag_y_db_remota(monkeypatch):
 def test_verificar_redis_falla_sin_ping(monkeypatch):
     from app.configuracion import Configuracion
     from app.ensamblado import arranque
+    from app.infraestructura.redis_cliente import cliente_redis
 
-    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("APP_ENV", "local")
     monkeypatch.setenv("JWT_SECRET", "test-secret-de-al-menos-32-caracteres-xx")
-    monkeypatch.setenv(
-        "PRINT_TOKEN_SECRET", "print-secret-prod-distinto-del-jwt-32c"
-    )
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
-    monkeypatch.setenv("PUBLIC_FRONTEND_URL", "https://app.servichile.cl/")
-    monkeypatch.setenv("CORS_ORIGINS", "https://app.servichile.cl")
-    monkeypatch.setenv("TRANSBANK_HOST", "https://webpay3g.transbank.cl")
-    monkeypatch.setenv("TRANSBANK_COMMERCE_CODE", "597012345678")
-    monkeypatch.setenv(
-        "TRANSBANK_API_KEY", "prod-key-real-no-es-la-de-integracion-xx"
-    )
     cfg = Configuracion()
 
     class _FailRedis:
@@ -515,9 +554,11 @@ def test_verificar_redis_falla_sin_ping(monkeypatch):
 
     import sys
 
+    cliente_redis.cache_clear()
     monkeypatch.setitem(sys.modules, "redis", _FakeRedisMod)
     with pytest.raises(RuntimeError, match="REDIS_URL"):
         arranque.verificar_redis(cfg)
+    cliente_redis.cache_clear()
 
 
 def test_permitir_pasarela_memoria_sin_flag_ni_pytest(monkeypatch):

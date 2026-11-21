@@ -53,10 +53,38 @@ def armar_servicio_negocio(
     )
 
 
+def _cache_lecturas():
+    from app.infraestructura.cache_respuesta import construir_cache_respuesta
+
+    cfg = obtener_configuracion()
+    return construir_cache_respuesta(cfg.redis_url, activo=cfg.app_env != "test")
+
+
+def _invalidar_cache_lecturas() -> None:
+    try:
+        from app.infraestructura.cache_respuesta import invalidar_lecturas_publicas
+
+        invalidar_lecturas_publicas(_cache_lecturas())
+    except Exception:
+        log.exception("No se pudo invalidar caché tras el evaluador.")
+
+
+def _invalidar_cache_negocio(negocio_id) -> None:
+    try:
+        from app.infraestructura.cache_respuesta import invalidar_negocio
+
+        invalidar_negocio(_cache_lecturas(), negocio_id)
+    except Exception:
+        log.exception("No se pudo invalidar caché del negocio %s.", negocio_id)
+
+
 def _refrescar_lote() -> int:
     SesionLocal = obtener_sessionmaker()
     with SesionLocal() as session:
-        return armar_servicio_negocio(session).refrescar_evaluador_todos()
+        n = armar_servicio_negocio(session).refrescar_evaluador_todos()
+    if n > 0:
+        _invalidar_cache_lecturas()
+    return n
 
 
 def refrescar_evaluador_negocio(negocio_id) -> None:
@@ -69,6 +97,7 @@ def refrescar_evaluador_negocio(negocio_id) -> None:
         try:
             # guardar() ya hace commit; no hace falta commit extra.
             armar_servicio_negocio(session).refrescar_evaluador(bid)
+            _invalidar_cache_negocio(bid)
         except Exception:
             session.rollback()
             log.exception("Evaluador diferido falló para negocio %s", bid)

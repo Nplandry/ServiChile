@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+**/.grimp_cache/
+**/.import_linter_cache/
+**/var/
+**/node_modules/
+**/.vercel
+servichile-backend/data/
+*.pdf
+!docs/**/*.pdf

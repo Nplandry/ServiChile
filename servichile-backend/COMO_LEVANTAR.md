@@ -20,6 +20,22 @@ docker run -d --name servichile-db -p 5432:5432 \
   postgres:16
 ```
 
+Redis (obligatorio en `local` / `production`; caché, rate limits, estado `/salud`):
+
+```bash
+docker run -d --name servichile-redis -p 6379:6379 redis:7-alpine
+```
+
+En `.env`: `REDIS_URL=redis://localhost:6379/0` (como en `.env.example`). El arranque hace ping; sin Redis no sube.
+
+Mailhog (correo local de comprobantes; UI en `:8025`):
+
+```bash
+docker run -d --name servichile-mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog
+```
+
+En `.env`: `SMTP_HOST=127.0.0.1`, `SMTP_PORT=1025`, `SMTP_DESDE=noreply@servichile.local`, `SMTP_STARTTLS=false`.
+
 ### Base nueva (schema completo + datos demo)
 
 ```bash
@@ -85,7 +101,8 @@ Use siempre **localhost** (no `127.0.0.1`): la PWA redirige a localhost para no 
 
 ```bash
 cd servichile-frontend
-python3 -m http.server 5500
+python3 serve.py 5500
+# (alternativa sin 404 propio: python3 -m http.server 5500)
 ```
 
 ```
@@ -108,16 +125,17 @@ python -m scripts.aplicar_migraciones_compras
 
 Si `047`/`048`/`051` fallan por privilegios: `GRANT REFERENCES ON usuarios, business_entities TO rol_app;` (o correr el `psql -f` como owner). Luego reinicie uvicorn.
 
-Pagos Webpay — informe `$9.990` (`SCI…`) y publicación de ficha `$8.990` (`SCP…`, `PAGOS_PUBLICACION_MONTO`).
+Pagos Webpay — informe `$9.990` (`SCI…`, `PRECIO_INFORME_CLP`) y publicación de ficha `$8.990` (`SCP…`, `PRECIO_PUBLICACION_CLP`). Sin override por env.
 `POST /v1/businesses` (salvo pytest con `APP_ENV=test` + `PYTEST_CURRENT_TEST`, o `SERVICHILE_SKIP_PAGO_PUBLICACION=1`) hace **una sola TX**: reserva + ficha + consumo → `commit`. Si falla, `rollback` (el pago vuelve a quedar usable). Reservas `reservado` huérfanas de deploys viejos se limpian a ~180 s. No se recicla al borrar la ficha.
 Un servidor con solo `APP_ENV=test` (sin pytest) **sí** exige pago.
 Migraciones `050` + `051` (tabla + FKs publicación; script arriba). Tras 051, confirme FKs en `pg_constraint` si hubo `NOTICE` por privilegios.
 Aviso de cupón listo: requiere SMTP (`SMTP_HOST`/`SMTP_DESDE`); sin buzón no hay correo (el FE/retorno sigue siendo la vía principal).
 
-`APP_ENV=production` exige:
+`APP_ENV=local` y `production` exigen `REDIS_URL` (ping al arrancar). Solo `APP_ENV=test` puede omitirlo.
+
+`APP_ENV=production` exige además:
 - Transbank real (no `webpay3gint` / commerce TEST)
 - `PUBLIC_FRONTEND_URL` + `CORS_ORIGINS` sin localhost
-- `REDIS_URL` (ping al arrancar)
 - `PRINT_TOKEN_SECRET` ≠ `JWT_SECRET` (≥32 chars)
 - Arranque verifica FKs/índices informe (046–049) y publicación (`uq_compras_publicacion_cupon_libre` + FKs 051)
 - Loop de reconciliación TBK (`PAGOS_RECONCILIAR_SECONDS`, default 120; min edad 180 s; `0` = off): commit + correo informe + aviso cupón publicación; estado en `GET /salud` → `pagos_reconciliar`
@@ -129,6 +147,14 @@ GET `/reputation` público oculta `observables`/`docs_empresa`; con Bearer y com
 Front: `SERVICHILE_API_BASE` / meta; `SERVICHILE_APP_VERSION`; JWT y pago en `sessionStorage`.
 
 Integración Postgres (opcional): `TEST_DATABASE_URL=...servichile_test... pytest tests/integration`.
+
+## Caché y Redis
+
+- `GET /v1/businesses` cachea en Redis (TTL 45 s). `reputation` cachea **solo el teaser público**; compra/titular hace bypass (`X-Cache: BYPASS`) y `Cache-Control: private, no-store`.
+- Se invalida al crear/editar/borrar ficha, docs, rater-refresh, trabajos concretados y al terminar un lote del evaluador en background.
+- Rate limits de login y estado de workers también van por Redis. `GET /salud` hace ping a Redis y `SELECT 1` a Postgres.
+- Varias réplicas uvicorn: deje los bucles en una sola (`RUN_BACKGROUND_JOBS=true`) y en el resto `RUN_BACKGROUND_JOBS=false`.
+- En `APP_ENV=test` la caché queda off y el rate limit usa memoria.
 
 ## Tests
 

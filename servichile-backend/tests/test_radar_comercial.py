@@ -67,6 +67,18 @@ def test_smtp_de_plataforma_avisa_al_correo_del_registro(
         s.commit()
         business_id = negocio.id
 
+    ini = client.post(
+        "/v1/pagos/informe",
+        json={"business_id": str(business_id)},
+        headers=headers,
+    ).json()
+    conf = client.post(
+        "/v1/pagos/informe/confirmar",
+        json={"token": ini["token"]},
+        headers=headers,
+    )
+    assert conf.status_code == 200, conf.text
+
     out = client.post(f"/v1/businesses/{business_id}/informe-riesgo", headers=headers)
     assert out.status_code == 200, out.text
     cuerpo = out.json()

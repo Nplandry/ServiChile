@@ -92,6 +92,7 @@ def _enviador():
         settings.smtp_usuario.strip(),
         settings.smtp_clave.get_secret_value(),
         settings.smtp_desde.strip(),
+        starttls=settings.smtp_starttls,
     )
 
 
@@ -111,6 +112,8 @@ def armar_servicio_pago(session: Session) -> ServicioPagoInforme:
             settings.jwt_secret.get_secret_value(), settings.reporte_expires_minutes
         ),
     )
+    from app.dominio.pago_informe import PRECIO_INFORME_CLP
+
     return ServicioPagoInforme(
         RepositorioCompraInforme(session),
         RepositorioNegocio(session),
@@ -119,7 +122,7 @@ def armar_servicio_pago(session: Session) -> ServicioPagoInforme:
         return_url=retorno,
         reclamo_email=settings.pagos_reclamo_email,
         reclamo_whatsapp=settings.pagos_reclamo_whatsapp,
-        monto=settings.pagos_informe_monto,
+        monto=PRECIO_INFORME_CLP,
         origenes_permitidos=list(settings.cors_origins or []),
         print_secret=settings.secreto_print_token(),
         usuarios=usuarios,
@@ -134,13 +137,15 @@ def armar_servicio_publicacion(session: Session) -> ServicioPagoPublicacion:
         retorno = f"{retorno}{sep}pago=retorno"
     if retorno and "producto=publicacion" not in retorno:
         retorno = f"{retorno}&producto=publicacion"
+    from app.dominio.pago_publicacion import PRECIO_PUBLICACION_CLP
+
     return ServicioPagoPublicacion(
         RepositorioCompraPublicacion(session),
         obtener_pasarela_webpay(),
         return_url=retorno,
         reclamo_email=settings.pagos_reclamo_email,
         reclamo_whatsapp=settings.pagos_reclamo_whatsapp,
-        monto=settings.pagos_publicacion_monto,
+        monto=PRECIO_PUBLICACION_CLP,
         origenes_permitidos=list(settings.cors_origins or []),
         usuarios=RepositorioUsuario(session),
         enviador=_enviador(),
