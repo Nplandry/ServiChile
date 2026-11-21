@@ -1,6 +1,4 @@
--- FKs de compras_publicacion (espejo 047 informe).
--- Si el rol no es owner de usuarios/business_entities, el ALTER fallará:
--- ejecutar como superuser o owner de esas tablas.
+
 
 DO $$
 BEGIN
@@ -38,7 +36,6 @@ EXCEPTION
     NULL;
 END $$;
 
--- Estado 'consumido' evita reciclar el cupón si business_id queda NULL al borrar la ficha.
 CREATE INDEX IF NOT EXISTS idx_compras_publicacion_cupon
   ON compras_publicacion (usuario_id, estado)
   WHERE business_id IS NULL;

@@ -1,4 +1,4 @@
-"""Precargas de arranque (fuera de servicios)."""
+
 
 from __future__ import annotations
 
@@ -25,7 +25,6 @@ _FKS_COMPRAS_PUBLICACION = (
     "compras_publicacion_business_id_fkey",
 )
 
-# Señales típicas de PaaS/cloud: no permitir APP_ENV≠production ahí.
 _CLOUD_MARKERS = (
     "K_SERVICE",
     "RENDER",
@@ -36,9 +35,8 @@ _CLOUD_MARKERS = (
     "KUBERNETES_SERVICE_HOST",
 )
 
-
 def precargar_pades_ca(config: Configuracion) -> None:
-    """Bóveda CA Chile en RAM al arrancar (sin red; sin descarga remota)."""
+
     try:
         obtener_contexto_validacion(str(config.pades_ca_ruta()))
     except Exception:
@@ -49,9 +47,8 @@ def precargar_pades_ca(config: Configuracion) -> None:
                 "No se pudo precargar ca_chile.pem; se intentará en la primera validación PAdES."
             )
 
-
 def verificar_fks_compras_informe(config: Configuracion) -> None:
-    """En production exige FKs (047–048) e índice único autorizada (049)."""
+
     if config.app_env != "production":
         return
     url = (config.database_url or "").lower()
@@ -97,9 +94,8 @@ def verificar_fks_compras_informe(config: Configuracion) -> None:
             "en production: " + str(exc)
         ) from exc
 
-
 def verificar_compras_publicacion(config: Configuracion) -> None:
-    """En production exige FKs (051) e índice único de cupón libre (050)."""
+
     if config.app_env != "production":
         return
     url = (config.database_url or "").lower()
@@ -156,20 +152,18 @@ def verificar_compras_publicacion(config: Configuracion) -> None:
             "en production: " + str(exc)
         ) from exc
 
-
 def _database_parece_remota(database_url: str) -> bool:
     u = (database_url or "").lower()
     if not u or "sqlite" in u:
         return False
-    # Hosts locales típicos de desarrollo.
+
     for local in ("localhost", "127.0.0.1", "::1", "@db:", "@postgres:"):
         if local in u:
             return False
-    return "@" in u  # user:pass@host → remoto si no matcheó local
-
+    return "@" in u
 
 def verificar_entorno_produccion(config: Configuracion) -> None:
-    """Evita deploy cloud/VPS/forzado con APP_ENV distinto de production."""
+
     if os.environ.get("SERVICHILE_ALLOW_MEMORIA_PASARELA") == "1" and config.app_env == "production":
         raise RuntimeError(
             "SERVICHILE_ALLOW_MEMORIA_PASARELA no está permitido con "
@@ -193,7 +187,7 @@ def verificar_entorno_produccion(config: Configuracion) -> None:
             + f") pero APP_ENV={config.app_env}. "
             "Configure APP_ENV=production."
         )
-    # VPS bare-metal: DATABASE_URL apunta a host remoto y no es production.
+
     if _database_parece_remota(config.database_url):
         raise RuntimeError(
             "DATABASE_URL parece remota pero APP_ENV="
@@ -201,9 +195,8 @@ def verificar_entorno_produccion(config: Configuracion) -> None:
             "SERVICHILE_DEPLOY=1 en el playbook de VPS."
         )
 
-
 def verificar_redis(config: Configuracion) -> None:
-    """Ping a REDIS_URL fuera de test (caché + rate limits)."""
+
     if config.app_env == "test":
         return
     url = (config.redis_url or "").strip()

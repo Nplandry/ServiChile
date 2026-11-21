@@ -1,4 +1,4 @@
-"""Inicio y confirmación del pago Webpay del informe Radar de riesgo."""
+
 
 from __future__ import annotations
 
@@ -34,7 +34,6 @@ from app.dominio.puertos import (
 from app.servicios.radar_comercial import ServicioRadarComercial
 
 _PRINT_TTL_SEG = 3600
-
 
 class ServicioPagoInforme:
     def __init__(
@@ -207,7 +206,7 @@ class ServicioPagoInforme:
     def reentregar(
         self, usuario: Usuario, business_id: uuid.UUID
     ) -> ConfirmacionPagoInforme:
-        """Reabre informe si ya hay compra autorizada."""
+
         if self.negocios.obtener(business_id) is None:
             raise NegocioNoEncontrado()
         compra = self.compras.ultima_autorizada(usuario.id, business_id)
@@ -218,7 +217,7 @@ class ServicioPagoInforme:
     def recuperar(
         self, usuario: Usuario, buy_order: str
     ) -> ConfirmacionPagoInforme:
-        """Si el usuario no volvió de Webpay: reintenta commit con el token guardado."""
+
         compra = self.compras.obtener_por_buy_order((buy_order or "").strip())
         if compra is None or compra.usuario_id != usuario.id:
             raise PagoInformeError(
@@ -249,23 +248,7 @@ class ServicioPagoInforme:
                 "Ya tiene el informe de este proveedor.",
                 codigo="ya_comprado",
             )
-        reutil = self.compras.pendiente_reutilizable(
-            usuario.id, business_id, max_edad_seg=7200
-        )
-        if reutil is not None and reutil.token:
-            # Misma orden TBK abierta: no crear otra fila ni otro token.
-            self.compras.anular_pendientes_abiertos(
-                usuario.id, business_id, excepto_id=reutil.id
-            )
-            url = self._url_formulario(reutil.token)
-            return InicioPagoInforme(
-                buy_order=reutil.buy_order,
-                token=reutil.token,
-                url=url,
-                monto=reutil.monto,
-                business_id=business_id,
-                reclamo=self.reclamo_para(reutil.buy_order),
-            )
+
         self.compras.anular_pendientes_abiertos(usuario.id, business_id)
         retorno = self._normalizar_retorno(return_url)
         buy_order = self._buy_order()
@@ -381,7 +364,7 @@ class ServicioPagoInforme:
             compra.error_codigo = "tbk_rechazado"
             compra.error_detalle = tx.detalle or f"response_code={tx.response_code}"
         elif reintentable and status in ("", "INITIALIZED", "PENDING"):
-            # Aún no pagó en TBK: dejar pendiente para retorno o otro ciclo.
+
             self._restaurar_pendiente(compra)
             raise PagoInformeError(
                 "Transacción Webpay aún no lista para commit.",
@@ -398,7 +381,7 @@ class ServicioPagoInforme:
         return compra
 
     def _entregar_tras_autorizar(self, compra) -> None:
-        """Correo + print_token vía _respuesta (worker o recuperación)."""
+
         if compra.estado != ESTADO_AUTORIZADO or self.usuarios is None:
             return
         usuario = self.usuarios.obtener(compra.usuario_id)
@@ -407,7 +390,7 @@ class ServicioPagoInforme:
         try:
             self._respuesta(compra, usuario, ya_ok=False)
         except Exception:
-            # Cobro ya autorizado; la entrega se reintenta en /recuperar o /acceso.
+
             pass
 
     def reconciliar_pendientes(
@@ -417,7 +400,7 @@ class ServicioPagoInforme:
         max_edad_seg: int = 7200,
         limite: int = 25,
     ) -> int:
-        """Commit TBK de pendientes cuyo usuario no volvió (polling asíncrono)."""
+
         pendientes = self.compras.listar_pendientes_reconciliar(
             min_edad_seg=min_edad_seg,
             max_edad_seg=max_edad_seg,

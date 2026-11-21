@@ -21,9 +21,7 @@ __all__ = [
     "NivelInsuficiente",
 ]
 
-
 class ServicioTrabajo:
-    """Encargos B2B: abrir trabajo, concretar con QR o marcar no concretado."""
 
     def __init__(
         self,

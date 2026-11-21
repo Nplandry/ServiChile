@@ -1,4 +1,4 @@
--- Selfie biométrica: metadata en Postgres; bytes en filesystem local.
+
 BEGIN;
 
 ALTER TABLE usuarios

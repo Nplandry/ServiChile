@@ -22,7 +22,7 @@ const Carga = {
     const v =
       (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
       (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
-      '173';
+      '219';
     return Carga.serie([
       'js/vendor/qrcode.min.js?v=' + v,
       'js/modules/reporte-persona.js?v=' + v,
@@ -38,8 +38,8 @@ const App = {
   state: { rutVerificado: false, perfilGuardado: null },
   elements: {},
 
-  init() {
-    // Un solo origen: evita perder JWT tras retorno Webpay (127.0.0.1 ≠ localhost).
+  async init() {
+
     try {
       if (
         window.location.hostname === '127.0.0.1' &&
@@ -51,18 +51,18 @@ const App = {
         return;
       }
     } catch (_) {
-      /* ignore */
+
     }
     Auth.init();
     App.cacheElements();
     App.bindAuthEvents();
-    // Guardar token_ws antes del gate de login (Webpay puede volver sin sesión).
+
     if (
       typeof MarketMonetizacion !== 'undefined' &&
       MarketMonetizacion.capturarRetornoDesdeUrl
     ) {
       MarketMonetizacion.capturarRetornoDesdeUrl();
-      // Precarga perfil-empresa si el retorno es de publicación (evita colgar el lazy load).
+
       if (
         MarketMonetizacion.esRetornoPublicacion &&
         MarketMonetizacion.esRetornoPublicacion()
@@ -70,7 +70,7 @@ const App = {
         const v =
           (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
           (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
-          '173';
+          '219';
         Carga.script('js/modules/perfil-empresa.js?v=' + v).catch(function () {});
       }
       if (
@@ -84,23 +84,27 @@ const App = {
         const retorno = MarketMonetizacion.leerRetornoPago
           ? MarketMonetizacion.leerRetornoPago() || {}
           : {};
-        const orden = pendiente.buy_order || retorno.tbk_orden || '—';
+        const orden = pendiente.buy_order || retorno.tbk_orden || '';
         const esPub =
           pendiente.producto === 'publicacion' ||
           retorno.producto === 'publicacion';
         if (App.elements.loginStatus) {
+          App.elements.loginStatus.classList.remove('is-error');
           App.elements.loginStatus.textContent =
             'Pago recibido' +
-            (orden && orden !== '—' ? ' (orden ' + orden + ')' : '') +
+            (orden ? ' (orden ' + orden + ')' : '') +
             (esPub
               ? '. Inicie sesión para publicar la ficha.'
               : '. Inicie sesión para entregar el informe.');
         }
       }
     }
+
+    if (Auth.isAuthenticated()) {
+      await Auth.verificarSesion();
+    }
     App.applyAuthState();
     if (typeof Compliance !== 'undefined') Compliance.initCookieBanner();
-    App.verifySession();
   },
 
   async verifySession() {
@@ -159,7 +163,7 @@ const App = {
     const v =
       (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
       (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
-      '173';
+      '219';
     if (name === 'mapa') { App.showView('mapView'); return Market.init(); }
     if (name === 'perfil') {
       await Carga.script('js/modules/perfil-empresa.js?v=' + v);
@@ -544,10 +548,10 @@ const App = {
 
   applyAuthState() {
     const authed = Auth.isAuthenticated();
+    document.documentElement.classList.toggle('boot-authed', authed);
     App.elements.authGate.hidden = authed;
     App.elements.appHeader.hidden = !authed;
     App.elements.appMain.hidden = !authed;
-    if (App.elements.appFooter) App.elements.appFooter.hidden = !authed;
     App.elements.logoutBtn.hidden = !authed;
     App.elements.historyBtn.hidden = !authed;
 
@@ -584,10 +588,12 @@ const App = {
     const res = await Auth.login(fd.get('email'), fd.get('password'));
     if (submit) submit.disabled = false;
     if (!res.ok) {
+      App.elements.loginStatus.classList.add('is-error');
       App.elements.loginStatus.textContent = res.error;
       return;
     }
     App.elements.loginForm.reset();
+    App.elements.loginStatus.classList.remove('is-error');
     App.elements.loginStatus.textContent = '';
     App.applyAuthState();
     if (

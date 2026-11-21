@@ -1,14 +1,13 @@
-"""Cliente Redis compartido (caché, rate limit, estado de workers)."""
+
 
 from __future__ import annotations
 
 from functools import lru_cache
 from typing import Any
 
-
 @lru_cache
 def cliente_redis(url: str) -> Any:
-    """Una conexión/pool por URL de proceso."""
+
     import redis
 
     limpia = (url or "").strip()
@@ -22,7 +21,6 @@ def cliente_redis(url: str) -> Any:
         health_check_interval=30,
         retry_on_timeout=True,
     )
-
 
 def ping_redis(url: str) -> None:
     client = cliente_redis(url.strip())

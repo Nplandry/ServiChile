@@ -170,7 +170,7 @@ const ReportePersona = {
     const metricas = document.createElement('div');
     metricas.className = 'reporte-doc__metricas';
     [
-      ['Nivel alcanzado', 'Nivel ' + nivelXp + ' · ' + nombreNivel],
+      ['Nivel alcanzado', 'Nivel ' + nivelXp + ' ' + nombreNivel],
       ['Requisitos cumplidos', hechas + ' de ' + total + ' (' + pct + '%)'],
       ['Experiencia (XP)', String(perfil.xp != null ? perfil.xp : 0)],
       ['Confiabilidad', scoreTxt],
@@ -191,7 +191,7 @@ const ReportePersona = {
             ? 'Sí'
             : perfil.antecedentes_anotaciones === false
               ? 'No'
-              : '—'
+              : '-'
       ],
       [
         'Estado de verificación',
@@ -244,8 +244,8 @@ const ReportePersona = {
       const estado = document.createElement('p');
       estado.className = 'reporte-doc__nivel-estado';
       estado.textContent = completo
-        ? 'Nivel aprobado · ' + done + '/' + nivel.tareas.length + ' requisitos'
-        : 'En progreso · ' + done + '/' + nivel.tareas.length + ' requisitos';
+        ? 'Nivel aprobado ' + done + '/' + nivel.tareas.length + ' requisitos'
+        : 'En progreso ' + done + '/' + nivel.tareas.length + ' requisitos';
       info.append(titulo, estado);
       head.append(badge, info);
 
@@ -285,7 +285,7 @@ const ReportePersona = {
     ref.textContent =
       'Referencia: ' +
       ReportePersona.refId(user) +
-      ' · ' +
+      ' ' +
       ReportePersona.hoy();
     pie.append(aviso, ref);
 
@@ -330,6 +330,12 @@ const ReportePersona = {
   },
 
   imprimir() {
+    const doc = document.getElementById('reporteDocumento');
+    if (!doc) return;
+    if (typeof ReporteEmpresa !== 'undefined' && ReporteEmpresa.imprimirDocumento) {
+      ReporteEmpresa.imprimirDocumento(doc);
+      return;
+    }
     document.body.classList.add('reporte-print');
     const limpiar = () => {
       document.body.classList.remove('reporte-print');
@@ -337,7 +343,6 @@ const ReportePersona = {
     };
     window.addEventListener('afterprint', limpiar);
     window.print();
-
     setTimeout(limpiar, 1500);
   },
 

@@ -29,7 +29,6 @@ NO_TITULAR = "Solo el titular verificado del negocio puede registrar trabajos."
 TRABAJO_NO_ENCONTRADO = "Trabajo no encontrado en este negocio."
 TRABAJO_CERRADO = "El trabajo ya está cerrado (concretado, no concretado o cancelado)."
 
-
 def _http_titular_trabajo(exc: Exception) -> HTTPException:
     if isinstance(exc, NegocioNoEncontrado):
         return HTTPException(status.HTTP_404_NOT_FOUND, NO_ENCONTRADO)
@@ -40,7 +39,6 @@ def _http_titular_trabajo(exc: Exception) -> HTTPException:
     if isinstance(exc, TrabajoYaCerrado):
         return HTTPException(status.HTTP_409_CONFLICT, TRABAJO_CERRADO)
     raise exc
-
 
 @router.post("", response_model=TrabajoSalida, status_code=status.HTTP_201_CREATED)
 def crear_trabajo(
@@ -62,11 +60,9 @@ def crear_trabajo(
             f"Este proveedor pide nivel {e.requiere}. Suba su nivel de confianza para continuar.",
         ) from None
 
-
 @router.get("", response_model=list[TrabajoSalida])
 def listar_trabajos(usuario: UsuarioActualDep, servicio: ServicioTrabajoDep):
     return servicio.listar(usuario.id)
-
 
 @router.delete("/{trabajo_id}", response_model=TrabajoSalida)
 def cancelar_trabajo(
@@ -83,7 +79,6 @@ def cancelar_trabajo(
             status.HTTP_409_CONFLICT, "El trabajo ya no está abierto."
         ) from None
 
-
 @titular_router.get("/{business_id}/trabajos", response_model=list[TrabajoSalida])
 def listar_trabajos_negocio(
     business_id: uuid.UUID,
@@ -94,7 +89,6 @@ def listar_trabajos_negocio(
         return servicio.listar_del_negocio(business_id, usuario.id)
     except (NegocioNoEncontrado, NoEsTitularDelNegocio) as exc:
         raise _http_titular_trabajo(exc) from None
-
 
 @titular_router.post("/{business_id}/trabajos/concretar", response_model=TrabajoSalida)
 def registrar_concretado(
@@ -115,7 +109,6 @@ def registrar_concretado(
         raise _http_titular_trabajo(exc) from None
     invalidar_negocio(cache, business_id)
     return out
-
 
 @titular_router.post(
     "/{business_id}/trabajos/{trabajo_id}/no-concretado", response_model=TrabajoSalida

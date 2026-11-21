@@ -3,7 +3,7 @@ const PerfilEmpresa = {
   modo: null,
   editandoId: null,
   PREFIJO_TEL: '+56 9 ',
-  // Fallback UI; el precio oficial lo entrega el catálogo BE (dominio PRECIO_PUBLICACION_CLP).
+
   PRECIO_PUBLICACION: 8990,
   STORAGE_BORRADOR: 'servichile.publicacion.borrador',
   STORAGE_PAGO: 'servichile.publicacion.pago',
@@ -38,7 +38,7 @@ const PerfilEmpresa = {
         JSON.stringify(datos || {})
       );
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -55,7 +55,7 @@ const PerfilEmpresa = {
     try {
       sessionStorage.removeItem(PerfilEmpresa.STORAGE_BORRADOR);
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -75,7 +75,7 @@ const PerfilEmpresa = {
         });
       }
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -84,7 +84,7 @@ const PerfilEmpresa = {
       const raw = sessionStorage.getItem(PerfilEmpresa.STORAGE_PAGO);
       if (raw) return JSON.parse(raw);
     } catch (_) {
-      /* ignore */
+
     }
     if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.leerPagoPendiente) {
       const p = MarketMonetizacion.leerPagoPendiente() || {};
@@ -97,7 +97,7 @@ const PerfilEmpresa = {
     try {
       sessionStorage.removeItem(PerfilEmpresa.STORAGE_PAGO);
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -139,14 +139,14 @@ const PerfilEmpresa = {
         PerfilEmpresa._aplicarTextosPrecio();
       }
     } catch (_) {
-      /* ignore */
+
     }
   },
 
   _aplicarTextosPrecio() {
     const txt = PerfilEmpresa.precioPublicacionTxt();
     const btn = document.getElementById('peBtnPublicarPagar');
-    if (btn) btn.textContent = 'Pagar y publicar · ' + txt;
+    if (btn) btn.textContent = 'Pagar y publicar ' + txt;
     const enviar = document.getElementById('peBtnEnviarPublicar');
     if (enviar && PerfilEmpresa.modo === 'crear') {
       enviar.textContent = 'Pagar ' + txt + ' y publicar';
@@ -177,7 +177,7 @@ const PerfilEmpresa = {
     const lead = document.createElement('p');
     lead.className = 'section-lead';
     lead.textContent =
-      'Cree su ficha para aparecer ante compradores B2B que hacen due diligence.';
+      'Cree su ficha para aparecer ante compradores B2B que buscan proveedores verificables.';
 
     const valor = document.createElement('div');
     valor.className = 'perfil-empresa__valor';
@@ -197,8 +197,6 @@ const PerfilEmpresa = {
       li.textContent = t;
       valorLista.appendChild(li);
     });
-    valor.append(valorTitulo, valorLista);
-
     const acciones = document.createElement('div');
     acciones.className = 'perfil-empresa__acciones';
 
@@ -207,10 +205,11 @@ const PerfilEmpresa = {
     btnCrear.className = 'submit-btn';
     btnCrear.id = 'peBtnPublicarPagar';
     btnCrear.textContent =
-      'Pagar y publicar · ' + PerfilEmpresa.precioPublicacionTxt();
+      'Pagar y publicar ' + PerfilEmpresa.precioPublicacionTxt();
     btnCrear.addEventListener('click', () => PerfilEmpresa.mostrarModo('crear'));
 
     acciones.appendChild(btnCrear);
+    valor.append(valorTitulo, valorLista, acciones);
 
     const panel = document.createElement('div');
     panel.id = 'perfilEmpresaPanel';
@@ -243,7 +242,7 @@ const PerfilEmpresa = {
     status.className = 'status-text';
     status.setAttribute('role', 'status');
 
-    wrap.append(titulo, lead, valor, acciones, panel, miasTitulo, mias, status);
+    wrap.append(titulo, lead, valor, panel, miasTitulo, mias, status);
     return wrap;
   },
 
@@ -1049,7 +1048,7 @@ const PerfilEmpresa = {
     lab.textContent = label;
     const select = document.createElement('select');
     select.id = id;
-    select.className = 'field__input';
+    select.className = 'ui-select';
     const vacio = document.createElement('option');
     vacio.value = '';
     vacio.textContent = 'Sin indicar';
@@ -1118,7 +1117,7 @@ const PerfilEmpresa = {
     lab.textContent = 'Tipo de proveedor';
     const select = document.createElement('select');
     select.id = id;
-    select.className = 'field__input';
+    select.className = 'ui-select';
     select.required = true;
     PerfilEmpresa.categorias().forEach((c) => {
       const opt = document.createElement('option');
@@ -1168,7 +1167,7 @@ const PerfilEmpresa = {
     }
     const rutTxt = (n.rut_empresa || '').trim();
     partes.push(rutTxt ? 'RUT ' + rutTxt : 'Sin RUT');
-    return partes.filter(Boolean).join(' · ');
+    return partes.filter(Boolean).join(' ');
   },
 
   pintarListaMias(host, lista) {
@@ -1199,7 +1198,7 @@ const PerfilEmpresa = {
       const actualizar = document.createElement('button');
       actualizar.type = 'button';
       actualizar.className = 'perfil-empresa__btn perfil-empresa__btn--editar';
-      actualizar.textContent = 'Actualizar datos';
+      actualizar.textContent = 'Editar ficha';
       actualizar.addEventListener('click', () => PerfilEmpresa.mostrarModo('editar', n));
       const quitar = document.createElement('button');
       quitar.type = 'button';
@@ -1207,7 +1206,10 @@ const PerfilEmpresa = {
       quitar.textContent = 'Eliminar';
       quitar.addEventListener('click', () => PerfilEmpresa.quitarEmpresa(n.id, n.nombre));
       accionesItem.append(actualizar, quitar);
-      li.append(texto, accionesItem);
+      const superior = document.createElement('div');
+      superior.className = 'perfil-empresa__item-superior';
+      superior.append(texto, accionesItem);
+      li.appendChild(superior);
       if (typeof Trabajos !== 'undefined' && n.id) {
         li.appendChild(Trabajos.panelConcretarTitular(n));
       }
@@ -1339,7 +1341,6 @@ const PerfilEmpresa = {
         ')…'
     );
 
-    // Si ya hay cupón autorizado, crear directo.
     const acceso = await Auth.request('/v1/pagos/publicacion/acceso', {
       method: 'GET',
       token: Auth.sesion.token
@@ -1555,12 +1556,10 @@ const PerfilEmpresa = {
       return true;
     }
 
-    // Evita re-procesar el mismo retorno (Market.init / login).
     if (typeof MarketMonetizacion !== 'undefined' && MarketMonetizacion.limpiarPagoPendiente) {
       try {
         sessionStorage.removeItem(MarketMonetizacion.STORAGE_PAGO_RETORNO);
       } catch (_) {
-        /* ignore */
       }
     }
 

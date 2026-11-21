@@ -8,7 +8,6 @@ from tests.helpers_pades import (
     vault_con_raiz_prueba,
 )
 
-
 def test_emisor_sii_coincide():
     assert emisor_coincide(
         "CN=Servicio de Impuestos Internos",
@@ -21,7 +20,6 @@ def test_emisor_sii_coincide():
         "inicio_actividades",
     )
 
-
 def test_fecha_ventana():
     from datetime import date
 
@@ -29,12 +27,10 @@ def test_fecha_ventana():
     assert fecha_dentro_ventana(date(2026, 10, 1), hoy=hoy)
     assert not fecha_dentro_ventana(date(2026, 1, 1), hoy=hoy)
 
-
 def test_parsear_fecha():
     assert parsear_fecha_emision("Fecha 10/11/2026") == __import__("datetime").date(
         2026, 11, 10
     )
-
 
 def test_fixture_antecedentes_trusted_contra_ca_chile():
     from pathlib import Path
@@ -51,13 +47,12 @@ def test_fixture_antecedentes_trusted_contra_ca_chile():
     assert r.coverage_ok is True
     assert r.entidad_emisora == "REGISTRO_CIVIL"
 
-
 def test_autofirma_sin_ca_rechazada(tmp_path):
     texto = (
         "SERVICIO DE IMPUESTOS INTERNOS inicio de actividades RUT 76.123.456-0 "
         "Fecha 10/11/2026 Empresa vigente contribuyente"
     )
-    # Firma con CA efímera NO incluida en ca_chile.pem
+
     signed = firmar_pdf_pades(
         pdf_con_texto(texto),
         common_name="Servicio de Impuestos Internos",
@@ -67,7 +62,6 @@ def test_autofirma_sin_ca_rechazada(tmp_path):
     r = verificar_firma_pades(signed, perfil="inicio_actividades")
     assert r.ok is False
     assert "pades-no-confiable" in r.senales or r.trusted is False
-
 
 def test_verificar_pades_sii_ok_con_vault_prueba(tmp_path):
     texto = (
@@ -92,7 +86,6 @@ def test_verificar_pades_sii_ok_con_vault_prueba(tmp_path):
     assert r.ok is True
     assert r.intact and r.trusted and r.coverage_ok
     assert r.entidad_emisora == "SII"
-
 
 def test_verificar_pades_sin_firma():
     invalidar_cache_confianza()

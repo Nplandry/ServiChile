@@ -1,4 +1,4 @@
-"""Esquemas de negocios, docs empresa y reputación."""
+
 
 from __future__ import annotations
 
@@ -20,7 +20,6 @@ from app.dominio.oferta_negocio import (
 )
 
 class NegocioEnMapaSalida(BaseModel):
-    """Listado público: sin RUT, teléfono, sitio ni docs."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -68,9 +67,7 @@ class NegocioEnMapaSalida(BaseModel):
 
     trabajos_concretados: int = Field(default=0, ge=0)
 
-
 class NegocioTitularSalida(NegocioEnMapaSalida):
-    """Alta /mias / PATCH: datos de contacto y docs del titular."""
 
     docs_empresa: dict[str, "DocEmpresaMetaSalida"] | None = None
 
@@ -82,9 +79,7 @@ class NegocioTitularSalida(NegocioEnMapaSalida):
 
     rater_listo: bool = False
 
-
 class OfertaEntrada(BaseModel):
-    """Campos declarados por el proveedor. El catálogo lo cierra el dominio."""
 
     servicios: list[str] = Field(default_factory=list)
 
@@ -128,13 +123,11 @@ class OfertaEntrada(BaseModel):
     def _referencias(cls, value: list[str]) -> list[str]:
         return list(referencias_de(value))
 
-
 class NegocioRutEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
     rut_empresa: str = Field(min_length=3, max_length=20)
-
 
 class NegocioActualizarEntrada(OfertaEntrada):
 
@@ -170,9 +163,7 @@ class NegocioActualizarEntrada(OfertaEntrada):
     def url_http_act(cls, v: str | None) -> str | None:
         return normalizar_url_recurso(v)
 
-
 class DocEmpresaFlagSalida(BaseModel):
-    """Flags públicos de un documento (sin hashes ni glosas)."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -180,9 +171,7 @@ class DocEmpresaFlagSalida(BaseModel):
     verificado_en: str | None = None
     vence_en: str | None = None
 
-
 class DocEmpresaMetaSalida(BaseModel):
-    """Metadatos de un documento de empresa (titular / post-upload)."""
 
     model_config = ConfigDict(extra="allow")
 
@@ -206,7 +195,6 @@ class DocEmpresaMetaSalida(BaseModel):
         if value is None:
             return None
         return str(value)
-
 
 class DocEmpresaSalida(BaseModel):
 
@@ -242,7 +230,6 @@ class DocEmpresaSalida(BaseModel):
 
     motivo: str = "Documento de empresa validado."
 
-
 class ObservableSenalSalida(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
@@ -262,7 +249,6 @@ class ObservableSenalSalida(BaseModel):
     ] = ("operativa")
 
     razones: list[str] = Field(default_factory=list)
-
 
 class ReputacionSalida(BaseModel):
 
@@ -292,7 +278,6 @@ class ReputacionSalida(BaseModel):
 
     observables: list[ObservableSenalSalida] = Field(default_factory=list)
 
-    # Sin compra: teaser de 3; este campo indica cuántos indicadores faltan en el informe.
     observables_restantes: int = Field(default=0, ge=0)
 
     rater_listo: bool = False
@@ -301,7 +286,6 @@ class ReputacionSalida(BaseModel):
         "Índice global a partir de señales públicas (ficha, sitio, "
         "compras públicas, etc.). No constituye un juicio sobre la calidad del servicio."
     )
-
 
 class NegocioCrearEntrada(OfertaEntrada):
 
@@ -327,7 +311,6 @@ class NegocioCrearEntrada(OfertaEntrada):
         default=None, min_length=3, max_length=20
     )
 
-    # Cupón Webpay de publicación (SCP…). Obligatorio fuera de APP_ENV=test.
     buy_order: str | None = Field(default=None, min_length=3, max_length=26)
 
     @field_validator("telefono")
@@ -340,5 +323,4 @@ class NegocioCrearEntrada(OfertaEntrada):
     @classmethod
     def url_http(cls, v: str | None) -> str | None:
         return normalizar_url_recurso(v)
-
 

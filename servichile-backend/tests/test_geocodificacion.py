@@ -4,7 +4,6 @@ from app.infraestructura.geocodificacion import (
     construir_geocodificador,
 )
 
-
 def test_determinista_chile():
     g = GeocodificadorDeterminista()
     a = g.geocodificar("Providencia 100, Santiago")
@@ -14,7 +13,6 @@ def test_determinista_chile():
     assert c is not None and c != a
     assert -56.0 <= a[0] <= -17.0
     assert -76.0 <= a[1] <= -66.0
-
 
 def test_nulo_y_factory():
     assert GeocodificadorNulo().geocodificar("x") is None

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'servichile-v203';
+const CACHE_NAME = 'servichile-v219';
 
 self.addEventListener('install', function () {
   self.skipWaiting();
@@ -21,7 +21,7 @@ self.addEventListener('activate', function (event) {
 });
 
 function guardar(request, response) {
-  if (!response || response.status !== 203) return response;
+  if (!response || !response.ok) return response;
   const copia = response.clone();
   caches.open(CACHE_NAME).then(function (cache) {
     cache.put(request, copia);
@@ -46,7 +46,6 @@ self.addEventListener('fetch', function (event) {
 
   if (!estatico) return;
 
-  // Red primero: si no, el HTML/JS viejo tapa campos nuevos (p. ej. RUT empresa).
   event.respondWith(
     fetch(request)
       .then(function (response) {

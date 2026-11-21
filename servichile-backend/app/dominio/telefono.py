@@ -1,4 +1,4 @@
-"""Teléfono móvil chileno: debe empezar con +56 y quedar como +56 9 XXXX XXXX."""
+
 
 from __future__ import annotations
 
@@ -6,10 +6,8 @@ import re
 
 _SOLO_DIGITOS = re.compile(r"\D+")
 
-
 class TelefonoInvalido(ValueError):
     pass
-
 
 def normalizar_telefono(texto: str) -> str:
     raw = (texto or "").strip()

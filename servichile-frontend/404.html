@@ -5,148 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#2563EB">
   <title>Página no encontrada</title>
-  <style>
-    :root {
-      --color-primary: #2563EB;
-      --color-primary-dark: #1E40AF;
-      --color-secondary: #EFF6FF;
-      --color-text: #0F172A;
-      --color-muted: #64748B;
-      --color-border: #93C5FD;
-      --color-bg: #ffffff;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-      color: var(--color-text);
-      background:
-        radial-gradient(ellipse 80% 50% at 50% -10%, #DBEAFE 0%, transparent 55%),
-        var(--color-bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-    }
-    .box {
-      width: min(28rem, 100%);
-      text-align: center;
-      padding: 2rem 1.5rem;
-      border: 1px solid var(--color-border);
-      border-radius: 1rem;
-      background: var(--color-bg);
-      box-shadow: 0 12px 40px rgba(37, 99, 235, 0.08);
-    }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.6rem;
-      margin-bottom: 1.25rem;
-      text-decoration: none;
-      color: inherit;
-    }
-    .brand__mark {
-      width: 2.25rem;
-      height: 2.25rem;
-      border-radius: 0.55rem;
-      background: var(--color-primary);
-      color: #fff;
-      font-weight: 700;
-      font-size: 1.15rem;
-      display: grid;
-      place-items: center;
-    }
-    .brand__name {
-      font-size: 1.15rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    .code {
-      display: inline-block;
-      margin: 0 0 0.75rem;
-      padding: 0.2rem 0.65rem;
-      border-radius: 999px;
-      background: var(--color-secondary);
-      color: var(--color-primary-dark);
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-    }
-    h1 {
-      margin: 0 0 0.5rem;
-      font-size: clamp(1.35rem, 4vw, 1.75rem);
-      letter-spacing: -0.03em;
-    }
-    p {
-      margin: 0 0 1.5rem;
-      color: var(--color-muted);
-      line-height: 1.5;
-      font-size: 0.95rem;
-    }
-    .acciones {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.65rem;
-      justify-content: center;
-    }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 2.6rem;
-      padding: 0.55rem 1.1rem;
-      border-radius: 0.55rem;
-      font-weight: 650;
-      font-size: 0.95rem;
-      text-decoration: none;
-      border: 2px solid transparent;
-    }
-    .btn--primary {
-      background: var(--color-primary);
-      color: #fff;
-    }
-    .btn--primary:hover,
-    .btn--primary:focus-visible {
-      background: var(--color-primary-dark);
-      outline: none;
-    }
-    .btn--ghost {
-      background: transparent;
-      color: var(--color-primary-dark);
-      border-color: var(--color-border);
-    }
-    .btn--ghost:hover,
-    .btn--ghost:focus-visible {
-      background: var(--color-secondary);
-      outline: none;
-    }
-    .ruta {
-      margin-top: 1.25rem;
-      font-size: 0.8rem;
-      color: var(--color-muted);
-      word-break: break-all;
-    }
-  </style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%232563EB'/%3E%3Ctext x='50' y='65' font-size='45' text-anchor='middle' fill='white' font-family='Arial'%3ES%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css?v=268">
+  <link rel="stylesheet" href="/css/legal.css?v=6">
 </head>
 <body>
-  <main class="box" role="main">
-    <a class="brand" href="/index.html">
-      <span class="brand__mark" aria-hidden="true">S</span>
-      <span class="brand__name">ServiChile</span>
-    </a>
+  <header class="app-header">
+    <div class="app-header__columna shell">
+      <a class="brand" href="/">
+        <span class="brand__mark">S</span>
+        <span class="brand__title">ServiChile</span>
+      </a>
+      <p class="brand__subtitle">Transparencia de proveedores B2B</p>
+    </div>
+  </header>
+  <main class="legal legal--404">
     <p class="code">Error 404</p>
-    <h1>No encontramos esta página</h1>
-    <p>
-      La dirección no existe o se movió. Vuelva al inicio para explorar proveedores,
-      reportes o su perfil.
-    </p>
+    <h1 class="section-heading">No encontramos esta página</h1>
+    <p class="section-lead">La dirección no existe o se movió. Vuelva al inicio de ServiChile.</p>
     <div class="acciones">
-      <a class="btn btn--primary" href="/index.html">Ir al inicio</a>
-      <a class="btn btn--ghost" href="/onboarding/">Crear cuenta</a>
+      <a class="submit-btn" href="/">Ir al inicio</a>
     </div>
     <p class="ruta" id="rutaPedida" hidden></p>
   </main>
+  <footer id="appFooter" class="app-footer">
+    <p class="app-footer__note">ServiChile facilita verificación de identidad y transparencia. No reemplaza asesoría legal ni contratos notariales.</p>
+    <nav class="app-footer__nav" aria-label="Enlaces de interés">
+      <a class="app-footer__link" href="/privacidad/">Política de privacidad</a>
+      <a class="app-footer__link" href="/terminos/">Términos y condiciones</a>
+      <a class="app-footer__link" href="/cookies/">Uso de cookies</a>
+      <a class="app-footer__link" href="/">Inicio</a>
+      <a class="app-footer__link" href="https://www.sernac.cl" target="_blank" rel="noopener noreferrer">SERNAC</a>
+      <a class="app-footer__link" href="https://www.sernamyp.cl" target="_blank" rel="noopener noreferrer">SERNAMYP</a>
+      <a class="app-footer__link" href="https://www.chileatiende.gob.cl" target="_blank" rel="noopener noreferrer">ChileAtiende</a>
+    </nav>
+  </footer>
+  <script src="/js/footer.js?v=6">
+</script>
   <script>
     (function () {
       var el = document.getElementById('rutaPedida');
@@ -156,6 +54,6 @@
       el.hidden = false;
       el.textContent = 'Ruta pedida: ' + path;
     })();
-  </script>
+</script>
 </body>
 </html>

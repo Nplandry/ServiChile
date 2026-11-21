@@ -1,8 +1,4 @@
-"""Oferta declarada por el proveedor: catálogos cerrados y etiquetas libres.
 
-No entra al índice de transparencia. El backend es la fuente de los valores
-permitidos; el cliente solo muestra las etiquetas.
-"""
 
 from __future__ import annotations
 
@@ -25,7 +21,7 @@ CONTRATACIONES = (
 )
 MONTOS = ("bajo", "medio", "alto")
 PLAZOS = ("menos-2h", "en-el-dia", "24-48h")
-# Mínimo de trabajos concretados en ServiChile (filtro de marketplace).
+
 CONCRETADOS = ("1", "5", "10")
 
 MAX_SERVICIOS = 6
@@ -38,12 +34,10 @@ _ETIQUETA = re.compile(
     r"^[0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ][0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ .,&'’/\-]*$"
 )
 
-
 class OfertaInvalida(ValueError):
     def __init__(self, mensaje: str) -> None:
         self.mensaje = mensaje
         super().__init__(mensaje)
-
 
 @dataclass(frozen=True)
 class FiltroListado:
@@ -54,7 +48,6 @@ class FiltroListado:
     monto: str | None = None
     plazo: str | None = None
     concretados_min: int | None = None
-
 
 def normalizar_etiquetas(
     valores: list[str] | tuple[str, ...] | None,
@@ -89,7 +82,6 @@ def normalizar_etiquetas(
         salida.append(texto)
     return tuple(salida)
 
-
 def normalizar_catalogo(
     valores: list[str] | tuple[str, ...] | None,
     permitidos: frozenset[str],
@@ -108,7 +100,6 @@ def normalizar_catalogo(
             salida.append(item)
     return tuple(salida)
 
-
 def normalizar_opcion(
     valor: str | None, permitidos: frozenset[str], *, etiqueta: str
 ) -> str | None:
@@ -123,42 +114,34 @@ def normalizar_opcion(
         raise OfertaInvalida(f"{etiqueta} no es válido.")
     return texto
 
-
 def servicios_de(valores) -> tuple[str, ...]:
     return normalizar_etiquetas(
         valores, max_items=MAX_SERVICIOS, max_len=MAX_LARGO_SERVICIO
     )
-
 
 def referencias_de(valores) -> tuple[str, ...]:
     return normalizar_etiquetas(
         valores, max_items=MAX_REFERENCIAS, max_len=MAX_LARGO_REFERENCIA
     )
 
-
 def industrias_de(valores) -> tuple[str, ...]:
     return normalizar_catalogo(valores, frozenset(INDUSTRIAS), etiqueta="Industrias")
-
 
 def contrataciones_de(valores) -> tuple[str, ...]:
     return normalizar_catalogo(
         valores, frozenset(CONTRATACIONES), etiqueta="Cómo se contrata"
     )
 
-
 def monto_de(valor) -> str | None:
     return normalizar_opcion(valor, frozenset(MONTOS), etiqueta="Monto")
 
-
 def plazo_de(valor) -> str | None:
     return normalizar_opcion(valor, frozenset(PLAZOS), etiqueta="Plazo")
-
 
 def concretados_de(valor) -> str | None:
     return normalizar_opcion(
         valor, frozenset(CONCRETADOS), etiqueta="Trabajos concretados"
     )
-
 
 def concretados_minimo(valor: str | None) -> int | None:
     opcion = concretados_de(valor)

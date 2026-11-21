@@ -1,4 +1,4 @@
-"""Señal de índice: trabajos concretados en la plataforma."""
+
 
 from __future__ import annotations
 
@@ -6,14 +6,12 @@ from app.dominio.entidades import ObservableSenal
 
 ID_TRABAJOS_CONCRETADOS = "trabajos_concretados"
 GRUPO_PLATAFORMA = "plataforma"
-# 10 cierres con QR = 100 % en esta señal.
-_CAP_CONCRETADOS = 10
 
+_CAP_CONCRETADOS = 10
 
 def pct_trabajos_concretados(cantidad: int) -> int:
     n = max(0, int(cantidad or 0))
     return int(min(100, round(100.0 * n / _CAP_CONCRETADOS)))
-
 
 def observable_trabajos_concretados(cantidad: int) -> ObservableSenal:
     n = max(0, int(cantidad or 0))
@@ -32,7 +30,6 @@ def observable_trabajos_concretados(cantidad: int) -> ObservableSenal:
         grupo=GRUPO_PLATAFORMA,
         razones=[],
     )
-
 
 def es_observable_trabajos(oid: str) -> bool:
     return str(oid or "") == ID_TRABAJOS_CONCRETADOS

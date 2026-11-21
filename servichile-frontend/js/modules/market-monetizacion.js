@@ -5,7 +5,7 @@ const MarketMonetizacion = {
   STORAGE_PAGO_RETORNO: 'servichile.pago.informe.retorno',
   STORAGE_PRINT: 'servichile.pago.informe.print',
   _confirmandoPago: false,
-  // Fallback UI; el precio oficial lo entrega el catálogo BE (dominio PRECIO_INFORME_CLP).
+
   PRECIO_INFORME: 9990,
   PRECIO_PLAN: 89990,
   _catalogoCargado: false,
@@ -30,7 +30,7 @@ const MarketMonetizacion = {
       return {
         ok: false,
         nota: '0.0',
-        caso: 'Índice 0 — sin señales o sin puntaje acumulado.'
+        caso: 'Índice 0 - sin señales o sin puntaje acumulado.'
       };
     }
     return { ok: true, nota: v.toFixed(1), caso: null };
@@ -48,7 +48,6 @@ const MarketMonetizacion = {
     };
   },
 
-  /** @deprecated usar datosCatalogo */
   datosDemo(n) {
     return MarketMonetizacion.datosCatalogo(n);
   },
@@ -62,7 +61,7 @@ const MarketMonetizacion = {
         MarketMonetizacion._catalogoCargado = true;
       }
     } catch (_) {
-      /* keep fallback */
+
     }
     return MarketMonetizacion.PRECIO_INFORME;
   },
@@ -130,7 +129,7 @@ const MarketMonetizacion = {
     const unlock = document.createElement('button');
     unlock.type = 'button';
     unlock.className = 'paywall__unlock';
-    unlock.textContent = 'Comprar informe · ' + cat.precioTxt;
+    unlock.textContent = 'Comprar informe ' + cat.precioTxt;
     unlock.addEventListener('click', async () => {
       const reabierto = await MarketMonetizacion.reabrirInformeSiComprado(n);
       if (!reabierto) MarketMonetizacion.abrirCheckout(n, { fase: 'resumen' });
@@ -146,7 +145,7 @@ const MarketMonetizacion = {
       precio.innerHTML =
         '<strong>' + actual.precioTxt + '</strong> <span>pago único</span>';
       if (!unlock.disabled && unlock.textContent.indexOf('Ver informe') < 0) {
-        unlock.textContent = 'Comprar informe · ' + actual.precioTxt;
+        unlock.textContent = 'Comprar informe ' + actual.precioTxt;
       }
     });
     MarketMonetizacion.consultarAcceso(n).then((data) => {
@@ -187,7 +186,7 @@ const MarketMonetizacion = {
           (buy ? ' con la orden ' + buy : '')
       );
     }
-    return partes.join(' · ') || 'No se pudo completar el pago.';
+    return partes.join(' ') || 'No se pudo completar el pago.';
   },
 
   mensajeCortoPago(err, fallback) {
@@ -305,7 +304,7 @@ const MarketMonetizacion = {
       detalle.textContent =
         'Ficha de ' +
         (n.nombre || 'la empresa') +
-        ' · PDF · QR de verificación · comprobante al correo de su cuenta';
+        ' PDF QR de verificación comprobante al correo de su cuenta';
       const monto = document.createElement('p');
       monto.className = 'checkout-sheet__item-precio';
       monto.textContent = demo.precioTxt;
@@ -344,7 +343,7 @@ const MarketMonetizacion = {
           titulo: 'Abriendo Webpay…',
           texto:
             'Orden ' +
-            (opts.orden || '—') +
+            (opts.orden || '-') +
             '. Complete el pago y volverá a ServiChile automáticamente.',
           spinner: true
         })
@@ -383,7 +382,7 @@ const MarketMonetizacion = {
         titulo: 'Pago autorizado',
         texto:
           'Orden ' +
-          (opts.orden || '—') +
+          (opts.orden || '-') +
           '. Su informe está listo.',
         ok: true,
         orden: opts.orden
@@ -429,7 +428,6 @@ const MarketMonetizacion = {
       return;
     }
 
-    // error
     const errWrap = MarketMonetizacion.checkoutEstado({
       titulo: 'No se pudo completar la compra',
       texto: opts.mensaje || 'Intente de nuevo o contacte soporte con su orden.',
@@ -481,7 +479,7 @@ const MarketMonetizacion = {
         cfg.reclamo.instruccion ||
         ('Soporte: ' +
           (cfg.reclamo.email || '') +
-          (cfg.reclamo.whatsapp ? ' · WhatsApp ' + cfg.reclamo.whatsapp : ''));
+          (cfg.reclamo.whatsapp ? ' WhatsApp ' + cfg.reclamo.whatsapp : ''));
       wrap.appendChild(r);
     }
     return wrap;
@@ -550,7 +548,7 @@ const MarketMonetizacion = {
       ].forEach((k) => u.searchParams.delete(k));
       window.history.replaceState({}, '', u.pathname + u.search + u.hash);
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -565,7 +563,7 @@ const MarketMonetizacion = {
       producto:
         params.get('producto') || pendiente.producto || null
     });
-    // Siempre limpia la URL (también sin sesión) para no dejar token_ws en historial.
+
     MarketMonetizacion.limpiarUrlRetornoPago();
     return true;
   },
@@ -581,7 +579,7 @@ const MarketMonetizacion = {
         return true;
       }
     } catch (_) {
-      /* ignore */
+
     }
     return (
       pendiente.producto === 'publicacion' ||
@@ -607,7 +605,7 @@ const MarketMonetizacion = {
           const v =
             (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
             (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
-            '173';
+            '219';
           await Carga.script('js/modules/perfil-empresa.js?v=' + v);
         }
         if (
@@ -679,7 +677,7 @@ const MarketMonetizacion = {
           body: { token: tokenWs }
         });
       } else if (orden) {
-        // Sin token_ws (pestaña perdida / retorno incompleto): recupera con buy_order.
+
         res = await Auth.request('/v1/pagos/informe/recuperar', {
           method: 'POST',
           token: sesion.token,
@@ -987,14 +985,14 @@ const MarketMonetizacion = {
     const v =
       (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
       (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
-      '173';
+      '219';
     await Carga.script('js/modules/reporte-empresa.js?v=' + v);
     await Carga.script('js/modules/reporte-qr.js?v=' + v);
     return typeof ReporteEmpresa !== 'undefined' && !!ReporteEmpresa.imprimirFicha;
   },
 
   async entregarInforme(n, statusEl) {
-    // Sin compra: abrir checkout. Con compra: reentrega vía endpoint gateado.
+
     MarketMonetizacion.abrirCheckout(n, { fase: 'resumen' });
     if (statusEl) statusEl.textContent = 'Complete el pago para obtener el informe.';
     return false;

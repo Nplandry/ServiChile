@@ -3,7 +3,6 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-
 def _proveedor(client: TestClient, email: str) -> dict:
     assert (
         client.post(
@@ -22,7 +21,6 @@ def _proveedor(client: TestClient, email: str) -> dict:
     ).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
-
 def _ficha_minima(**extra):
     body = {
         "nombre": "Pyme Publicada SpA",
@@ -34,7 +32,6 @@ def _ficha_minima(**extra):
     body.update(extra)
     return body
 
-
 def _pagar_cupon(client: TestClient, headers: dict) -> dict:
     ini = client.post("/v1/pagos/publicacion", json={}, headers=headers).json()
     conf = client.post(
@@ -45,7 +42,6 @@ def _pagar_cupon(client: TestClient, headers: dict) -> dict:
     assert conf.status_code == 200, conf.text
     return conf.json()
 
-
 def test_catalogo_pago_publicacion(client: TestClient):
     from app.dominio.pago_publicacion import PRECIO_PUBLICACION_CLP
 
@@ -54,7 +50,6 @@ def test_catalogo_pago_publicacion(client: TestClient):
     assert r.json()["monto"] == PRECIO_PUBLICACION_CLP
     assert r.json()["moneda"] == "CLP"
     assert r.json()["producto"] == "publicacion_empresa"
-
 
 def test_pago_publicacion_iniciar_y_confirmar(client: TestClient):
     headers = _proveedor(client, f"pub.{uuid.uuid4().hex[:8]}@example.com")
@@ -85,12 +80,28 @@ def test_pago_publicacion_iniciar_y_confirmar(client: TestClient):
     assert acceso.json()["buy_order"] == data["buy_order"]
     assert acceso.json()["autorizado"] is True
 
+def test_iniciar_publicacion_crea_token_nuevo_si_habia_pendiente(client: TestClient):
+
+    headers = _proveedor(client, f"pub.pend.{uuid.uuid4().hex[:8]}@example.com")
+    a = client.post("/v1/pagos/publicacion", json={}, headers=headers)
+    assert a.status_code == 200, a.text
+    orden_a = a.json()["buy_order"]
+    token_a = a.json()["token"]
+    b = client.post("/v1/pagos/publicacion", json={}, headers=headers)
+    assert b.status_code == 200, b.text
+    assert b.json()["buy_order"] != orden_a
+    assert b.json()["token"] != token_a
+    vieja = client.get(f"/v1/pagos/publicacion/{orden_a}", headers=headers)
+    assert vieja.status_code == 200
+    assert vieja.json()["estado"] == "anulado"
+    nueva = client.get(f"/v1/pagos/publicacion/{b.json()['buy_order']}", headers=headers)
+    assert nueva.status_code == 200
+    assert nueva.json()["estado"] == "pendiente"
 
 def test_persona_no_puede_iniciar_pago_publicacion(client: TestClient, token: str):
     h = {"Authorization": f"Bearer {token}"}
     r = client.post("/v1/pagos/publicacion", json={}, headers=h)
     assert r.status_code == 403, r.text
-
 
 def test_crear_empresa_con_cupon_publicacion(client: TestClient):
     headers = _proveedor(client, f"pub.ok.{uuid.uuid4().hex[:8]}@example.com")
@@ -114,7 +125,6 @@ def test_crear_empresa_con_cupon_publicacion(client: TestClient):
     assert estado.json()["estado"] == "consumido"
     assert estado.json()["autorizado"] is True
     assert estado.json()["business_id"] == bid
-
 
 def test_doble_consumo_mismo_buy_order_da_402(
     client: TestClient, monkeypatch
@@ -153,7 +163,6 @@ def test_doble_consumo_mismo_buy_order_da_402(
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
 
-
 def test_borrar_ficha_no_recicla_cupon_con_set_null(
     client: TestClient, session_factory, monkeypatch
 ):
@@ -188,7 +197,7 @@ def test_borrar_ficha_no_recicla_cupon_con_set_null(
             ).first()
             assert row is not None
             assert row.estado == ESTADO_CONSUMIDO
-            # Fuerza el efecto de ON DELETE SET NULL.
+
             row.business_id = None
             s.commit()
 
@@ -207,7 +216,6 @@ def test_borrar_ficha_no_recicla_cupon_con_set_null(
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
 
-
 def test_cupon_disponible_bloquea_nuevo_inicio(client: TestClient):
     headers = _proveedor(client, f"pub.cup.{uuid.uuid4().hex[:8]}@example.com")
     ini = client.post("/v1/pagos/publicacion", json={}, headers=headers).json()
@@ -221,7 +229,6 @@ def test_cupon_disponible_bloquea_nuevo_inicio(client: TestClient):
     assert otra.json()["detail"]["codigo"] == "cupon_disponible"
     assert otra.json()["detail"]["buy_order"] == ini["buy_order"]
 
-
 def test_return_url_no_permitida_publicacion(client: TestClient):
     headers = _proveedor(client, f"pub.url.{uuid.uuid4().hex[:8]}@example.com")
     r = client.post(
@@ -231,7 +238,6 @@ def test_return_url_no_permitida_publicacion(client: TestClient):
     )
     assert r.status_code == 400, r.text
     assert r.json()["detail"]["codigo"] == "return_url_no_permitida"
-
 
 def test_compra_ajena_publicacion(client: TestClient):
     a = _proveedor(client, f"pub.a.{uuid.uuid4().hex[:8]}@example.com")
@@ -244,7 +250,6 @@ def test_compra_ajena_publicacion(client: TestClient):
     )
     assert r.status_code == 400
     assert r.json()["detail"]["codigo"] == "compra_ajena"
-
 
 def test_doble_confirmar_idempotente(client: TestClient):
     headers = _proveedor(client, f"pub.dup.{uuid.uuid4().hex[:8]}@example.com")
@@ -264,7 +269,6 @@ def test_doble_confirmar_idempotente(client: TestClient):
     assert c2.json()["autorizado"] is True
     assert c2.json()["estado"] == "autorizado"
 
-
 def test_anular_pago_publicacion(client: TestClient):
     headers = _proveedor(client, f"pub.an.{uuid.uuid4().hex[:8]}@example.com")
     ini = client.post("/v1/pagos/publicacion", json={}, headers=headers).json()
@@ -276,7 +280,6 @@ def test_anular_pago_publicacion(client: TestClient):
     assert an.status_code == 200, an.text
     assert an.json()["estado"] == "anulado"
     assert an.json()["autorizado"] is False
-
 
 def test_crear_empresa_exige_pago_fuera_de_test(
     client: TestClient, token_empresa: str, monkeypatch
@@ -310,7 +313,6 @@ def test_crear_empresa_exige_pago_fuera_de_test(
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
 
-
 def test_recuperar_pago_publicacion(client: TestClient):
     headers = _proveedor(client, f"pub.rec.{uuid.uuid4().hex[:8]}@example.com")
     conf = _pagar_cupon(client, headers)
@@ -323,11 +325,10 @@ def test_recuperar_pago_publicacion(client: TestClient):
     assert rec.json()["autorizado"] is True
     assert rec.json()["buy_order"] == conf["buy_order"]
 
-
 def test_reserva_en_misma_tx_rollback_deja_autorizado(
     client: TestClient, session_factory, monkeypatch
 ):
-    """Reserva flush + rollback no deja el pago en reservado."""
+
     from sqlalchemy import select
 
     from app.configuracion import obtener_configuracion
@@ -373,7 +374,6 @@ def test_reserva_en_misma_tx_rollback_deja_autorizado(
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
 
-
 def test_liberar_reservas_stale(client: TestClient, session_factory):
     from datetime import datetime, timedelta, timezone
 
@@ -406,7 +406,6 @@ def test_liberar_reservas_stale(client: TestClient, session_factory):
         assert otra is not None
         assert otra.estado == ESTADO_AUTORIZADO
 
-
 def test_exige_pago_si_app_env_test_sin_pytest(monkeypatch):
     from app.api.v1.negocios import _exige_pago_publicacion
     from app.configuracion import obtener_configuracion
@@ -420,11 +419,10 @@ def test_exige_pago_si_app_env_test_sin_pytest(monkeypatch):
     finally:
         obtener_configuracion.cache_clear()
 
-
 def test_alta_atomica_no_deja_ficha_si_consumir_falla(
     client: TestClient, monkeypatch
 ):
-    """Si falla el consumo tras flush, rollback: sin ficha huérfana."""
+
     from app.configuracion import obtener_configuracion
     from app.dominio.errores import PublicacionSinPago
     from app.servicios.pago_publicacion import ServicioPagoPublicacion
@@ -468,7 +466,6 @@ def test_alta_atomica_no_deja_ficha_si_consumir_falla(
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
 
-
 def test_confirmar_publicacion_avisa_correo(client: TestClient, monkeypatch):
     from app.api import dependencias
     from app.infraestructura.correo_plataforma import EnviadorMemoria
@@ -489,14 +486,13 @@ def test_confirmar_publicacion_avisa_correo(client: TestClient, monkeypatch):
     finally:
         app.dependency_overrides.pop(dependencias.obtener_enviador, None)
 
-
 def test_alta_libera_reserva_si_rut_duplicado(
     client: TestClient, monkeypatch
 ):
     from app.configuracion import obtener_configuracion
 
     headers = _proveedor(client, f"pub.lib.{uuid.uuid4().hex[:8]}@example.com")
-    # Primera ficha sin pago (APP_ENV=test).
+
     previa = client.post(
         "/v1/businesses",
         headers=headers,
@@ -512,7 +508,7 @@ def test_alta_libera_reserva_si_rut_duplicado(
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     obtener_configuracion.cache_clear()
     try:
-        # Reserva ocurre; crear falla por RUT en uso → libera cupón.
+
         fallo = client.post(
             "/v1/businesses",
             headers=headers,
@@ -532,11 +528,10 @@ def test_alta_libera_reserva_si_rut_duplicado(
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
 
-
 def test_alta_integrity_error_no_rut_da_409_alta_conflicto(
     client: TestClient, monkeypatch
 ):
-    """IntegrityError no-RUT → 409 alta_conflicto; cupón reusable tras rollback."""
+
     from sqlalchemy.exc import IntegrityError
 
     from app.configuracion import obtener_configuracion
@@ -581,7 +576,6 @@ def test_alta_integrity_error_no_rut_da_409_alta_conflicto(
         assert acceso.json()["estado"] == "autorizado"
         assert acceso.json()["consumido"] is False
 
-        # Cupón reusable: alta real tras quitar el boom.
         monkeypatch.setattr(ServicioNegocio, "crear", real_crear)
         ok = client.post(
             "/v1/businesses",
@@ -597,7 +591,6 @@ def test_alta_integrity_error_no_rut_da_409_alta_conflicto(
         monkeypatch.setattr(ServicioNegocio, "crear", real_crear)
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
-
 
 def test_reconciliar_publicacion_avisa_correo(client: TestClient, session_factory):
     from datetime import datetime, timedelta, timezone

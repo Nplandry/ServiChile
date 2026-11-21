@@ -5,7 +5,6 @@ from pypdf import PdfWriter
 
 from app.dominio.docs_empresa import validar_doc_empresa
 
-
 _TEXTO_CONSTITUCION = """
 ESCRITURA PUBLICA DE CONSTITUCION DE SOCIEDAD
 Notaria de Santiago
@@ -36,12 +35,10 @@ El contribuyente declara el comienzo de sus operaciones ante el Servicio de Impu
 Empresa vigente.
 """
 
-
 def _pdf_texto(texto: str) -> bytes:
     from tests.helpers_pades import pdf_con_texto
 
     return pdf_con_texto(texto)
-
 
 def test_validar_constitucion_reglas_ok():
     r = validar_doc_empresa(
@@ -55,13 +52,11 @@ def test_validar_constitucion_reglas_ok():
     )
     assert r.aceptado is True
 
-
 def test_validar_patente_ok():
     r = validar_doc_empresa(
         tipo="patente", texto=_TEXTO_PATENTE, rut_empresa="76123456-0"
     )
     assert r.aceptado is True
-
 
 def test_validar_sii_ok():
     r = validar_doc_empresa(
@@ -76,16 +71,13 @@ def test_validar_sii_ok():
     assert r.verificado_criptograficamente is True
     assert "pades-intacta" in r.senales
 
-
 def test_validar_sii_sin_pades_falla():
     r = validar_doc_empresa(tipo="inicio_actividades", texto=_TEXTO_SII)
     assert r.aceptado is False
 
-
 def test_validar_tipo_cruzado_falla():
     r = validar_doc_empresa(tipo="patente", texto=_TEXTO_CONSTITUCION)
     assert r.aceptado is False
-
 
 def _crear_proveedor(client: TestClient) -> tuple[str, str]:
     import uuid
@@ -117,7 +109,6 @@ def _crear_proveedor(client: TestClient) -> tuple[str, str]:
     assert created.status_code == 201, created.text
     return token, created.json()["id"]
 
-
 def test_endpoint_doc_empresa_patente(client: TestClient):
     token, business_id = _crear_proveedor(client)
     h = {"Authorization": f"Bearer {token}"}
@@ -134,10 +125,9 @@ def test_endpoint_doc_empresa_patente(client: TestClient):
     assert body["docs_empresa"]["patente"]["verificado"] is True
     assert body["docs_verificados"] == 1
     assert body["docs_total"] == 11
-    # El ★ público es el índice global del evaluador, no el % de documentos.
+
     assert 0.0 <= float(body["indice_transparencia"]) <= 10.0
     assert 0 <= int(body["indice_pct"]) <= 100
-
 
 def test_endpoint_doc_empresa_escaneo_422(client: TestClient):
     token, business_id = _crear_proveedor(client)
@@ -153,7 +143,6 @@ def test_endpoint_doc_empresa_escaneo_422(client: TestClient):
     )
     assert r.status_code == 422
 
-
 def test_endpoint_doc_empresa_tipo_invalido(client: TestClient):
     token, business_id = _crear_proveedor(client)
     h = {"Authorization": f"Bearer {token}"}
@@ -163,7 +152,6 @@ def test_endpoint_doc_empresa_tipo_invalido(client: TestClient):
         files={"archivo": ("x.pdf", _pdf_texto(_TEXTO_PATENTE), "application/pdf")},
     )
     assert r.status_code == 422
-
 
 def test_endpoint_inicio_actividades_sin_firma_422(client: TestClient):
     token, business_id = _crear_proveedor(client)
@@ -180,7 +168,6 @@ def test_endpoint_inicio_actividades_sin_firma_422(client: TestClient):
         },
     )
     assert r.status_code == 422
-
 
 def test_endpoint_inicio_actividades_pades_ok(client: TestClient, vault_pades):
     from tests.helpers_pades import firmar_pdf_pades, pdf_con_texto
@@ -204,7 +191,6 @@ def test_endpoint_inicio_actividades_pades_ok(client: TestClient, vault_pades):
     assert body["verificado_criptograficamente"] is True
     assert body["entidad_emisora"] == "SII"
     assert body["sha256_hash"]
-
 
 def test_endpoint_revocar_doc_empresa(client: TestClient):
     token, business_id = _crear_proveedor(client)

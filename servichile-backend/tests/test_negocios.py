@@ -10,7 +10,6 @@ from app.infraestructura.persistencia.modelos import (
     MetricasReputacionNegocio,
 )
 
-
 def test_indice_en_rango_0_a_10():
     vacio = calcular_indice(docs=None)
     completo = calcular_indice(
@@ -21,7 +20,6 @@ def test_indice_en_rango_0_a_10():
     assert 0.0 <= vacio <= 10.0
     assert 0.0 <= completo <= 10.0
 
-
 def test_verificacion_sube_el_indice():
     sin_docs = calcular_indice(docs={})
     con_docs = calcular_indice(
@@ -29,11 +27,9 @@ def test_verificacion_sube_el_indice():
     )
     assert con_docs > sin_docs
 
-
 def test_sin_resenas_no_invalida_el_indice():
     indice = calcular_indice(docs=None)
     assert 0.0 <= indice <= 10.0
-
 
 def _crear_negocio(
     session_factory, *, claimed=False, metricas=True, **kwargs
@@ -77,7 +73,6 @@ def _crear_negocio(
 
         return negocio.id
 
-
 def test_reputacion_publica_no_requiere_sesion(client: TestClient, session_factory):
 
     bid = _crear_negocio(session_factory)
@@ -89,7 +84,7 @@ def test_reputacion_publica_no_requiere_sesion(client: TestClient, session_facto
     cuerpo = r.json()
 
     assert cuerpo["business_id"] == str(bid)
-    # Público: teaser; el índice puede recalcularse al leer (persistir trabajos).
+
     assert "indice_transparencia" in cuerpo
     assert 0.0 <= float(cuerpo["indice_transparencia"]) <= 10.0
     assert cuerpo["docs_verificados"] == 0
@@ -98,7 +93,6 @@ def test_reputacion_publica_no_requiere_sesion(client: TestClient, session_facto
     assert cuerpo["google_reviews_count"] == 150
     assert len(cuerpo["observables"]) == 3
     assert cuerpo["docs_empresa"] is None
-
 
 def test_reputacion_sin_sello_verificado(client: TestClient, session_factory):
 
@@ -111,7 +105,6 @@ def test_reputacion_sin_sello_verificado(client: TestClient, session_factory):
 
     assert "No constituye un juicio" in cuerpo["descargo"]
     assert "reviews" not in cuerpo and "comentarios" not in cuerpo
-
 
 def test_reputacion_docs_solo_flags_publicos(client: TestClient, session_factory):
     with session_factory() as s:
@@ -137,18 +130,15 @@ def test_reputacion_docs_solo_flags_publicos(client: TestClient, session_factory
         s.commit()
         bid = negocio.id
 
-    # Público: docs ocultos (van en el informe / vista titular).
     publico = client.get(f"/v1/businesses/{bid}/reputation").json()
     assert publico["docs_empresa"] is None
     assert len(publico["observables"]) == 3
-
 
 def test_reputacion_negocio_inexistente_da_404(client: TestClient):
 
     r = client.get(f"/v1/businesses/{uuid.uuid4()}/reputation")
 
     assert r.status_code == 404
-
 
 def test_reputacion_sin_metricas_calcula_al_vuelo(client: TestClient, session_factory):
 
@@ -158,7 +148,6 @@ def test_reputacion_sin_metricas_calcula_al_vuelo(client: TestClient, session_fa
 
     assert cuerpo["indice_transparencia"] == 0.0
     assert cuerpo["indice_pct"] == 0
-
 
 def test_crear_empresa_persona_da_403(client: TestClient, token: str):
 
@@ -175,7 +164,6 @@ def test_crear_empresa_persona_da_403(client: TestClient, token: str):
     )
 
     assert r.status_code == 403
-
 
 def test_crear_empresa_queda_del_titular(client: TestClient, token_empresa: str):
 
@@ -225,7 +213,6 @@ def test_crear_empresa_queda_del_titular(client: TestClient, token_empresa: str)
 
     assert any((n["id"] == cuerpo["id"] for n in mias.json()))
 
-
 def test_telefono_empresa_debe_empezar_con_mas_56(client: TestClient, token_empresa: str):
     h = {"Authorization": f"Bearer {token_empresa}"}
     base = {
@@ -250,7 +237,6 @@ def test_telefono_empresa_debe_empezar_con_mas_56(client: TestClient, token_empr
     )
     assert r.status_code == 201, r.text
     assert r.json()["telefono"] == "+56 9 1234 5678"
-
 
 def test_actualizar_datos_empresa_refresca_ficha(client: TestClient, token_empresa: str):
     h = {"Authorization": f"Bearer {token_empresa}"}
@@ -288,7 +274,6 @@ def test_actualizar_datos_empresa_refresca_ficha(client: TestClient, token_empre
     assert cuerpo["sitio_web"] == "https://editada.cl"
     assert cuerpo["rut_empresa"] == "76123456-0"
 
-
 def test_crear_empresa_con_rut_repetido_da_409(client: TestClient, token_empresa: str):
     h = {"Authorization": f"Bearer {token_empresa}"}
     cuerpo = {
@@ -311,7 +296,6 @@ def test_crear_empresa_con_rut_repetido_da_409(client: TestClient, token_empresa
     mias = client.get("/v1/businesses/mias", headers=h)
     assert mias.status_code == 200
     assert [n["nombre"] for n in mias.json()] == ["Primera SpA"]
-
 
 def test_actualizar_rut_empresa_habilita_consulta(client: TestClient, token_empresa: str):
     h = {"Authorization": f"Bearer {token_empresa}"}
@@ -348,7 +332,6 @@ def test_actualizar_rut_empresa_habilita_consulta(client: TestClient, token_empr
     mia = next(n for n in mias.json() if n["id"] == bid)
     assert mia["rut_empresa"] == "76123456-0"
 
-
 def test_crear_empresa_banner_invalido_da_422(client: TestClient, token_empresa: str):
 
     h = {"Authorization": f"Bearer {token_empresa}"}
@@ -365,7 +348,6 @@ def test_crear_empresa_banner_invalido_da_422(client: TestClient, token_empresa:
     )
 
     assert r.status_code == 422
-
 
 def test_crear_empresa_banner_http_se_upgradea_a_https(
     client: TestClient, token_empresa: str
@@ -387,7 +369,6 @@ def test_crear_empresa_banner_http_se_upgradea_a_https(
     assert cuerpo["imagen_url"] == "https://cdn.ejemplo.cl/banner.jpg"
     assert cuerpo["logo_url"] == "https://cdn.ejemplo.cl/logo.png"
 
-
 def test_crear_empresa_sin_direccion_da_422(client: TestClient, token_empresa: str):
 
     h = {"Authorization": f"Bearer {token_empresa}"}
@@ -399,7 +380,6 @@ def test_crear_empresa_sin_direccion_da_422(client: TestClient, token_empresa: s
     )
 
     assert r.status_code == 422
-
 
 def test_crear_empresa_requiere_sesion(client: TestClient):
 
@@ -413,7 +393,6 @@ def test_crear_empresa_requiere_sesion(client: TestClient):
     )
 
     assert r.status_code == 401
-
 
 def test_eliminar_empresa_la_borra(client: TestClient, token_empresa: str):
 
@@ -449,7 +428,6 @@ def test_eliminar_empresa_la_borra(client: TestClient, token_empresa: str):
 
     assert client.get(f"/v1/businesses/{bid}/reputation").status_code == 404
 
-
 def test_eliminar_empresa_ajena_da_403(
     client: TestClient, session_factory, token_empresa: str
 ):
@@ -462,7 +440,6 @@ def test_eliminar_empresa_ajena_da_403(
 
     assert r.status_code == 403
 
-
 def test_eliminar_empresa_inexistente_da_404(client: TestClient, token_empresa: str):
 
     h = {"Authorization": f"Bearer {token_empresa}"}
@@ -470,7 +447,6 @@ def test_eliminar_empresa_inexistente_da_404(client: TestClient, token_empresa: 
     r = client.delete(f"/v1/businesses/{uuid.uuid4()}", headers=h)
 
     assert r.status_code == 404
-
 
 def test_listado_publico_devuelve_negocios_con_indice(
     client: TestClient, session_factory
@@ -511,7 +487,6 @@ def test_listado_publico_devuelve_negocios_con_indice(
     assert "telefono" not in item
     assert "sitio_web" not in item
 
-
 def test_listado_filtra_por_categoria(client: TestClient, session_factory):
 
     _crear_negocio(session_factory, nombre="SaaS Uno", categoria="tecnologia")
@@ -534,7 +509,6 @@ def test_listado_filtra_por_categoria(client: TestClient, session_factory):
     assert cuerpo[0]["categoria"] == "industria"
 
     assert cuerpo[0]["requiere_nivel"] == 2
-
 
 def test_listado_busca_por_nombre_o_direccion(client: TestClient, session_factory):
 
@@ -560,11 +534,9 @@ def test_listado_busca_por_nombre_o_direccion(client: TestClient, session_factor
         len(client.get("/v1/businesses", params={"q": "nada-que-coincide"}).json()) == 0
     )
 
-
 def test_listado_vacio_sin_negocios(client: TestClient):
 
     assert client.get("/v1/businesses").json() == []
-
 
 def test_listado_sin_metricas_calcula_indice_minimo(
     client: TestClient, session_factory
@@ -578,7 +550,6 @@ def test_listado_sin_metricas_calcula_indice_minimo(
 
     assert cuerpo[0]["indice_transparencia"] == 0.0
     assert cuerpo[0]["indice_pct"] == 0
-
 
 def test_oferta_se_guarda_y_filtra_el_mapa(client: TestClient, token_empresa: str, session_factory):
     h = {"Authorization": f"Bearer {token_empresa}"}
@@ -651,7 +622,6 @@ def test_oferta_se_guarda_y_filtra_el_mapa(client: TestClient, token_empresa: st
         },
     )
     assert larga.status_code == 422
-
 
 def test_actualizar_oferta_reemplaza_lo_declarado(client: TestClient, token_empresa: str):
     h = {"Authorization": f"Bearer {token_empresa}"}

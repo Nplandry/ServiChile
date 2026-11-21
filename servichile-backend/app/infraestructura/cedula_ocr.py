@@ -1,4 +1,4 @@
-"""OCR de cédula sin LLM/Paddle: Tesseract + enderezar + ROI RUN + face-match."""
+
 
 from __future__ import annotations
 
@@ -21,11 +21,9 @@ from app.infraestructura.cedula_vision import (
 
 logger = logging.getLogger(__name__)
 
-# Cap OCR: más grande = Tesseract mucho más lento, sin ganancia real en cédula.
 _OCR_MAX_LADO = 1400
-# Early-exit: con RUN + chile basta para no seguir pases.
-_SCORE_SUFICIENTE = 70
 
+_SCORE_SUFICIENTE = 70
 
 def _score_texto(texto: str) -> int:
     t = texto or ""
@@ -46,10 +44,9 @@ def _score_texto(texto: str) -> int:
     score += min(20, len(t.strip()) // 40)
     return score
 
-
 @lru_cache(maxsize=1)
 def _langs_disponibles() -> tuple[str, ...]:
-    """spa+eng primero; cae a eng si faltan paquetes de idioma."""
+
     try:
         import pytesseract
 
@@ -70,7 +67,6 @@ def _langs_disponibles() -> tuple[str, ...]:
     except Exception:
         return ("eng",)
 
-
 def _preprocesar(img: Image.Image) -> Image.Image:
     img = ImageOps.exif_transpose(img)
     if img.mode != "RGB":
@@ -78,7 +74,7 @@ def _preprocesar(img: Image.Image) -> Image.Image:
     w, h = img.size
     m = max(w, h)
     if m < 1000:
-        # Upscale moderado solo si viene chica (celular recortado).
+
         scale = 1200 / m
         img = img.resize((int(w * scale), int(h * scale)), Image.Resampling.BILINEAR)
     elif m > _OCR_MAX_LADO:
@@ -86,7 +82,6 @@ def _preprocesar(img: Image.Image) -> Image.Image:
         img = img.resize((int(w * scale), int(h * scale)), Image.Resampling.BILINEAR)
     gris = ImageOps.autocontrast(img.convert("L"))
     return gris.filter(ImageFilter.SHARPEN)
-
 
 def _tesseract_string(gris: Image.Image, *, lang: str, psm: int, whitelist: str | None = None) -> str:
     import pytesseract
@@ -96,9 +91,8 @@ def _tesseract_string(gris: Image.Image, *, lang: str, psm: int, whitelist: str 
         config += f" -c tessedit_char_whitelist={whitelist}"
     return pytesseract.image_to_string(gris, lang=lang, config=config) or ""
 
-
 def _ocr_rapido(gris: Image.Image) -> str:
-    """Pocos pases con early-exit: psm 4 → 3 → (11 solo si faltan etiquetas)."""
+
     langs = _langs_disponibles()
     lang = langs[0]
     candidatos: list[tuple[int, str]] = []
@@ -108,7 +102,7 @@ def _ocr_rapido(gris: Image.Image) -> str:
             texto = _tesseract_string(gris, lang=lang, psm=psm)
         except Exception as err:
             logger.info("OCR lang=%s psm=%s: %s", lang, psm, err)
-            # Fallback de idioma una sola vez
+
             if len(langs) > 1 and lang == langs[0]:
                 lang = langs[1]
                 try:
@@ -126,7 +120,7 @@ def _ocr_rapido(gris: Image.Image) -> str:
             break
 
     if not candidatos:
-        # Último intento con segundo idioma / psm 11
+
         for lang2 in langs:
             try:
                 texto = _tesseract_string(gris, lang=lang2, psm=11)
@@ -140,7 +134,7 @@ def _ocr_rapido(gris: Image.Image) -> str:
 
     candidatos.sort(key=lambda x: x[0], reverse=True)
     mejor = candidatos[0][1]
-    # psm 11 solo si falta vencimiento/nacionalidad y aún no es suficiente.
+
     if (
         "vencimiento" not in mejor.lower()
         or "nacionalidad" not in mejor.lower()
@@ -155,9 +149,8 @@ def _ocr_rapido(gris: Image.Image) -> str:
             pass
     return mejor
 
-
 def _ocr_roi_run(gris_full: Image.Image) -> str:
-    """OCR acotado al RUN: 1–2 crops, psm 7 primero; sin re-JPEG."""
+
     for crop in recortes_roi_run_pil(gris_full):
         gris = ImageOps.autocontrast(crop)
         for psm in (7, 8):
@@ -170,24 +163,22 @@ def _ocr_roi_run(gris_full: Image.Image) -> str:
             if _extraer_ruts(texto):
                 return texto.strip()
             if (texto or "").strip():
-                # Sigue al siguiente psm/crop si no hay RUT válido
+
                 pass
     return ""
 
-
 class LectorOcrTesseract:
-    """Requiere binario Tesseract (`brew install tesseract tesseract-lang`)."""
 
     def extraer_texto(self, jpeg_bytes: bytes) -> str:
         try:
-            import pytesseract  # noqa: F401
+            import pytesseract
         except ImportError as error:
             raise CedulaInvalida(
                 "OCR no disponible (falta pytesseract). Instale la dependencia."
             ) from error
 
         try:
-            # Asume imagen ya enderezada por el analizador (evita doble warp).
+
             img = Image.open(io.BytesIO(jpeg_bytes))
             gris = _preprocesar(img)
             mejor = _ocr_rapido(gris)
@@ -205,16 +196,13 @@ class LectorOcrTesseract:
                 "(brew install tesseract tesseract-lang) y use una foto nítida del frente."
             ) from error
 
-
 class LectorOcrFijo:
-    """Para tests: devuelve un texto OCR predefinido."""
 
     def __init__(self, texto: str) -> None:
         self.texto = texto
 
     def extraer_texto(self, jpeg_bytes: bytes) -> str:
         return self.texto
-
 
 class AnalizadorCedulaOcr:
     def __init__(
@@ -246,7 +234,6 @@ class AnalizadorCedulaOcr:
             except Exception:
                 pass
 
-        # OCR y face-match en paralelo (independientes tras enderezar).
         if selfie_jpeg and not fijo:
             with ThreadPoolExecutor(max_workers=2) as pool:
                 fut_texto = pool.submit(self.lector.extraer_texto, recto)

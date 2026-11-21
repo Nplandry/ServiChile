@@ -1,4 +1,4 @@
-"""Inicio y confirmación del pago Webpay para publicar ficha de empresa."""
+
 
 from __future__ import annotations
 
@@ -34,7 +34,6 @@ from app.dominio.puertos import (
 )
 
 log = logging.getLogger(__name__)
-
 
 class ServicioPagoPublicacion:
     def __init__(
@@ -135,16 +134,7 @@ class ServicioPagoPublicacion:
                 codigo="cupon_disponible",
                 buy_order=cupon.buy_order,
             )
-        reutil = self.compras.pendiente_reutilizable(usuario.id, max_edad_seg=7200)
-        if reutil is not None and reutil.token:
-            self.compras.anular_pendientes_abiertos(usuario.id, excepto_id=reutil.id)
-            return InicioPagoPublicacion(
-                buy_order=reutil.buy_order,
-                token=reutil.token,
-                url=self._url_formulario(reutil.token),
-                monto=reutil.monto,
-                reclamo=self.reclamo_para(reutil.buy_order),
-            )
+
         self.compras.anular_pendientes_abiertos(usuario.id)
         retorno = self._normalizar_retorno(return_url)
         buy_order = self._buy_order()
@@ -258,7 +248,7 @@ class ServicioPagoPublicacion:
         )
 
     def _avisar_cupon_listo(self, compra) -> None:
-        """Aviso por correo tras autorizar (p. ej. reconcile sin retorno al FE)."""
+
         if compra.estado != ESTADO_AUTORIZADO:
             return
         if self.usuarios is None or self.enviador is None:
@@ -381,7 +371,7 @@ class ServicioPagoPublicacion:
         return self._respuesta(cupon) if cupon else None
 
     def listo_para_alta(self, buy_order_estado: str, *, consumido: bool) -> bool:
-        """True si el cupón puede usarse (o reintentarse) en el alta."""
+
         if consumido:
             return False
         return buy_order_estado in (ESTADO_AUTORIZADO, ESTADO_RESERVADO)
@@ -393,7 +383,7 @@ class ServicioPagoPublicacion:
         *,
         commit: bool = True,
     ) -> CompraPublicacion:
-        """Marca el cupón como reservado antes de crear la ficha."""
+
         compra = self.compras.reservar_para_alta(
             usuario_id, buy_order, commit=commit
         )
@@ -416,7 +406,7 @@ class ServicioPagoPublicacion:
         *,
         commit: bool = True,
     ) -> CompraPublicacion:
-        """Finaliza cupón reservado/autorizado → consumido + business_id."""
+
         orden = (buy_order or "").strip()
         compra = self.compras.consumir_atomico(
             usuario_id, orden, business_id, commit=commit

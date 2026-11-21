@@ -1,4 +1,4 @@
-"""Reglas de verificación PAdES / firma electrónica avanzada (Chile)."""
+
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from typing import Literal
 
 from app.dominio.texto_pdf import compact, extraer_fechas, extraer_ruts, texto_lower
 
-# Perfiles criptográficos (Subject/Issuer) por tipo de documento.
 PerfilPades = Literal[
     "antecedentes",
     "antecedentes_rl",
@@ -318,7 +317,6 @@ _MESES = {
     "diciembre": 12,
 }
 
-
 @dataclass(frozen=True)
 class ResultadoPades:
     ok: bool
@@ -333,14 +331,11 @@ class ResultadoPades:
     senales: tuple[str, ...]
     pdf_firmado_bytes: bytes | None = None
 
-
 def sha256_hex(contenido: bytes) -> str:
     return hashlib.sha256(contenido).hexdigest()
 
-
 def perfil_config(perfil: str) -> dict:
     return _PERFILES[perfil]
-
 
 def emisor_coincide(subject: str, issuer: str, perfil: str) -> bool:
     cfg = _PERFILES.get(perfil)
@@ -354,10 +349,8 @@ def emisor_coincide(subject: str, issuer: str, perfil: str) -> bool:
         return False
     return True
 
-
 def entidad_de(perfil: str) -> str:
     return str(_PERFILES[perfil]["entidad"])
-
 
 def parsear_fecha_emision(texto: str) -> date | None:
     m = re.search(
@@ -400,7 +393,6 @@ def parsear_fecha_emision(texto: str) -> date | None:
             continue
     return None
 
-
 def fecha_dentro_ventana(
     fecha: date | datetime | None,
     *,
@@ -416,7 +408,6 @@ def fecha_dentro_ventana(
         return False
     return (ref - fecha).days <= max_dias
 
-
 def detectar_glosa(texto: str, perfil: str) -> str | None:
     low = texto_lower(texto)
     glosas = _GLOSAS.get(perfil, ())
@@ -424,7 +415,6 @@ def detectar_glosa(texto: str, perfil: str) -> str | None:
         if g in low or compact(g) in compact(texto):
             return g
     return None
-
 
 def rut_coincide_con_empresa(texto: str, rut_empresa: str | None) -> str | None:
     ruts = extraer_ruts(texto)

@@ -1,4 +1,4 @@
-"""Contratos JSON de entrada y salida de la API (Pydantic)."""
+
 
 from app.api.esquemas.comunes import CategoriaNegocio, TipoCuenta
 from app.api.esquemas.negocios import (

@@ -1,4 +1,4 @@
--- Observables ciber/operativa adicionales (sin mapear rutas del sitio).
+
 ALTER TABLE business_reputation_metrics
     ADD COLUMN IF NOT EXISTS score_email_auth double precision;
 ALTER TABLE business_reputation_metrics

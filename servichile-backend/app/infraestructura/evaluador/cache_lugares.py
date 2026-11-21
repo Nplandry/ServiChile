@@ -1,4 +1,4 @@
-"""Caché de fichas Places: evita 429 en refrescos y conserva snapshot útil."""
+
 
 from __future__ import annotations
 
@@ -7,25 +7,20 @@ import time
 from pathlib import Path
 from typing import Any
 
-# 7 días: la ficha física cambia poco; lo crítico es no perderla por cuota.
 _TTL_S = 7 * 24 * 3600
 _MEM: dict[str, tuple[float, dict[str, Any]]] = {}
-
 
 def _dir() -> Path:
     root = Path(__file__).resolve().parents[3] / ".cache" / "places"
     root.mkdir(parents=True, exist_ok=True)
     return root
 
-
 def _clave(dominio: str) -> str:
     return (dominio or "").strip().lower().removeprefix("www.").split("/")[0]
-
 
 def _ruta(dominio: str) -> Path:
     seguro = _clave(dominio).replace(".", "_") or "desconocido"
     return _dir() / f"{seguro}.json"
-
 
 def obtener(dominio: str) -> dict[str, Any] | None:
     k = _clave(dominio)
@@ -53,7 +48,6 @@ def obtener(dominio: str) -> dict[str, Any] | None:
     _MEM[k] = (ts or now, carga)
     return carga
 
-
 def guardar(dominio: str, carga: dict[str, Any]) -> None:
     k = _clave(dominio)
     if not k or not isinstance(carga, dict):
@@ -68,7 +62,6 @@ def guardar(dominio: str, carga: dict[str, Any]) -> None:
         )
     except OSError:
         pass
-
 
 def limpiar(dominio: str | None = None) -> None:
     if dominio:

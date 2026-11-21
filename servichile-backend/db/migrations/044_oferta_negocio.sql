@@ -1,4 +1,4 @@
--- Oferta declarada por el proveedor (no entra al índice de transparencia).
+
 
 ALTER TABLE business_entities
     ADD COLUMN IF NOT EXISTS servicios jsonb NOT NULL DEFAULT '[]'::jsonb;

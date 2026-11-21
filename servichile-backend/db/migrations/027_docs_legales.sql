@@ -1,4 +1,4 @@
--- Docs legales públicos detectados en el sitio (privacidad, términos, SLA/DPA).
+
 ALTER TABLE business_reputation_metrics
     ADD COLUMN IF NOT EXISTS score_politica_privacidad double precision;
 ALTER TABLE business_reputation_metrics

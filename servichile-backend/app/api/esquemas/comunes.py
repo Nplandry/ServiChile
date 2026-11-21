@@ -1,4 +1,4 @@
-"""Helpers compartidos de esquemas API."""
+
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ CategoriaNegocio = Literal[
 ]
 
 _NOMBRE_OK = re.compile(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .\-]{2,120}$")
-
 
 def telefono_opcional(value: str | None) -> str | None:
     if value is None:

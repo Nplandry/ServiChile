@@ -151,7 +151,7 @@ const ProgresoCuenta = {
         meta: '',
         valor: '0%',
         pct: 0,
-        cta: 'Ver detalle →',
+        cta: 'Ver detalle',
         extras: {}
       };
     },
@@ -281,7 +281,7 @@ const ProgresoCuenta = {
     },
 
     filaTitular(c) {
-      return ['Titular', (c.datos && c.datos.nombre) || '—'];
+      return ['Titular', (c.datos && c.datos.nombre) || '-'];
     },
 
     filaCorreo(c) {
@@ -300,7 +300,7 @@ const ProgresoCuenta = {
     filaXp(src) {
       const xp = src && src.xp != null ? src.xp : 0;
       const nivel = (src && src.nivel_xp) || 1;
-      return ['XP', xp + ' · Nivel ' + nivel];
+      return ['XP', xp + ' Nivel ' + nivel];
     },
 
     filaNivelReporte(src) {
@@ -347,7 +347,7 @@ const ProgresoCuenta = {
 
     formatoIndice(n) {
       const v = Number(n);
-      if (!Number.isFinite(v)) return '—';
+      if (!Number.isFinite(v)) return '-';
       return v.toFixed(1) + ' / 10';
     },
 
@@ -405,17 +405,17 @@ ProgresoCuenta.registrar('persona', {
     const nivel = sc ? sc.nivelXp() : 1;
     const nombreNivel = this.etiquetaNivel(nivel);
     const detalleIzq = hechas + ' de ' + total + ' requisitos';
-    const detalleDer = 'Nivel ' + nivel + ' · ' + nombreNivel;
+    const detalleDer = 'Nivel ' + nivel + ' ' + nombreNivel;
     return {
       tipo: this.tipo,
       titulo: 'Su verificación',
       aria: 'Progreso de verificación',
       detalleIzq,
       detalleDer,
-      meta: detalleIzq + ' · ' + detalleDer,
+      meta: detalleIzq + ' ' + detalleDer,
       valor: pct + '%',
       pct,
-      cta: 'Ver qué desbloquea →',
+      cta: 'Ver qué desbloquea',
       extras: { hechas, total, xp, nivel, nombreNivel }
     };
   },
@@ -605,18 +605,19 @@ ProgresoCuenta.registrar('proveedor', {
         : Math.round((indice / 10) * 100);
     const titularidad = pct >= 100 ? 'Documentos en orden' : 'Falta documentación';
     const detalleIzq = docs + ' de ' + totalDocs + ' documentos legales';
-    const detalleDer = '★ ' + indice.toFixed(1);
+    const nombreFicha = String((ficha && ficha.nombre) || '').trim() || 'Empresa';
+    const detalleDer = nombreFicha + ' ★ ' + indice.toFixed(1);
     return {
       tipo: this.tipo,
       titulo: 'Transparencia para publicar',
-      aria: 'Rating por documentos del proveedor',
+      aria: 'Transparencia de ' + nombreFicha,
       detalleIzq,
       detalleDer,
-      meta: detalleIzq + ' · ' + titularidad,
-      valor: '★ ' + indice.toFixed(1),
+      meta: detalleIzq + ' ' + titularidad,
+      valor: detalleDer,
       pct,
-      cta: 'Ver transparencia →',
-      extras: { indice, pct, docs, totalDocs, ficha }
+      cta: 'Ver transparencia',
+      extras: { indice, pct, docs, totalDocs, ficha, nombreFicha }
     };
   },
 
@@ -646,7 +647,7 @@ ProgresoCuenta.registrar('proveedor', {
   filasQr(c) {
     const ficha = this.calcularFicha();
     const filas = [
-      ['Responsable', (c.datos && c.datos.nombre) || '—'],
+      ['Responsable', (c.datos && c.datos.nombre) || '-'],
       this.filaCorreo(c)
     ].filter(Boolean);
     if (!ficha._sinFicha && ficha.indice_transparencia != null) {

@@ -1,4 +1,4 @@
--- Observables DataLux: domicilio y huella digital (base 50, match 100, peso 2%).
+
 ALTER TABLE business_reputation_metrics
     ADD COLUMN IF NOT EXISTS score_domicilio double precision;
 

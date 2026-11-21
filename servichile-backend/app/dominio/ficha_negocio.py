@@ -1,4 +1,4 @@
-"""Cómo se ve un negocio en el mapa: foto, iniciales del logo y botón de acción."""
+
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ CTA_POR_CATEGORIA = {
     "tecnologia": "Ver ficha de transparencia",
     "industria": "Evaluar proveedor",
     "construccion": "Evaluar contratista",
-    "servicios-profesionales": "Ver due diligence",
+    "servicios-profesionales": "Ver transparencia",
     "logistica": "Validar operador logístico",
 }
 
@@ -23,14 +23,11 @@ IMAGEN_POR_CATEGORIA = {
 _ESQUEMAS_BLOQUEADOS = ("javascript:", "data:", "vbscript:", "file:", "blob:")
 _URL_MAX = 500
 
-
 def cta_texto(categoria: str) -> str:
     return CTA_POR_CATEGORIA.get(categoria, "Ver ficha")
 
-
 def imagen_por_defecto(categoria: str) -> str:
     return IMAGEN_POR_CATEGORIA.get(categoria, IMAGEN_POR_CATEGORIA["tecnologia"])
-
 
 def logo_texto(nombre: str) -> str:
     partes = re.sub("[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\\s]", " ", nombre or "").split()
@@ -41,12 +38,8 @@ def logo_texto(nombre: str) -> str:
         return partes[0][:2].upper()
     return (partes[0][0] + partes[1][0]).upper()
 
-
 def normalizar_url_recurso(valor: str | None, *, max_len: int = _URL_MAX) -> str | None:
-    """Strip + https. Rechaza esquemas peligrosos y URLs sin host usable.
 
-    `http://` se reescribe a `https://` (solo enlaces externos de banner/logo).
-    """
     if valor is None:
         return None
     url = valor.strip()
@@ -75,9 +68,8 @@ def normalizar_url_recurso(valor: str | None, *, max_len: int = _URL_MAX) -> str
         raise ValueError("La URL no parece válida")
     return url
 
-
 def url_recurso_usable(url: str | None) -> bool:
-    """True si la URL ya guardada se puede mostrar como imagen externa."""
+
     if not url or not isinstance(url, str):
         return False
     try:
@@ -85,16 +77,14 @@ def url_recurso_usable(url: str | None) -> bool:
     except ValueError:
         return False
 
-
 def imagen_efectiva(imagen_url: str | None, categoria: str) -> str:
-    """Banner público: URL propia si es usable; si no, imagen por categoría."""
+
     if url_recurso_usable(imagen_url):
         return normalizar_url_recurso(imagen_url) or imagen_por_defecto(categoria)
     return imagen_por_defecto(categoria)
 
-
 def logo_efectivo(logo_url: str | None) -> str | None:
-    """Logo público: solo si la URL es https usable; si no, el FE usa iniciales."""
+
     if not url_recurso_usable(logo_url):
         return None
     return normalizar_url_recurso(logo_url)

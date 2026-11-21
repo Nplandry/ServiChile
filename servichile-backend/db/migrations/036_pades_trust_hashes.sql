@@ -1,4 +1,4 @@
--- Anti-replay PAdES: un mismo PDF (sha256) no puede reutilizarse.
+
 CREATE TABLE IF NOT EXISTS pades_document_hashes (
     sha256 text PRIMARY KEY,
     scope text NOT NULL,
@@ -15,7 +15,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_usuarios_antecedentes_sha256
     ON usuarios (antecedentes_sha256)
     WHERE antecedentes_sha256 IS NOT NULL;
 
--- Rol de la app (si existe): la tabla a menudo se crea como superusuario/peer.
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'servichile') THEN

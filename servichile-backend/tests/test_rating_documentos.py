@@ -8,10 +8,8 @@ from app.dominio.transparencia.valoracion import (
     score_unificado,
 )
 
-
 def _docs(*tipos: str):
     return docs_empresa_desde_raw({t: {"verificado": True, "score": 100} for t in tipos})
-
 
 def test_rating_ignora_documento_caducado():
     tipo = TIPOS_DOC_EMPRESA[0]
@@ -30,7 +28,6 @@ def test_rating_ignora_documento_caducado():
     assert rating.verificados == 0
     assert rating.indice == 0.0
 
-
 def test_rating_sin_docs_es_cero():
     rating = calcular_valoracion_documentos(None)
     assert rating.verificados == 0
@@ -39,7 +36,6 @@ def test_rating_sin_docs_es_cero():
     assert rating.indice == 0.0
     assert calcular_indice(None) == 0.0
     assert calcular_valoracion_documentos(None) is calcular_valoracion_documentos({})
-
 
 def test_rating_un_documento_pesa_igual():
     tipo = TIPOS_DOC_EMPRESA[0]
@@ -50,7 +46,6 @@ def test_rating_un_documento_pesa_igual():
     assert rating.pct == esperado_pct
     assert rating.indice == esperado_indice
 
-
 def test_rating_todos_documentos_llega_a_100():
     completo = _docs(*TIPOS_DOC_EMPRESA)
     rating = calcular_valoracion_documentos(completo)
@@ -58,7 +53,6 @@ def test_rating_todos_documentos_llega_a_100():
     assert rating.pct == 100
     assert rating.indice == 10.0
     assert calcular_valoracion_documentos(completo) is rating
-
 
 def test_rating_ignora_docs_no_verificados():
     docs = docs_empresa_desde_raw(
@@ -71,18 +65,15 @@ def test_rating_ignora_docs_no_verificados():
     rating = calcular_valoracion_documentos(docs)
     assert rating.verificados == 1
 
-
 def test_score_unificado_junta_evaluador_y_docs():
     indice, pct = score_unificado(pct_evaluador=80, docs_pct=20)
     assert pct == 50
     assert indice == 5.0
 
-
 def test_score_unificado_sin_docs_baja_el_indice():
     indice, pct = score_unificado(pct_evaluador=100, docs_pct=0)
     assert pct == 50
     assert indice == 5.0
-
 
 def test_teaser_publico_tres_senales():
     from app.dominio.entidades import ObservableSenal
@@ -117,7 +108,6 @@ def test_teaser_publico_tres_senales():
     assert teaser[1].score == 70
     assert restantes >= 31
 
-
 def test_observables_documentos_entran_al_desglose():
     docs = _docs(TIPOS_DOC_EMPRESA[0])
     obs = observables_documentos(docs)
@@ -127,7 +117,6 @@ def test_observables_documentos_entran_al_desglose():
     assert obs[0].grupo == "documentos"
     assert all(o.score in (0, 100) for o in obs)
     assert sum(1 for o in obs if o.score == 100) == 1
-
 
 def test_documentos_van_primero_en_el_indice():
     docs = observables_documentos(_docs(TIPOS_DOC_EMPRESA[0]))

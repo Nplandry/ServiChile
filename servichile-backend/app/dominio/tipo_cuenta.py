@@ -8,7 +8,6 @@ TIPOS_PERSONA_LIKE = frozenset({"persona", "contratista"})
 
 _LEGACY = {"empresa": "proveedor"}
 
-
 def normalizar(tipo: str | None) -> str | None:
 
     if tipo is None:
@@ -23,16 +22,13 @@ def normalizar(tipo: str | None) -> str | None:
 
     return _LEGACY.get(clave, clave)
 
-
 def es_proveedor(tipo: str | None) -> bool:
 
     return normalizar(tipo) == TIPO_PROVEEDOR
 
-
 def es_persona_like(tipo: str | None) -> bool:
 
     return normalizar(tipo) in TIPOS_PERSONA_LIKE
-
 
 def tipo_de_usuario(usuario) -> str | None:
 

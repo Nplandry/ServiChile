@@ -1,4 +1,4 @@
-"""Motor de puntuación: pesos por segmento + puntaje global + proyección a observables."""
+
 
 from __future__ import annotations
 
@@ -20,10 +20,8 @@ from app.dominio.transparencia.evaluador.segmento import (
 
 _ESTADOS_NO_MEDIDOS = {"omitido", "sin_puntaje", "error", "faltante"}
 
-
 def _acotar(v: float) -> float:
     return max(0.0, min(100.0, float(v)))
-
 
 @dataclass(frozen=True, slots=True)
 class PuntajeParametro:
@@ -36,14 +34,12 @@ class PuntajeParametro:
     fuente: str | None = None
     estado: str = "ok"
 
-
 @dataclass(frozen=True, slots=True)
 class PuntajeCategoria:
     categoria: CategoriaEvaluador
     puntaje: float | None
     puntuado: bool
     parametros: tuple[PuntajeParametro, ...]
-
 
 @dataclass
 class ResultadoEvaluador:
@@ -57,14 +53,14 @@ class ResultadoEvaluador:
     metadatos: dict = field(default_factory=dict)
 
     def a_observables(self) -> list[ObservableSenal]:
-        """Solo parámetros medidos (estado ok + puntaje). No inventa 0 por faltante."""
+
         out: list[ObservableSenal] = []
         for p in self.parametros:
             if p.estado in _ESTADOS_NO_MEDIDOS or p.puntaje is None:
                 continue
             puntaje = int(round(_acotar(p.puntaje)))
             detalle = (p.evidencia or "").strip()
-            # Contractuales del crawler: mostrar solo la ruta encontrada (/privacidad).
+
             if p.id.startswith("con_") and detalle.startswith("/"):
                 pass
             elif p.fuente and detalle:
@@ -83,7 +79,6 @@ class ResultadoEvaluador:
                 )
             )
         return out
-
 
 def construir_puntajes(
     *,
@@ -200,7 +195,6 @@ def construir_puntajes(
         recomendaciones=list(recomendaciones or []),
         metadatos=meta,
     )
-
 
 def bloquear_fisica(
     pistas: dict[str, float],

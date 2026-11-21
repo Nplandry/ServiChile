@@ -1,5 +1,5 @@
--- Cupón Webpay para publicar ficha de empresa ($8.990).
--- business_id queda NULL hasta consumir el alta (POST /v1/businesses).
+
+
 CREATE TABLE IF NOT EXISTS compras_publicacion (
     id UUID PRIMARY KEY,
     usuario_id UUID NOT NULL,
@@ -26,7 +26,6 @@ CREATE INDEX IF NOT EXISTS idx_compras_publicacion_cupon
   ON compras_publicacion (usuario_id, estado)
   WHERE business_id IS NULL;
 
--- Una sola autorizada sin consumir por usuario (cupón libre).
 CREATE UNIQUE INDEX IF NOT EXISTS uq_compras_publicacion_cupon_libre
   ON compras_publicacion (usuario_id)
   WHERE estado = 'autorizado' AND business_id IS NULL;

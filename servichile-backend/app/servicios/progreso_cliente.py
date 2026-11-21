@@ -1,4 +1,4 @@
-"""Otorga puntos al cliente cuando completa un hito."""
+
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from app.dominio import progreso_cliente as reglas
 from app.dominio.entidades import Usuario
 
 from app.dominio.puertos import RepositorioXp
-
 
 class ServicioProgresoCliente:
 

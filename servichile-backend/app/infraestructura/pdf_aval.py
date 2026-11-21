@@ -1,10 +1,9 @@
-"""Extracción de PDF textual para aval/garantía (solo reglas; sin IA)."""
+
 
 from __future__ import annotations
 
 from app.dominio.aval import ResultadoAval, validar_aval
 from app.infraestructura.pdf_textual import extraer_texto_pdf
-
 
 def _rechazo(motivo: str, *senales: str) -> ResultadoAval:
     return ResultadoAval(
@@ -15,10 +14,8 @@ def _rechazo(motivo: str, *senales: str) -> ResultadoAval:
         motivo=motivo,
     )
 
-
 def extraer_texto_pdf_aval(pdf_bytes: bytes) -> tuple[str, int, bool]:
     return extraer_texto_pdf(pdf_bytes)
-
 
 def analizar_pdf_aval(
     pdf_bytes: bytes,
@@ -59,7 +56,6 @@ def analizar_pdf_aval(
         rut_perfil=rut_perfil,
         nombre_perfil=nombre_perfil,
     )
-
 
 class AnalizadorPdfAval:
     def analizar(

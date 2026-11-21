@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 from app.configuracion import obtener_configuracion
 
-
 def _cuenta(
     client: TestClient, email: str, nombre: str = "Usuario Prueba"
 ) -> dict[str, str]:
@@ -26,11 +25,9 @@ def _cuenta(
 
     return {"Authorization": f"Bearer {t['access_token']}"}
 
-
 def test_emitir_reporte_requiere_sesion(client: TestClient):
 
     assert client.get("/v1/reporte").status_code == 401
-
 
 def test_emitir_reporte_devuelve_payload_firmado(client: TestClient, token: str):
 
@@ -63,7 +60,6 @@ def test_emitir_reporte_devuelve_payload_firmado(client: TestClient, token: str)
 
     assert "rut" not in body
 
-
 def test_validar_qr_de_otro_usuario(client: TestClient, token: str):
 
     titular = {"Authorization": f"Bearer {token}"}
@@ -92,7 +88,6 @@ def test_validar_qr_de_otro_usuario(client: TestClient, token: str):
 
     assert body["tipo_cuenta"] == "persona"
 
-
 def _cuenta_empresa(
     client: TestClient, email: str, nombre: str = "Empresa Prueba"
 ) -> dict[str, str]:
@@ -111,7 +106,6 @@ def _cuenta_empresa(
     ).json()
 
     return {"Authorization": f"Bearer {t['access_token']}"}
-
 
 def test_persona_valida_qr_de_proveedor(client: TestClient, token: str):
 
@@ -137,7 +131,6 @@ def test_persona_valida_qr_de_proveedor(client: TestClient, token: str):
 
     assert body["tipo_cuenta"] == "proveedor"
 
-
 def test_proveedor_valida_qr_de_persona(client: TestClient, token: str):
 
     persona = {"Authorization": f"Bearer {token}"}
@@ -160,7 +153,6 @@ def test_proveedor_valida_qr_de_persona(client: TestClient, token: str):
 
     assert body["nombre"] == "María González"
 
-
 def test_validar_acepta_jwt_crudo(client: TestClient, token: str):
 
     titular = {"Authorization": f"Bearer {token}"}
@@ -177,7 +169,6 @@ def test_validar_acepta_jwt_crudo(client: TestClient, token: str):
 
     assert r.json()["nombre"] == "María González"
 
-
 def test_validar_propio_marca_es_propio(client: TestClient, token: str):
 
     h = {"Authorization": f"Bearer {token}"}
@@ -192,7 +183,6 @@ def test_validar_propio_marca_es_propio(client: TestClient, token: str):
 
     assert r.json()["es_propio"] is True
 
-
 def test_token_de_sesion_no_sirve_como_reporte(client: TestClient, token: str):
 
     otro = _cuenta(client, "otro@servichile.cl")
@@ -200,7 +190,6 @@ def test_token_de_sesion_no_sirve_como_reporte(client: TestClient, token: str):
     r = client.post("/v1/reporte/validar", json={"payload": token}, headers=otro)
 
     assert r.status_code == 422
-
 
 def test_qr_expirado_da_422(client: TestClient, token: str):
 
@@ -230,7 +219,6 @@ def test_qr_expirado_da_422(client: TestClient, token: str):
     assert r.status_code == 422
 
     assert "expir" in r.json()["detail"].lower()
-
 
 def test_payload_basura_da_422(client: TestClient, token: str):
 

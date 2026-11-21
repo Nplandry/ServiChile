@@ -1,4 +1,4 @@
-"""Visión local para cédula: enderezar, ROI del RUN y face-match (sin Paddle/LLM)."""
+
 
 from __future__ import annotations
 
@@ -13,25 +13,21 @@ logger = logging.getLogger(__name__)
 
 UMBRAL_FACE_DEFAULT = 0.52
 
-# Zona típica de la foto en cédula chilena nueva (frente).
 _FOTO_CARNET = (0.04, 0.14, 0.38, 0.72)
-# Zona primaria del R.U.N. + un fallback un poco más alto.
+
 _ROIS_RUN = (
     (0.02, 0.76, 0.52, 0.98),
     (0.02, 0.70, 0.48, 0.95),
 )
 
-# Detección de contorno a resolución acotada (bastante para quad + deskew).
 _DETECT_MAX = 640
-# Salida del warp: suficiente para OCR sin inflar Tesseract.
-_WARP_MAX = 1600
-# Haar sobre selfie/carnet reducido.
-_FACE_DETECT_MAX = 480
 
+_WARP_MAX = 1600
+
+_FACE_DETECT_MAX = 480
 
 class ComparadorRostros(Protocol):
     def comparar(self, carnet_jpeg: bytes, selfie_jpeg: bytes) -> float: ...
-
 
 def _jpeg_a_bgr(jpeg_bytes: bytes):
     import cv2
@@ -42,7 +38,6 @@ def _jpeg_a_bgr(jpeg_bytes: bytes):
         raise ValueError("imagen inválida")
     return bgr
 
-
 def _bgr_a_jpeg(bgr, quality: int = 88) -> bytes:
     import cv2
 
@@ -50,7 +45,6 @@ def _bgr_a_jpeg(bgr, quality: int = 88) -> bytes:
     if not ok:
         raise ValueError("no se pudo re-encodear")
     return bytes(buf)
-
 
 def _limitar_lado(bgr, max_lado: int, *, interp=None):
     import cv2
@@ -65,7 +59,6 @@ def _limitar_lado(bgr, max_lado: int, *, interp=None):
     out = cv2.resize(bgr, (int(w * escala), int(h * escala)), interpolation=interp)
     return out, escala
 
-
 def _orden_puntos(pts: np.ndarray) -> np.ndarray:
     s = pts.sum(axis=1)
     diff = np.diff(pts, axis=1).ravel()
@@ -76,9 +69,8 @@ def _orden_puntos(pts: np.ndarray) -> np.ndarray:
     orden[3] = pts[np.argmax(diff)]
     return orden
 
-
 def enderezar_carnet(jpeg_bytes: bytes) -> bytes:
-    """Detecta el contorno del carnet y aplica perspectiva; si falla, devuelve original."""
+
     try:
         import cv2
     except ImportError:
@@ -125,7 +117,7 @@ def enderezar_carnet(jpeg_bytes: bytes) -> bytes:
             angulo = 90 + angulo
         if abs(angulo) < 2.0 or abs(angulo) > 20:
             return jpeg_bytes
-        # Deskew sobre imagen ya limitada si es muy grande.
+
         base, _ = _limitar_lado(bgr, _WARP_MAX)
         bh, bw = base.shape[:2]
         M = cv2.getRotationMatrix2D((bw / 2, bh / 2), angulo, 1.0)
@@ -145,7 +137,7 @@ def enderezar_carnet(jpeg_bytes: bytes) -> bytes:
     alto_b = float(np.linalg.norm(tl - bl))
     ancho_max = max(int(ancho_a), int(ancho_b), 200)
     alto_max = max(int(alto_a), int(alto_b), 120)
-    # Cap salida para no alimentar OCR con megapíxeles.
+
     m = max(ancho_max, alto_max)
     if m > _WARP_MAX:
         s = _WARP_MAX / m
@@ -164,9 +156,8 @@ def enderezar_carnet(jpeg_bytes: bytes) -> bytes:
     except ValueError:
         return jpeg_bytes
 
-
 def recortes_roi_run_pil(img: Image.Image) -> list[Image.Image]:
-    """Recorta zonas candidatas del RUN como PIL (sin re-JPEG)."""
+
     if img.mode != "L":
         base = img.convert("L")
     else:
@@ -185,14 +176,12 @@ def recortes_roi_run_pil(img: Image.Image) -> list[Image.Image]:
         out.append(crop)
     return out
 
-
 @lru_cache(maxsize=1)
 def _cascade_frontal():
     import cv2
 
     path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
     return cv2.CascadeClassifier(path)
-
 
 def _detectar_rostro(bgr, escala_min: float = 0.12):
     import cv2
@@ -213,7 +202,7 @@ def _detectar_rostro(bgr, escala_min: float = 0.12):
     if len(faces) == 0:
         return None
     x, y, fw, fh = max(faces, key=lambda f: f[2] * f[3])
-    # Mapear al tamaño original si redujimos.
+
     if escala != 1.0:
         inv = 1.0 / escala
         x = int(x * inv)
@@ -231,7 +220,6 @@ def _detectar_rostro(bgr, escala_min: float = 0.12):
     y1 = min(H, y + fh + pad)
     return gris_full[y0:y1, x0:x1]
 
-
 def _roi_foto_carnet(bgr):
     import cv2
 
@@ -245,7 +233,6 @@ def _roi_foto_carnet(bgr):
         return cara
     return cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
 
-
 def _normalizar_cara(gris, lado: int = 96) -> np.ndarray:
     import cv2
 
@@ -253,7 +240,6 @@ def _normalizar_cara(gris, lado: int = 96) -> np.ndarray:
         raise ValueError("sin cara")
     cara = cv2.resize(gris, (lado, lado), interpolation=cv2.INTER_AREA)
     return cv2.equalizeHist(cara)
-
 
 def _similitud_caras(a: np.ndarray, b: np.ndarray) -> float:
     import cv2
@@ -273,13 +259,11 @@ def _similitud_caras(a: np.ndarray, b: np.ndarray) -> float:
     corr01 = max(0.0, min(1.0, corr))
     return 0.65 * cos01 + 0.35 * corr01
 
-
 class ComparadorRostrosOpenCv:
-    """Compara el rostro del carnet con la selfie en var/biometria (OpenCV Haar)."""
 
     def comparar(self, carnet_jpeg: bytes, selfie_jpeg: bytes) -> float:
         try:
-            import cv2  # noqa: F401
+            import cv2
         except ImportError:
             logger.warning("opencv no instalado; face-match = 0")
             return 0.0
@@ -307,9 +291,7 @@ class ComparadorRostrosOpenCv:
             logger.info("face-match falló: %s", error)
             return 0.0
 
-
 class ComparadorRostrosFijo:
-    """Para tests: score constante si hay bytes de selfie."""
 
     def __init__(self, score: float = 0.9) -> None:
         self.score = float(score)

@@ -1,4 +1,4 @@
-"""Carga en RAM de la bóveda ca_chile.pem (ValidationContext offline)."""
+
 
 from __future__ import annotations
 
@@ -12,10 +12,8 @@ _DEFAULT_CA = (
     Path(__file__).resolve().parent / "certs" / "ca_chile.pem"
 )
 
-
 def ruta_ca_default() -> Path:
     return _DEFAULT_CA
-
 
 @lru_cache(maxsize=8)
 def cargar_certificados(pem_path: str) -> tuple:
@@ -30,10 +28,9 @@ def cargar_certificados(pem_path: str) -> tuple:
     logger.info("Bóveda CA cargada: %s (%d certificados)", path, len(certs))
     return certs
 
-
 @lru_cache(maxsize=8)
 def obtener_contexto_validacion(pem_path: str):
-    """Contexto offline: sin OCSP/CRL en red; confianza solo contra el PEM maestro."""
+
     from pyhanko_certvalidator import ValidationContext
 
     roots = list(cargar_certificados(pem_path))
@@ -42,7 +39,6 @@ def obtener_contexto_validacion(pem_path: str):
         allow_fetching=False,
         revocation_mode="soft-fail",
     )
-
 
 def invalidar_cache_confianza() -> None:
     cargar_certificados.cache_clear()

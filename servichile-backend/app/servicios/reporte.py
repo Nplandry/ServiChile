@@ -9,9 +9,7 @@ from app.servicios.reporte_identidad import ServicioReporteIdentidad
 
 _PREFIJO_PAYLOAD = "servichile://reporte/"
 
-
 class ServicioReporte:
-    """Emite y valida el QR del reporte de confianza."""
 
     def __init__(
         self,

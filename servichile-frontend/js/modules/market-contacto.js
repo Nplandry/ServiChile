@@ -1,4 +1,4 @@
-/** Contacto WhatsApp/correo (extraído de market-monetizacion). */
+
 (function () {
   if (typeof MarketMonetizacion === 'undefined') {
     throw new Error('market-contacto requiere market-monetizacion.js');
@@ -233,7 +233,7 @@
       especialista.type = 'button';
       especialista.className = 'paywall-cierre__secundario';
       especialista.textContent =
-        'Que un especialista gestione esta contratación (gratis para usted — comisión al proveedor)';
+        'Que un especialista gestione esta contratación (gratis para usted - comisión al proveedor)';
       especialista.addEventListener('click', () => {
         MarketMonetizacion.mostrarRebote(n, demo);
         MarketMonetizacion.toast(

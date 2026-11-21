@@ -1,7 +1,4 @@
--- FK business_id: requiere REFERENCES sobre business_entities.
--- Si compras_informe es de otro owner, primero:
---   GRANT REFERENCES ON business_entities TO <owner_compras>;
--- Ejecutar como owner de business_entities (o superuser).
+
 
 DO $$
 BEGIN

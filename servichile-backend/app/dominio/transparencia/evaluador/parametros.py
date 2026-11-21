@@ -1,4 +1,4 @@
-"""Catálogo de parámetros del evaluador empresarial (25+)."""
+
 
 from __future__ import annotations
 
@@ -13,8 +13,6 @@ CategoriaEvaluador = Literal[
     "proveedor_estado",
 ]
 
-# Mapeo a grupos del desglose FE / ObservableSenal.grupo.
-# "ciber" = segmento ciberseguridad (no confundir con el evaluador del índice).
 GRUPO_FE: dict[CategoriaEvaluador, str] = {
     "ciberseguridad": "ciber",
     "contractual_datos": "contractual",
@@ -23,7 +21,6 @@ GRUPO_FE: dict[CategoriaEvaluador, str] = {
     "proveedor_estado": "legal",
 }
 
-
 @dataclass(frozen=True, slots=True)
 class ParametroDef:
     id: str
@@ -31,7 +28,6 @@ class ParametroDef:
     categoria: CategoriaEvaluador
     peso: float = 1.0
     descripcion: str = ""
-
 
 PARAMETROS: tuple[ParametroDef, ...] = (
     ParametroDef("cyb_https", "HTTPS habilitado", "ciberseguridad", 1.2),
@@ -98,7 +94,6 @@ IDS_SITIO = (
     "con_cookies_notice",
     "dig_website",
 )
-
 
 def nota_desde_puntaje(puntaje: float) -> str:
     if puntaje >= 85:

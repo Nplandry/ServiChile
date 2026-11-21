@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
 
-
 def test_registro_con_tipo_proveedor(client: TestClient):
 
     r = client.post(
@@ -18,7 +17,6 @@ def test_registro_con_tipo_proveedor(client: TestClient):
     assert r.json()["perfil"]["tipo_cuenta"] == "proveedor"
 
     assert r.json()["perfil"]["edad"] is None
-
 
 def test_registro_con_tipo_contratista(client: TestClient):
 
@@ -38,7 +36,6 @@ def test_registro_con_tipo_contratista(client: TestClient):
 
     assert r.json()["perfil"]["edad"] == 35
 
-
 def test_registro_con_tipo_persona_y_edad(client: TestClient):
 
     r = client.post(
@@ -57,7 +54,6 @@ def test_registro_con_tipo_persona_y_edad(client: TestClient):
 
     assert r.json()["perfil"]["edad"] == 42
 
-
 def test_tipo_cuenta_empresa_legacy_da_422(client: TestClient):
 
     r = client.post(
@@ -72,7 +68,6 @@ def test_tipo_cuenta_empresa_legacy_da_422(client: TestClient):
 
     assert r.status_code == 422
 
-
 def test_tipo_cuenta_invalido_da_422(client: TestClient):
 
     r = client.post(
@@ -86,7 +81,6 @@ def test_tipo_cuenta_invalido_da_422(client: TestClient):
     )
 
     assert r.status_code == 422
-
 
 def test_registro_sin_tipo_cuenta_da_422(client: TestClient):
 

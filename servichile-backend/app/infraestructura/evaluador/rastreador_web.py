@@ -1,4 +1,4 @@
-"""Rastreador web del sitio (homepage): headers + docs legales → hints de score."""
+
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ import httpx
 
 try:
     from bs4 import BeautifulSoup
-except ImportError:  # pragma: no cover
-    BeautifulSoup = None  # type: ignore[misc, assignment]
+except ImportError:
+    BeautifulSoup = None
 
 DOC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
     "privacy_policy": [
@@ -31,7 +31,7 @@ DOC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
     "dpa": [
         re.compile(r"\bDPA\b"),
         re.compile(r"acuerdo\s+de\s+tratamiento\s+de\s+datos", re.I),
-        # La etiqueta FE es “explica cómo trata los datos”, no solo un DPA formal.
+
         re.compile(r"tratamiento\s+de\s+(datos\s+personales|sus\s+datos)", re.I),
         re.compile(r"procesa(?:miento|mos)\s+de?\s*datos\s+personales", re.I),
         re.compile(
@@ -55,7 +55,7 @@ CONTACT_DATA = re.compile(
     r"ejercer\s+(sus\s+)?derechos|privacidad@|privacy@",
     re.I,
 )
-# Solo subrecursos (img/script/css/iframe); no cuenta <a href=http://…>.
+
 _MIXED_SUBRESOURCE = re.compile(
     r"""<(?:script|img|iframe|source|embed|object|video|audio)\b[^>]*\b(?:src)\s*=\s*["']http://"""
     r"""|<(?:link)\b[^>]*\bhref\s*=\s*["']http://"""
@@ -63,7 +63,6 @@ _MIXED_SUBRESOURCE = re.compile(
     re.I,
 )
 
-# Muchas fichas chilenas/Odoo publican legales sin link visible en el home.
 _RUTAS_LEGALES = (
     "/privacy",
     "/privacidad",
@@ -77,7 +76,6 @@ _RUTAS_LEGALES = (
     "/aviso-legal",
 )
 
-# Solo señales contractuales (no headers cyb_*): id del índice ← doc_type del crawler.
 _DOC_A_CON: dict[str, str] = {
     "privacy_policy": "con_privacy",
     "ley_21719": "con_ley_21719",
@@ -89,16 +87,14 @@ _DOC_A_CON: dict[str, str] = {
     "cookies_notice": "con_cookies_notice",
 }
 
-
 def _normalize_url(url: str) -> str:
     u = url.strip()
     if not u.startswith("http"):
         u = "https://" + u
     return u.rstrip("/")
 
-
 def _urls_candidatas(url_sitio: str) -> list[str]:
-    """Apex y www: muchos sitios solo resuelven uno de los dos."""
+
     start = _normalize_url(url_sitio)
     out = [start]
     parsed = urlparse(start)
@@ -113,9 +109,8 @@ def _urls_candidatas(url_sitio: str) -> list[str]:
         out.append(alt.rstrip("/"))
     return out
 
-
 def ruta_mostrar(url: str | None, *, home_url: str = "") -> str | None:
-    """Ruta corta para el índice (/politica-de-privacidad), no la URL completa."""
+
     if not url or not str(url).strip():
         return None
     raw = str(url).strip()
@@ -147,13 +142,12 @@ def ruta_mostrar(url: str | None, *, home_url: str = "") -> str | None:
         try:
             origen = f"{urlparse(home_url).scheme}://{urlparse(home_url).netloc}"
             return ruta_mostrar(origen.rstrip("/") + "/" + raw.lstrip("/"), home_url=home_url)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
     return None
 
-
 def rastrear_sitio(url_sitio: str, *, tiempo_espera: float = 1.5) -> dict[str, Any]:
-    """Devuelve pistas, hallazgos y rutas_evidencia (solo con_*; no cyb_*)."""
+
     vacio = {
         "paginas_escaneadas": 0,
         "pistas_puntaje": {},
@@ -176,7 +170,7 @@ def rastrear_sitio(url_sitio: str, *, tiempo_espera: float = 1.5) -> dict[str, A
             follow_redirects=True,
             headers={
                 "User-Agent": "ServiChileEvaluador/1.0",
-                # Siempre red fresca: sin almacenamiento HTTP (ciber/contractual).
+
                 "Cache-Control": "no-cache, no-store",
                 "Pragma": "no-cache",
             },
@@ -184,7 +178,7 @@ def rastrear_sitio(url_sitio: str, *, tiempo_espera: float = 1.5) -> dict[str, A
             for candidato in _urls_candidatas(url_sitio):
                 try:
                     cand = cliente.get(candidato)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     continue
                 if cand.status_code < 400:
                     rr = cand
@@ -209,7 +203,7 @@ def rastrear_sitio(url_sitio: str, *, tiempo_espera: float = 1.5) -> dict[str, A
             }
             _incorporar_html(rr, page_texts, page_html)
             _sondear_rutas_legales(cliente, str(rr.url), page_texts, page_html)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return vacio
 
     if not page_texts:
@@ -222,7 +216,7 @@ def rastrear_sitio(url_sitio: str, *, tiempo_espera: float = 1.5) -> dict[str, A
     pistas = _pistas_puntaje(hallazgos, headers_info, page_texts)
     home = str(headers_info.get("url") or "")
     rutas = _rutas_evidencia_con(hallazgos, home_url=home)
-    # con_clausulas a veces hereda score de terms: misma ruta si no hubo match propio.
+
     if (
         float(pistas.get("con_clausulas") or 0) > 0
         and "con_clausulas" not in rutas
@@ -240,7 +234,6 @@ def rastrear_sitio(url_sitio: str, *, tiempo_espera: float = 1.5) -> dict[str, A
         },
         "rutas_evidencia": rutas,
     }
-
 
 def _incorporar_html(
     response: httpx.Response,
@@ -260,14 +253,13 @@ def _incorporar_html(
         label = f"{a.get_text(' ', strip=True)} {href}".lower()
         page_texts[f"link:{href}"] = f"{label} {href}"[:500]
 
-
 def _sondear_rutas_legales(
     cliente: httpx.Client,
     home_url: str,
     page_texts: dict[str, str],
     page_html: dict[str, str],
 ) -> None:
-    """GET corto a rutas legales típicas (aunque no estén en el menú)."""
+
     parsed = urlparse(home_url)
     origen = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
     vistos = {urlparse(u).path.rstrip("/") for u in page_html}
@@ -276,11 +268,11 @@ def _sondear_rutas_legales(
             continue
         try:
             resp = cliente.get(origen + ruta)
-        except Exception:  # noqa: BLE001
+        except Exception:
             continue
         if resp.status_code >= 400:
             continue
-        # Evitar "soft 404" de Odoo (200 con plantilla de error).
+
         cuerpo = (resp.text or "")[:4000].lower()
         if "page not found" in cuerpo or "página no encontrada" in cuerpo:
             continue
@@ -288,7 +280,6 @@ def _sondear_rutas_legales(
         vistos.add(ruta.rstrip("/"))
         if len([u for u in page_html if not u.startswith("link:")]) >= 4:
             break
-
 
 def _analizar(page_texts: dict[str, str], page_html: dict[str, str]) -> list[dict]:
     hallazgos: list[dict] = []
@@ -304,7 +295,7 @@ def _analizar(page_texts: dict[str, str], page_html: dict[str, str]) -> list[dic
             if conf > best_conf:
                 best_conf = conf
                 found_url = url
-        # Antes 0.55 excluía páginas /privacy con poco texto repetido.
+
         min_conf = 0.35
         hallazgos.append(
             {"doc_type": doc_type, "found": best_conf >= min_conf, "url": found_url}
@@ -334,7 +325,6 @@ def _analizar(page_texts: dict[str, str], page_html: dict[str, str]) -> list[dic
     )
     return hallazgos
 
-
 def _primera_url_match(
     page_texts: dict[str, str],
     page_html: dict[str, str],
@@ -343,7 +333,7 @@ def _primera_url_match(
     text_limit: int | None = None,
     html_limit: int = 0,
 ) -> str | None:
-    """Primera página (preferir URL real sobre link:) que dispara el patrón."""
+
     candidatas: list[tuple[int, str]] = []
     for url, text in page_texts.items():
         blob = text if text_limit is None else text[:text_limit]
@@ -360,9 +350,8 @@ def _primera_url_match(
     candidatas.sort(key=lambda x: x[0])
     return candidatas[0][1]
 
-
 def _rutas_evidencia_con(hallazgos: list[dict], *, home_url: str) -> dict[str, str]:
-    """Mapa con_* → ruta corta; solo hallazgos found con URL."""
+
     out: dict[str, str] = {}
     for h in hallazgos:
         if not h.get("found"):
@@ -375,7 +364,6 @@ def _rutas_evidencia_con(hallazgos: list[dict], *, home_url: str) -> dict[str, s
             out[pid] = ruta
     return out
 
-
 def _contar_mixed_content(page_html: dict[str, str], *, https: bool) -> int:
     if not https:
         return 0
@@ -383,7 +371,6 @@ def _contar_mixed_content(page_html: dict[str, str], *, https: bool) -> int:
     for html in page_html.values():
         hits += len(_MIXED_SUBRESOURCE.findall(html or ""))
     return hits
-
 
 def _pistas_puntaje(
     hallazgos: list[dict], headers_info: dict[str, Any], page_texts: dict[str, str]
@@ -429,7 +416,6 @@ def _pistas_puntaje(
         "con_cookies_notice": 100.0 if found("cookies_notice") else 0.0,
         "dig_website": 100.0 if page_texts else 0.0,
     }
-
 
 def dominio_de_url(sitio: str | None) -> str | None:
     if not sitio or not str(sitio).strip():

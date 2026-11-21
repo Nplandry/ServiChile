@@ -1,4 +1,4 @@
-"""Enviador SMTP respeta SMTP_STARTTLS (Mailhog local sin TLS)."""
+
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ from email.message import EmailMessage
 
 from app.dominio.puertos import MensajeSaliente
 from app.infraestructura.correo_plataforma import EnviadorSmtp
-
 
 def test_enviador_smtp_sin_starttls(monkeypatch):
     calls: list[str] = []
@@ -51,7 +50,6 @@ def test_enviador_smtp_sin_starttls(monkeypatch):
     )
     assert "starttls" not in calls
     assert "send:user@example.com" in calls
-
 
 def test_enviador_smtp_con_starttls(monkeypatch):
     calls: list[str] = []

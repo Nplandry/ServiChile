@@ -28,7 +28,6 @@ verificar_fks_compras_informe(settings)
 verificar_compras_publicacion(settings)
 verificar_redis(settings)
 
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     from contextlib import suppress
@@ -58,7 +57,6 @@ async def lifespan(_app: FastAPI):
             tarea.cancel()
             with suppress(asyncio.CancelledError):
                 await tarea
-
 
 app = FastAPI(
     title="ServiChile API",
@@ -93,7 +91,6 @@ app.include_router(radar.router_radar)
 app.include_router(pagos.router)
 _RUTAS_SILENCIOSAS = ("GET / ", "GET /json/version ")
 
-
 class _FiltroAccessSilencioso(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -102,15 +99,12 @@ class _FiltroAccessSilencioso(logging.Filter):
 
         return not any((ruta in msg for ruta in _RUTAS_SILENCIOSAS))
 
-
 logging.getLogger("uvicorn.access").addFilter(_FiltroAccessSilencioso())
-
 
 @app.get("/", include_in_schema=False)
 def raiz() -> dict[str, str]:
 
     return {"estado": "ok"}
-
 
 @app.get("/json/version", include_in_schema=False)
 def json_version() -> dict[str, str]:
@@ -120,7 +114,6 @@ def json_version() -> dict[str, str]:
         "Protocol-Version": "1.0",
         "webSocketDebuggerUrl": "",
     }
-
 
 @app.get("/salud", tags=["Sistema"])
 def salud() -> dict:
@@ -171,10 +164,9 @@ def salud() -> dict:
         "background_jobs": bool(settings.run_background_jobs),
     }
 
-
 @app.exception_handler(StarletteHTTPException)
 async def manejador_http(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-    """404 de ruta inexistente con mensaje en español; el resto conserva su detail."""
+
     detalle = exc.detail
     if exc.status_code == 404 and detalle in (None, "Not Found"):
         path = request.url.path

@@ -10,13 +10,11 @@ from app.infraestructura.pdf_antecedentes import analizar_pdf_antecedentes
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ANT_500727268737_21082350.pdf"
 
-
 def test_run_dv():
 
     assert run_valido("21.082.350-6")
 
     assert not run_valido("21.082.350-5")
-
 
 def test_detectar_anotaciones_sin():
 
@@ -27,13 +25,11 @@ def test_detectar_anotaciones_sin():
         is False
     )
 
-
 def test_detectar_anotaciones_con():
 
     texto = "CERTIFICADO DE ANTECEDENTES REGISTRO CIVIL REGISTRO GENERAL DE CONDENAS CONDENA 2020"
 
     assert detectar_anotaciones(texto) is True
-
 
 def test_analizar_fixture_acepta_sin_anotaciones():
 
@@ -69,7 +65,6 @@ def test_analizar_fixture_acepta_sin_anotaciones():
 
     assert r.sha256_hash and len(r.sha256_hash) == 64
 
-
 def test_pdf_de_clase_o_apuntes_se_rechaza():
 
     from app.dominio.antecedentes import validar_certificado_antecedentes
@@ -84,7 +79,6 @@ def test_pdf_de_clase_o_apuntes_se_rechaza():
     assert r.aceptado is False
 
     assert r.anotaciones is None
-
 
 def test_endpoint_antecedentes_suma_xp(client: TestClient, token: str):
 
@@ -141,7 +135,6 @@ def test_endpoint_antecedentes_suma_xp(client: TestClient, token: str):
     assert reporte["antecedentes_verificados"] is True
 
     assert reporte["antecedentes_anotaciones"] is False
-
 
 def test_pdf_basura_da_422(client: TestClient, token: str):
 

@@ -1,103 +1,79 @@
 class NegocioNoEncontrado(Exception):
     pass
 
-
 class NoEsTitularDelNegocio(Exception):
     pass
-
 
 class TrabajoNoEncontrado(Exception):
     pass
 
-
 class TrabajoYaCerrado(Exception):
     pass
-
 
 class NivelInsuficiente(Exception):
     def __init__(self, requiere: int) -> None:
         self.requiere = requiere
 
-
 class ContrasenaIncorrecta(Exception):
     pass
-
 
 class EmailYaRegistrado(Exception):
     pass
 
-
 class RutEmpresaEnUso(Exception):
     pass
 
-
 class CredencialesInvalidas(Exception):
     pass
-
 
 class ReporteInvalido(Exception):
     def __init__(self, mensaje: str) -> None:
         super().__init__(mensaje)
         self.mensaje = mensaje
 
-
 class ReporteError(Exception):
     def __init__(self, mensaje: str) -> None:
         super().__init__(mensaje)
         self.mensaje = mensaje
 
-
 class RutRechazado(ReporteError):
     pass
-
 
 class RutEnUso(ReporteError):
     pass
 
-
 class RutYaVerificado(ReporteError):
     pass
-
 
 class BiometriaInvalida(ReporteError):
     pass
 
-
 class BiometriaMuyGrande(ReporteError):
     pass
-
 
 class AntecedentesInvalido(ReporteError):
     pass
 
-
 class AntecedentesMuyGrande(ReporteError):
     pass
-
 
 class CedulaInvalida(ReporteError):
     pass
 
-
 class CedulaMuyGrande(ReporteError):
     pass
-
 
 class AvalInvalido(ReporteError):
     pass
 
-
 class AvalMuyGrande(ReporteError):
     pass
-
 
 class DocEmpresaInvalido(ReporteError):
     pass
 
-
 class DocEmpresaMuyGrande(ReporteError):
     pass
-
 
 class EvaluadorIndisponible(Exception):
     def __init__(
@@ -106,18 +82,15 @@ class EvaluadorIndisponible(Exception):
         super().__init__(mensaje)
         self.mensaje = mensaje
 
-
 class RadarInvalido(Exception):
     def __init__(self, mensaje: str) -> None:
         self.mensaje = mensaje
         super().__init__(mensaje)
 
-
 class CorreoRechazado(Exception):
     def __init__(self, mensaje: str) -> None:
         self.mensaje = mensaje
         super().__init__(mensaje)
-
 
 class PagoInformeError(Exception):
     def __init__(
@@ -132,9 +105,7 @@ class PagoInformeError(Exception):
         self.buy_order = buy_order
         super().__init__(mensaje)
 
-
 class InformeSinCompra(Exception):
-    """El informe comercial requiere compra Webpay autorizada (o ser titular)."""
 
     def __init__(
         self,
@@ -146,9 +117,7 @@ class InformeSinCompra(Exception):
         self.codigo = codigo
         super().__init__(mensaje)
 
-
 class PublicacionSinPago(Exception):
-    """Publicar ficha requiere cupón Webpay autorizado (PRECIO_PUBLICACION_CLP)."""
 
     def __init__(
         self,
@@ -159,7 +128,6 @@ class PublicacionSinPago(Exception):
         self.mensaje = mensaje
         self.codigo = codigo
         super().__init__(mensaje)
-
 
 class PagoPublicacionError(Exception):
     def __init__(

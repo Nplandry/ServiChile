@@ -12,7 +12,6 @@ from app.tiempo import ahora_utc
 _ALGORITHM = "HS256"
 _PROPOSITO = "reporte"
 
-
 class JwtReporte:
     def __init__(self, secreto: str, minutos: int) -> None:
         self.secreto = secreto

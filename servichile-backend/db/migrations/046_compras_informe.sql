@@ -1,6 +1,5 @@
--- Compras del informe Radar de riesgo (Webpay Plus).
--- Sin FK obligatorias: en algunos entornos el owner de business_entities/usuarios
--- impide REFERENCES; la integridad la garantiza la aplicación.
+
+
 CREATE TABLE IF NOT EXISTS compras_informe (
     id UUID PRIMARY KEY,
     usuario_id UUID NOT NULL,

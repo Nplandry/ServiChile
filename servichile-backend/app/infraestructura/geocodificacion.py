@@ -1,4 +1,4 @@
-"""Geocodificación de direcciones de oficina (Chile)."""
+
 
 from __future__ import annotations
 
@@ -11,20 +11,16 @@ from app.infraestructura.evaluador.http_sync import obtener_json
 
 log = logging.getLogger(__name__)
 
-_UA = "ServiChile/1.0 (due-diligence-b2b; contacto@servichile.local)"
-
+_UA = "ServiChile/1.0 (transparencia-b2b; contacto@servichile.local)"
 
 class Geocodificador(Protocol):
     def geocodificar(self, direccion: str) -> tuple[float, float] | None: ...
-
 
 class GeocodificadorNulo:
     def geocodificar(self, direccion: str) -> tuple[float, float] | None:
         return None
 
-
 class GeocodificadorDeterminista:
-    """Coords estables en Chile para tests (sin red)."""
 
     def geocodificar(self, direccion: str) -> tuple[float, float] | None:
         texto = (direccion or "").strip()
@@ -36,9 +32,7 @@ class GeocodificadorDeterminista:
         lng = -70.66 + (((n // 2000) % 2000) - 1000) * 0.0001
         return round(lat, 6), round(lng, 6)
 
-
 class GeocodificadorNominatim:
-    """OpenStreetMap Nominatim, sesgado a Chile."""
 
     def __init__(self, *, tiempo_espera: float = 4.0) -> None:
         self.tiempo_espera = tiempo_espera
@@ -78,7 +72,6 @@ class GeocodificadorNominatim:
             log.info("Geocodificación fuera de Chile descartada: %s,%s", lat, lng)
             return None
         return round(lat, 6), round(lng, 6)
-
 
 def construir_geocodificador(app_env: str) -> Geocodificador:
     env = (app_env or "local").strip().lower()

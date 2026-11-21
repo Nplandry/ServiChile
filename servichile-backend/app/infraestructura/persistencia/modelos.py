@@ -36,11 +36,9 @@ from app.configuracion import obtener_configuracion
 
 from app.tiempo import ahora_utc
 
-
 class Base(DeclarativeBase):
 
     pass
-
 
 class Usuario(Base):
 
@@ -139,7 +137,6 @@ class Usuario(Base):
         lazy="joined",
     )
 
-
 class UsuarioXpEvento(Base):
 
     __tablename__ = "usuario_xp_eventos"
@@ -162,7 +159,6 @@ class UsuarioXpEvento(Base):
 
     creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
 
-
 class Perfil(Base):
 
     __tablename__ = "perfiles"
@@ -180,7 +176,6 @@ class Perfil(Base):
     )
 
     usuario: Mapped[Usuario] = relationship(back_populates="perfil")
-
 
 class EntidadNegocio(Base):
 
@@ -243,7 +238,6 @@ class EntidadNegocio(Base):
         lazy="joined",
     )
 
-
 class MetricasReputacionNegocio(Base):
 
     __tablename__ = "business_reputation_metrics"
@@ -267,7 +261,6 @@ class MetricasReputacionNegocio(Base):
     )
 
     negocio: Mapped[EntidadNegocio] = relationship(back_populates="metricas")
-
 
 class Trabajo(Base):
 
@@ -293,7 +286,6 @@ class Trabajo(Base):
         default=ahora_utc, onupdate=ahora_utc
     )
 
-
 class CorreoOAuth(Base):
     __tablename__ = "correo_oauth"
 
@@ -305,7 +297,6 @@ class CorreoOAuth(Base):
     access_token: Mapped[str | None] = mapped_column(Text, default=None)
     expira_en: Mapped[datetime | None] = mapped_column(default=None)
     actualizado_en: Mapped[datetime] = mapped_column(default=ahora_utc, onupdate=ahora_utc)
-
 
 class MensajeCorreo(Base):
     __tablename__ = "mensajes_correo"
@@ -324,11 +315,10 @@ class MensajeCorreo(Base):
     estado: Mapped[str] = mapped_column(String(20))
     creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
 
-
 class CompraInforme(Base):
     __tablename__ = "compras_informe"
     __table_args__ = (
-        # Espejo de 049 (parcial): una autorizada por (usuario, negocio).
+
         Index(
             "uq_compras_informe_autorizada",
             "usuario_id",
@@ -360,7 +350,6 @@ class CompraInforme(Base):
     actualizado_en: Mapped[datetime] = mapped_column(
         default=ahora_utc, onupdate=ahora_utc
     )
-
 
 class CompraPublicacion(Base):
     __tablename__ = "compras_publicacion"
@@ -398,7 +387,6 @@ class CompraPublicacion(Base):
         default=ahora_utc, onupdate=ahora_utc
     )
 
-
 class HashDocumentoPades(Base):
     __tablename__ = "pades_document_hashes"
 
@@ -413,7 +401,6 @@ class HashDocumentoPades(Base):
     )
     creado_en: Mapped[datetime] = mapped_column(default=ahora_utc)
 
-
 @lru_cache
 def obtener_motor() -> Engine:
     cfg = obtener_configuracion()
@@ -427,12 +414,10 @@ def obtener_motor() -> Engine:
         pool_timeout=30,
     )
 
-
 @lru_cache
 def obtener_sessionmaker() -> sessionmaker[Session]:
 
     return sessionmaker(bind=obtener_motor(), expire_on_commit=False)
-
 
 def obtener_sesion() -> Iterator[Session]:
 

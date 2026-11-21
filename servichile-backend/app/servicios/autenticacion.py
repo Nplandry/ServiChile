@@ -8,7 +8,6 @@ from app.dominio.puertos import EmisorSesion, HasheadorContrasena, RepositorioUs
 from app.servicios.perfil import aplicar_perfil
 from app.servicios.progreso_cliente import ServicioProgresoCliente
 
-
 class ServicioAutenticacion:
     def __init__(
         self,

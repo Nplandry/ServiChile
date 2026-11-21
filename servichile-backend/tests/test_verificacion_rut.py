@@ -6,7 +6,6 @@ from app.infraestructura.verificacion import (
     construir_verificador_rut,
 )
 
-
 def test_muestra_solo_en_test():
     assert isinstance(
         construir_verificador_rut("muestra", app_env="test"), MuestraVerificadorRut
@@ -15,23 +14,19 @@ def test_muestra_solo_en_test():
         construir_verificador_rut("muestra", app_env="local"), EstrictoVerificadorRut
     )
 
-
 def test_estricto_rechaza():
     v = EstrictoVerificadorRut()
     assert v.existe_y_activo("12345678-5") is False
 
-
 def test_chilecompra_sin_ticket_rechaza():
     v = ChileCompraVerificadorRut("")
     assert v.existe_y_activo("76123456-0") is False
-
 
 def test_construir_chilecompra():
     v = construir_verificador_rut(
         "chilecompra", app_env="local", chilecompra_ticket="demo-ticket"
     )
     assert isinstance(v, ChileCompraVerificadorRut)
-
 
 def test_settings_rut_verifier_derivado():
     base = dict(

@@ -42,7 +42,6 @@ _MESES = {
     "diciembre": 12,
 }
 
-
 @dataclass(frozen=True)
 class ResultadoAntecedentes:
 
@@ -72,7 +71,6 @@ class ResultadoAntecedentes:
 
     glosa: str | None = None
 
-
 def digito_verificador(cuerpo: str) -> str:
 
     s = 0
@@ -97,7 +95,6 @@ def digito_verificador(cuerpo: str) -> str:
 
     return str(r)
 
-
 def run_valido(run: str) -> bool:
 
     limpio = re.sub("[^0-9Kk]", "", run or "")
@@ -114,11 +111,9 @@ def run_valido(run: str) -> bool:
 
     return digito_verificador(cuerpo) == dv
 
-
 def _compact(texto: str) -> str:
 
     return re.sub("[^a-z0-9]", "", (texto or "").lower())
-
 
 def detectar_anotaciones(texto: str) -> bool | None:
 
@@ -141,13 +136,11 @@ def detectar_anotaciones(texto: str) -> bool | None:
 
     return None
 
-
 def _extraer_folio(texto: str) -> str | None:
 
     m = re.search("FOLIO\\s*:\\s*([0-9]{10,14})", texto, re.I)
 
     return m.group(1) if m else None
-
 
 def _extraer_codigo(texto: str) -> str | None:
 
@@ -158,7 +151,6 @@ def _extraer_codigo(texto: str) -> str | None:
     )
 
     return m.group(1).lower() if m else None
-
 
 def _extraer_run(texto: str) -> str | None:
 
@@ -173,7 +165,6 @@ def _extraer_run(texto: str) -> str | None:
         return re.sub("\\s+", "", m.group(1))
 
     return None
-
 
 def _fecha_emision_texto(texto: str) -> datetime | None:
 
@@ -210,7 +201,6 @@ def _fecha_emision_texto(texto: str) -> datetime | None:
 
         return None
 
-
 def _nombre_coherente(nombre: str | None, folio: str | None, run: str | None) -> bool:
 
     if not nombre or not folio or (not run):
@@ -224,7 +214,6 @@ def _nombre_coherente(nombre: str | None, folio: str | None, run: str | None) ->
     patron = re.compile(f"^ANT_{re.escape(folio)}_{re.escape(cuerpo_run)}\\.pdf$", re.I)
 
     return bool(patron.match(base))
-
 
 def validar_certificado_antecedentes(
     *,

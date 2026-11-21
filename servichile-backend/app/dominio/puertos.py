@@ -1,10 +1,4 @@
-"""Puertos del dominio: contratos que la infraestructura debe cumplir.
 
-Los servicios dependen de estos protocolos, no de SQLAlchemy, HTTP ni
-proveedores concretos. Cada adaptador en ``app.infraestructura`` implementa
-uno de ellos. El ensamblado concreto vive en ``app.api.dependencias`` y
-``app.ensamblado``.
-"""
 
 from __future__ import annotations
 
@@ -22,9 +16,7 @@ from app.dominio.entidades import Negocio, TokenEmitido, Trabajo, Usuario
 from app.dominio.oferta_negocio import FiltroListado
 from app.dominio.transparencia.evaluador.motor import ResultadoEvaluador
 
-
 class RegistroHashPades(Protocol):
-    """Anti-replay de PDFs firmados (usuario o empresa)."""
 
     def registrar_hash_pades(
         self,
@@ -35,7 +27,6 @@ class RegistroHashPades(Protocol):
         usuario_id: uuid.UUID | None = None,
         business_id: uuid.UUID | None = None,
     ) -> bool: ...
-
 
 class RepositorioUsuarios(RegistroHashPades, Protocol):
     def obtener_por_email(self, email: str) -> Usuario | None: ...
@@ -49,7 +40,6 @@ class RepositorioUsuarios(RegistroHashPades, Protocol):
     def eliminar(self, usuario_id: uuid.UUID) -> None: ...
 
     def guardar(self, usuario: Usuario) -> Usuario: ...
-
 
 class RepositorioNegocios(RegistroHashPades, Protocol):
     def obtener(self, negocio_id: uuid.UUID) -> Negocio | None: ...
@@ -67,7 +57,6 @@ class RepositorioNegocios(RegistroHashPades, Protocol):
     def eliminar(self, negocio_id: uuid.UUID) -> None: ...
 
     def eliminar_de(self, usuario_id: uuid.UUID) -> None: ...
-
 
 class RepositorioTrabajos(Protocol):
     def crear(
@@ -90,28 +79,23 @@ class RepositorioTrabajos(Protocol):
 
     def guardar(self, trabajo: Trabajo) -> Trabajo: ...
 
-
 class RepositorioXp(Protocol):
     def otorgar(self, usuario_id: uuid.UUID, evento: str, puntos: int) -> int: ...
 
     def total(self, usuario_id: uuid.UUID) -> int: ...
 
-
 class VerificadorIdentidad(Protocol):
     def existe_y_activo(self, rut: str) -> bool: ...
-
 
 class HasheadorContrasena(Protocol):
     def hashear(self, contrasena: str) -> str: ...
 
     def verificar(self, hash_contrasena: str | None, contrasena: str) -> bool: ...
 
-
 class EmisorSesion(Protocol):
     def emitir(self, usuario_id: uuid.UUID) -> TokenEmitido: ...
 
     def sujeto(self, token: str) -> uuid.UUID: ...
-
 
 @dataclass(frozen=True)
 class TokenReporteFirmado:
@@ -119,24 +103,20 @@ class TokenReporteFirmado:
     expires_in: int
     expires_at: datetime
 
-
 @dataclass(frozen=True)
 class TokenReporteLeido:
     usuario_id: uuid.UUID
     expires_at: datetime
-
 
 class EmisorReporte(Protocol):
     def emitir(self, usuario_id: uuid.UUID) -> TokenReporteFirmado: ...
 
     def leer(self, token: str) -> TokenReporteLeido: ...
 
-
 class AnalizadorAntecedentes(Protocol):
     def analizar(
         self, contenido: bytes, nombre_archivo: str | None = None
     ) -> ResultadoAntecedentes: ...
-
 
 class AnalizadorAval(Protocol):
     def analizar(
@@ -147,7 +127,6 @@ class AnalizadorAval(Protocol):
         nombre_perfil: str | None = None,
         nombre_archivo: str | None = None,
     ) -> ResultadoAval: ...
-
 
 class AnalizadorDocEmpresa(Protocol):
     def analizar(
@@ -160,7 +139,6 @@ class AnalizadorDocEmpresa(Protocol):
         nombre_archivo: str | None = None,
     ) -> ResultadoDocEmpresa: ...
 
-
 class AlmacenamientoBiometria(Protocol):
     def guardar(self, usuario_id: uuid.UUID, contenido: bytes) -> MetaBiometria: ...
 
@@ -169,7 +147,6 @@ class AlmacenamientoBiometria(Protocol):
     def eliminar(
         self, usuario_id: uuid.UUID, ruta_relativa: str | None = None
     ) -> None: ...
-
 
 class AlmacenamientoCedula(Protocol):
     def preparar_en_memoria(self, contenido: bytes) -> tuple[bytes, MetaCedula]: ...
@@ -182,10 +159,8 @@ class AlmacenamientoCedula(Protocol):
         self, usuario_id: uuid.UUID, ruta_relativa: str | None = None
     ) -> None: ...
 
-
 class LectorOcrCedula(Protocol):
     def extraer_texto(self, jpeg_bytes: bytes) -> str: ...
-
 
 class AnalizadorCedula(Protocol):
     def analizar(
@@ -201,12 +176,9 @@ class AnalizadorCedula(Protocol):
         selfie_jpeg: bytes | None = None,
     ) -> ResultadoCedula: ...
 
-
 class PuertoEvaluador(Protocol):
-    """Señales públicas del índice (Places, ChileCompra, rastreador_web, etc.)."""
 
     def evaluar(self, negocio: Negocio) -> ResultadoEvaluador: ...
-
 
 @dataclass(frozen=True)
 class MensajeSaliente:
@@ -214,14 +186,11 @@ class MensajeSaliente:
     asunto: str
     cuerpo: str
 
-
 class EnviadorPlataforma(Protocol):
-    """SMTP de ServiChile hacia el correo del registro. Sin OAuth del cliente."""
 
     def disponible(self) -> bool: ...
 
     def enviar(self, mensaje: MensajeSaliente) -> None: ...
-
 
 class RepositorioCorreo(Protocol):
     def registrar(
@@ -235,12 +204,10 @@ class RepositorioCorreo(Protocol):
         estado: str,
     ) -> None: ...
 
-
 @dataclass(frozen=True)
 class TransaccionWebpayCreada:
     token: str
     url: str
-
 
 @dataclass(frozen=True)
 class TransaccionWebpayConfirmada:
@@ -252,14 +219,12 @@ class TransaccionWebpayConfirmada:
     buy_order: str | None = None
     detalle: str | None = None
 
-
 class PasarelaWebpay(Protocol):
     def crear(
         self, buy_order: str, session_id: str, amount: int, return_url: str
     ) -> TransaccionWebpayCreada: ...
 
     def confirmar(self, token: str) -> TransaccionWebpayConfirmada: ...
-
 
 class RepositorioComprasInforme(Protocol):
     def crear(
@@ -286,10 +251,6 @@ class RepositorioComprasInforme(Protocol):
         self, usuario_id: uuid.UUID, business_id: uuid.UUID
     ): ...
 
-    def pendiente_reutilizable(
-        self, usuario_id: uuid.UUID, business_id: uuid.UUID, *, max_edad_seg: int
-    ): ...
-
     def listar_pendientes_reconciliar(
         self, *, min_edad_seg: int, max_edad_seg: int, limite: int
     ): ...
@@ -299,7 +260,6 @@ class RepositorioComprasInforme(Protocol):
     ) -> int: ...
 
     def resumen_mes(self, usuario_id: uuid.UUID, mes_clave: str) -> tuple[int, int]: ...
-
 
 class RepositorioComprasPublicacion(Protocol):
     def crear(self, usuario_id: uuid.UUID, buy_order: str, monto: int): ...
@@ -334,8 +294,6 @@ class RepositorioComprasPublicacion(Protocol):
     ): ...
 
     def reclamar_para_confirmar(self, token: str, usuario_id: uuid.UUID): ...
-
-    def pendiente_reutilizable(self, usuario_id: uuid.UUID, *, max_edad_seg: int): ...
 
     def anular_pendientes_abiertos(
         self, usuario_id: uuid.UUID, *, excepto_id=None

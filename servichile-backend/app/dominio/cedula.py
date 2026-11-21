@@ -1,4 +1,4 @@
-"""Validación determinista de cédula chilena (OCR + reglas; sin LLM)."""
+
 
 from __future__ import annotations
 
@@ -48,7 +48,6 @@ _MESES = {
     "dic": 12,
 }
 
-# Ruido típico OCR en cédula nueva (no son nombres).
 _NOMBRE_STOP = frozenset(
     {
         "chile",
@@ -81,7 +80,6 @@ _NOMBRE_STOP = frozenset(
     }
 )
 
-
 @dataclass(frozen=True)
 class MetaCedula:
     ruta_relativa: str
@@ -90,7 +88,6 @@ class MetaCedula:
     ancho: int
     alto: int
     content_type: str = CEDULA_CONTENT_TYPE
-
 
 @dataclass(frozen=True)
 class ResultadoCedula:
@@ -103,7 +100,6 @@ class ResultadoCedula:
     texto_compacto_len: int = 0
     face_score: float | None = None
 
-
 def retener_hasta(
     desde: datetime | None = None, *, dias: int = CEDULA_RETENCION_DIAS_DEFAULT
 ) -> datetime:
@@ -112,19 +108,16 @@ def retener_hasta(
         base = base.replace(tzinfo=timezone.utc)
     return base + timedelta(days=max(1, int(dias)))
 
-
 def _compact(texto: str) -> str:
     return re.sub("[^a-z0-9]", "", (texto or "").lower())
-
 
 def _sin_acentos(texto: str) -> str:
     nfd = unicodedata.normalize("NFD", texto or "")
     return "".join(c for c in nfd if unicodedata.category(c) != "Mn")
 
-
 def _extraer_ruts(texto: str) -> list[str]:
     candidatos: list[str] = []
-    # Incluye comillas tipográficas que Tesseract pone junto al RUN (p. ej. 7" 21.082.350-6).
+
     patrones = (
         r"(?:R\.?\s*U\.?\s*N\.?|RUN|RUT)\s*[:#]?\s*([0-9]{1,2}\.?[0-9]{3}\.?[0-9]{3}\s*-?\s*[0-9Kk])",
         r"(?<![0-9])([0-9]{1,2}\.[0-9]{3}\.[0-9]{3}\s*-\s*[0-9Kk])(?![0-9])",
@@ -145,11 +138,9 @@ def _extraer_ruts(texto: str) -> list[str]:
                 candidatos.append(rut)
     return candidatos
 
-
 def _extraer_numero_documento(texto: str) -> str | None:
     m = re.search(r"\b([A-Z][0-9A-Z]{1,2}\.\d{3}\.\d{3})\b", texto or "", re.I)
     return m.group(1).upper() if m else None
-
 
 def _linea_nombre(linea: str) -> bool:
     limpia = re.sub(r"[^A-ZÁÉÍÓÚÑa-záéíóúñ\s]", "", linea or "").strip()
@@ -164,10 +155,9 @@ def _linea_nombre(linea: str) -> bool:
             return False
         if not re.fullmatch(r"[A-ZÁÉÍÓÚÑa-záéíóúñ]+", t):
             return False
-    # Preferir mayúsculas (típico en cédula nueva).
+
     mayus = sum(1 for t in tokens if t == t.upper())
     return mayus >= max(1, len(tokens) - 1)
-
 
 def _extraer_nombre(texto: str) -> str | None:
     m = re.search(
@@ -178,7 +168,6 @@ def _extraer_nombre(texto: str) -> str | None:
     if m:
         return re.sub(r"\s+", " ", m.group(1)).strip()
 
-    # Cédula nueva: APELLIDOS / NOMBRES en líneas (a veces con etiquetas en medio).
     lineas = [ln.strip() for ln in (texto or "").splitlines()]
     bloque: list[str] = []
     for ln in lineas:
@@ -192,7 +181,7 @@ def _extraer_nombre(texto: str) -> str | None:
         elif bloque and not baja:
             continue
         elif bloque:
-            # Cortar solo si aparece otra sección (fechas, nacionalidad, etc.).
+
             if any(
                 k in baja
                 for k in (
@@ -211,7 +200,6 @@ def _extraer_nombre(texto: str) -> str | None:
         return " ".join(bloque)
     return None
 
-
 def _parse_fecha(texto: str) -> date | None:
     m = re.search(
         r"(\d{1,2})[/-](\d{1,2})[/-](\d{4})",
@@ -223,7 +211,7 @@ def _parse_fecha(texto: str) -> date | None:
             return date(y, mo, d)
         except ValueError:
             return None
-    # Espacio opcional: OCR a veces pega "21 ABR2003".
+
     m = re.search(
         r"(\d{1,2})\s*([A-Za-zÁÉÍÓÚáéíóú]+)\s*(?:de\s+)?(\d{4})",
         texto or "",
@@ -238,7 +226,6 @@ def _parse_fecha(texto: str) -> date | None:
         return date(int(m.group(3)), mes, int(m.group(1)))
     except ValueError:
         return None
-
 
 def _todas_fechas(texto: str) -> list[date]:
     out: list[date] = []
@@ -256,11 +243,9 @@ def _todas_fechas(texto: str) -> list[date]:
             continue
     return out
 
-
 def _tokens_nombre(nombre: str) -> set[str]:
     limpio = re.sub(r"[^a-záéíóúñ\s]", " ", _sin_acentos(nombre).lower())
     return {t for t in limpio.split() if len(t) >= 2}
-
 
 def _nombre_coincide(nombre_ocr: str | None, nombre_cuenta: str | None) -> bool:
     if not nombre_ocr or not nombre_cuenta:
@@ -271,7 +256,6 @@ def _nombre_coincide(nombre_ocr: str | None, nombre_cuenta: str | None) -> bool:
         return False
     inter = a & b
     return len(inter) >= min(2, len(b))
-
 
 def validar_cedula(
     *,
@@ -365,8 +349,7 @@ def validar_cedula(
 
     fechas = _todas_fechas(texto_ocr)
     venc = None
-    # Tras "VENCIMIENTO" a menudo viene también la emisión en la misma zona OCR;
-    # tomar la fecha más lejana del bloque, no la primera.
+
     if "vencimiento" in (texto_ocr or "").lower():
         idx = (texto_ocr or "").lower().rfind("venc")
         if idx >= 0:
@@ -374,7 +357,7 @@ def validar_cedula(
             if bloque:
                 venc = max(bloque)
     if venc is None and fechas:
-        # Nacimiento / emisión / vencimiento: la más lejana hacia el futuro es vigencia.
+
         futuras = [f for f in fechas if f >= date.today()]
         venc = max(futuras) if futuras else max(fechas)
     if venc and venc < date.today():
@@ -384,7 +367,6 @@ def validar_cedula(
         score += 5
         senales.append("vigente")
 
-    # Face-match carnet ↔ selfie (obligatorio): usa la foto en var/biometria.
     if face_score is None:
         faltantes.append("selfie biométrica previa (complete la verificación facial primero)")
     elif float(face_score) >= float(umbral_face):

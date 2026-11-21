@@ -1,4 +1,4 @@
-"""Extracción compartida de PDF con texto real (rechaza escaneos / solo imagen)."""
+
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from pypdf.errors import PdfReadError
 from app.dominio.texto_pdf import MIN_TEXTO_ALNUM, contar_alnum
 
 logger = logging.getLogger(__name__)
-
 
 def _pagina_tiene_imagenes(page) -> bool:
     try:
@@ -41,9 +40,8 @@ def _pagina_tiene_imagenes(page) -> bool:
         return False
     return False
 
-
 def extraer_texto_pdf(pdf_bytes: bytes) -> tuple[str, int, bool]:
-    """Devuelve (texto, num_paginas, parece_escaneo)."""
+
     if not pdf_bytes.startswith(b"%PDF"):
         raise ValueError("no-pdf")
     try:

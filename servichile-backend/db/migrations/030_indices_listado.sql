@@ -1,4 +1,4 @@
--- Listado del marketplace: filtra por categoría y ordena por nombre.
+
 BEGIN;
 
 CREATE INDEX IF NOT EXISTS business_entities_categoria_nombre_idx

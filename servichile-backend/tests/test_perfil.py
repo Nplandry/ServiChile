@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
 
-
 def _registrar(
     client: TestClient, email="perfil@servichile.cl", perfil=None
 ) -> dict[str, str]:
@@ -26,7 +25,6 @@ def _registrar(
 
     return {"Authorization": f"Bearer {t['access_token']}"}
 
-
 def test_perfil_nuevo_es_reporte_nivel_1_basico(client: TestClient):
 
     h = _registrar(client, perfil={"edad": 68})
@@ -47,7 +45,6 @@ def test_perfil_nuevo_es_reporte_nivel_1_basico(client: TestClient):
 
     assert "inmobiliaria_scoring" not in cuerpo
 
-
 def test_campos_deprecados_preocupacion_proposito_rechazados(client: TestClient):
 
     h = _registrar(client, perfil={"edad": 70})
@@ -64,7 +61,6 @@ def test_campos_deprecados_preocupacion_proposito_rechazados(client: TestClient)
     assert "proposito" not in cuerpo
     assert cuerpo["edad"] == 70
 
-
 def test_patch_telefono_y_edad(client: TestClient):
 
     h = _registrar(client)
@@ -79,7 +75,6 @@ def test_patch_telefono_y_edad(client: TestClient):
 
     assert r.json()["telefono"] == "+56 9 1234 5678"
 
-
 def test_patch_null_borra_el_telefono(client: TestClient):
 
     h = _registrar(client)
@@ -89,7 +84,6 @@ def test_patch_null_borra_el_telefono(client: TestClient):
     r = client.patch("/v1/perfil", json={"telefono": None}, headers=h)
 
     assert r.json()["telefono"] is None
-
 
 def test_telefono_debe_empezar_con_mas_56(client: TestClient):
 
@@ -115,7 +109,6 @@ def test_telefono_debe_empezar_con_mas_56(client: TestClient):
 
     assert r.json()["telefono"] == "+56 9 1234 5678"
 
-
 def test_rut_valido_queda_verificado(client: TestClient):
 
     h = _registrar(client)
@@ -125,7 +118,6 @@ def test_rut_valido_queda_verificado(client: TestClient):
     assert r.status_code == 200, r.text
 
     assert r.json()["rut_verificado"] is True
-
 
 def test_rut_con_dv_incorrecto_da_422(client: TestClient):
 
@@ -139,7 +131,6 @@ def test_rut_con_dv_incorrecto_da_422(client: TestClient):
 
     assert client.get("/v1/perfil", headers=h).json()["rut_verificado"] is False
 
-
 def test_rut_con_k_se_acepta_en_minuscula(client: TestClient):
 
     h = _registrar(client)
@@ -148,7 +139,6 @@ def test_rut_con_k_se_acepta_en_minuscula(client: TestClient):
         client.patch("/v1/perfil", json={"rut": "8765432-k"}, headers=h).status_code
         == 200
     )
-
 
 def test_rut_ya_usado_por_otra_cuenta_da_409(client: TestClient):
 
@@ -165,7 +155,6 @@ def test_rut_ya_usado_por_otra_cuenta_da_409(client: TestClient):
 
     assert r.status_code == 409
 
-
 def test_rut_verificado_no_se_puede_cambiar(client: TestClient):
 
     h = _registrar(client)
@@ -176,13 +165,11 @@ def test_rut_verificado_no_se_puede_cambiar(client: TestClient):
 
     assert r.status_code == 409
 
-
 def test_rut_no_se_puede_borrar(client: TestClient):
 
     h = _registrar(client)
 
     assert client.patch("/v1/perfil", json={"rut": None}, headers=h).status_code == 422
-
 
 def test_validaciones_del_perfil(client: TestClient):
 
@@ -202,7 +189,6 @@ def test_validaciones_del_perfil(client: TestClient):
         == 422
     )
 
-
 def test_registro_con_perfil_invalido_no_crea_usuario(client: TestClient):
 
     datos = {
@@ -221,7 +207,6 @@ def test_registro_con_perfil_invalido_no_crea_usuario(client: TestClient):
 
     assert r.status_code == 401
 
-
 def test_registro_no_acepta_rut(client: TestClient):
 
     datos = {
@@ -233,13 +218,11 @@ def test_registro_no_acepta_rut(client: TestClient):
 
     assert client.post("/v1/auth/registro", json=datos).status_code == 422
 
-
 def test_perfil_requiere_sesion(client: TestClient):
 
     assert client.get("/v1/perfil").status_code == 401
 
     assert client.patch("/v1/perfil", json={"edad": 70}).status_code == 401
-
 
 def test_perfil_es_privado(client: TestClient):
 
@@ -250,7 +233,6 @@ def test_perfil_es_privado(client: TestClient):
     client.patch("/v1/perfil", json={"edad": 99}, headers=h2)
 
     assert client.get("/v1/perfil", headers=h1).json()["edad"] == 70
-
 
 def test_yo_incluye_el_reporte(client: TestClient):
 

@@ -21,7 +21,6 @@ from app.infraestructura.persistencia.mapeo import (
 )
 from app.tiempo import ahora_utc
 
-
 def _compra_informe(r: orm.CompraInforme) -> CompraInforme:
     return CompraInforme(
         id=r.id,
@@ -40,7 +39,6 @@ def _compra_informe(r: orm.CompraInforme) -> CompraInforme:
         creado_en=r.creado_en,
         actualizado_en=r.actualizado_en,
     )
-
 
 class RepositorioUsuario:
 
@@ -208,7 +206,6 @@ class RepositorioUsuario:
 
         return _usuario(u)
 
-
 class RepositorioXp:
 
     def __init__(self, session: Session) -> None:
@@ -254,7 +251,6 @@ class RepositorioXp:
 
         return int(u.xp or 0) if u else 0
 
-
 def registrar_hash_pades(
     session: Session,
     sha256: str,
@@ -264,7 +260,7 @@ def registrar_hash_pades(
     usuario_id: uuid.UUID | None = None,
     business_id: uuid.UUID | None = None,
 ) -> bool:
-    """True si OK; False si el hash ya fue usado por otra cuenta/empresa."""
+
     existente = session.get(orm.HashDocumentoPades, sha256)
     if existente is not None:
         mismo_usuario = (
@@ -285,7 +281,6 @@ def registrar_hash_pades(
     )
     return True
 
-
 def _like(texto: str) -> str:
     limpio = (
         texto.strip()
@@ -295,11 +290,9 @@ def _like(texto: str) -> str:
     )
     return f"%{limpio}%"
 
-
 def _json_tiene(columna, valor: str):
-    """Membresía de un id de catálogo dentro de un arreglo JSON (Postgres y SQLite)."""
-    return cast(columna, String).like(_like(f'"{valor}"'), escape="\\")
 
+    return cast(columna, String).like(_like(f'"{valor}"'), escape="\\")
 
 class RepositorioNegocio:
 
@@ -381,7 +374,7 @@ class RepositorioNegocio:
         ]
 
     def listar_de(self, usuario_id: uuid.UUID) -> list[Negocio]:
-        """Ficha completa del titular (incluye RUT, teléfono, sitio para editar)."""
+
         stmt = (
             select(orm.EntidadNegocio)
             .options(joinedload(orm.EntidadNegocio.metricas))
@@ -391,7 +384,7 @@ class RepositorioNegocio:
         return [_negocio(n) for n in self.session.scalars(stmt).unique()]
 
     def listar_completos(self, limite: int = 500) -> list[Negocio]:
-        """Listado para refrescar el evaluador: primero pendientes (sin escaneo)."""
+
         stmt = (
             select(orm.EntidadNegocio)
             .outerjoin(orm.MetricasReputacionNegocio)
@@ -541,7 +534,6 @@ class RepositorioNegocio:
 
         return self.session.scalar(stmt) is not None
 
-
 def _es_rut_empresa_duplicado(exc: IntegrityError) -> bool:
 
     orig = getattr(exc, "orig", None)
@@ -555,7 +547,6 @@ def _es_rut_empresa_duplicado(exc: IntegrityError) -> bool:
     texto = str(orig or exc).lower()
 
     return "unique" in texto and "rut_empresa" in texto
-
 
 class RepositorioTrabajo:
 
@@ -658,7 +649,6 @@ class RepositorioTrabajo:
 
         return _trabajo(r)
 
-
 class RepositorioCorreo:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -685,7 +675,6 @@ class RepositorioCorreo:
             )
         )
         self.session.commit()
-
 
 class RepositorioCompraInforme:
     def __init__(self, session: Session) -> None:
@@ -731,7 +720,7 @@ class RepositorioCompraInforme:
             self.session.commit()
         except IntegrityError as exc:
             self.session.rollback()
-            # Unique parcial (usuario, business) WHERE autorizado.
+
             if compra.estado == ESTADO_AUTORIZADO:
                 otra = self.ultima_autorizada(compra.usuario_id, compra.business_id)
                 if otra is not None:
@@ -759,7 +748,7 @@ class RepositorioCompraInforme:
     def reclamar_para_confirmar(
         self, token: str, usuario_id: uuid.UUID
     ) -> tuple[str, CompraInforme | None]:
-        """CAS pendiente|confirmando-stale → confirmando. Retorna (ya_ok|ok|ajena|en_curso|no|estado)."""
+
         from datetime import datetime, timedelta, timezone
 
         from sqlalchemy import update
@@ -834,33 +823,6 @@ class RepositorioCompraInforme:
         r = self.session.scalars(stmt).first()
         return _compra_informe(r) if r else None
 
-    def pendiente_reutilizable(
-        self,
-        usuario_id: uuid.UUID,
-        business_id: uuid.UUID,
-        *,
-        max_edad_seg: int = 7200,
-    ) -> CompraInforme | None:
-        from datetime import datetime, timedelta, timezone
-
-        from app.dominio.pago_informe import ESTADO_PENDIENTE
-
-        limite = datetime.now(timezone.utc) - timedelta(seconds=max(60, max_edad_seg))
-        stmt = (
-            select(orm.CompraInforme)
-            .where(
-                orm.CompraInforme.usuario_id == usuario_id,
-                orm.CompraInforme.business_id == business_id,
-                orm.CompraInforme.estado == ESTADO_PENDIENTE,
-                orm.CompraInforme.token.is_not(None),
-                orm.CompraInforme.creado_en >= limite,
-            )
-            .order_by(orm.CompraInforme.creado_en.desc())
-            .limit(1)
-        )
-        r = self.session.scalars(stmt).first()
-        return _compra_informe(r) if r else None
-
     def listar_pendientes_reconciliar(
         self,
         *,
@@ -868,8 +830,7 @@ class RepositorioCompraInforme:
         max_edad_seg: int = 7200,
         limite: int = 25,
     ) -> list[CompraInforme]:
-        """Pendientes con token, demasiado viejos para el retorno del usuario
-        pero aún dentro de la ventana TBK."""
+
         from datetime import datetime, timedelta, timezone
 
         from app.dominio.pago_informe import ESTADO_PENDIENTE
@@ -925,7 +886,7 @@ class RepositorioCompraInforme:
         return int(res.rowcount or 0)
 
     def resumen_mes(self, usuario_id: uuid.UUID, mes_clave: str) -> tuple[int, int]:
-        """mes_clave = 'YYYY-MM'. Cuenta y suma montos autorizados del mes."""
+
         from sqlalchemy import extract, func
 
         from app.dominio.pago_informe import ESTADO_AUTORIZADO
@@ -946,7 +907,6 @@ class RepositorioCompraInforme:
         row = self.session.execute(stmt).one()
         return (int(row[0] or 0), int(row[1] or 0))
 
-
 def _compra_publicacion(r: orm.CompraPublicacion) -> CompraPublicacion:
     return CompraPublicacion(
         id=r.id,
@@ -965,7 +925,6 @@ def _compra_publicacion(r: orm.CompraPublicacion) -> CompraPublicacion:
         creado_en=r.creado_en,
         actualizado_en=r.actualizado_en,
     )
-
 
 class RepositorioCompraPublicacion:
     def __init__(self, session: Session) -> None:
@@ -1020,11 +979,11 @@ class RepositorioCompraPublicacion:
         return _compra_publicacion(r) if r else None
 
     def cupon_libre(self, usuario_id: uuid.UUID) -> CompraPublicacion | None:
-        """Alias: cupón listo (autorizado o reservado) sin business."""
+
         return self.cupon_listo_alta(usuario_id)
 
     def cupon_listo_alta(self, usuario_id: uuid.UUID) -> CompraPublicacion | None:
-        """Cupón autorizado o reservado (sin business) listo para publicar."""
+
         from app.dominio.pago_publicacion import ESTADO_AUTORIZADO, ESTADO_RESERVADO
 
         stmt = (
@@ -1049,7 +1008,7 @@ class RepositorioCompraPublicacion:
         *,
         commit: bool = True,
     ) -> CompraPublicacion | None:
-        """Toma el cupón antes del alta (autorizado → reservado)."""
+
         from sqlalchemy import update
 
         from app.dominio.pago_publicacion import ESTADO_AUTORIZADO, ESTADO_RESERVADO
@@ -1088,7 +1047,7 @@ class RepositorioCompraPublicacion:
         *,
         commit: bool = True,
     ) -> CompraPublicacion | None:
-        """Devuelve cupón reservado a autorizado (alta falló o abortó)."""
+
         from sqlalchemy import update
 
         from app.dominio.pago_publicacion import ESTADO_AUTORIZADO, ESTADO_RESERVADO
@@ -1113,7 +1072,7 @@ class RepositorioCompraPublicacion:
         return None
 
     def liberar_reservas_stale(self, *, max_edad_seg: int = 180) -> int:
-        """Reservas viejas sin alta → otra vez autorizadas (default 3 min)."""
+
         from datetime import datetime, timedelta, timezone
 
         from sqlalchemy import update
@@ -1145,12 +1104,7 @@ class RepositorioCompraPublicacion:
         *,
         commit: bool = True,
     ) -> CompraPublicacion | None:
-        """Vincula cupón reservado/autorizado → consumido (UPDATE atómico).
 
-        Prefiere ``reservado`` (flujo reserva→alta). Acepta ``autorizado``
-        como fallback. ``consumido`` evita reciclaje tras DELETE SET NULL.
-        Con ``commit=False`` solo hace flush (alta+consumo en una transacción).
-        """
         from sqlalchemy import update
 
         from app.dominio.pago_publicacion import (
@@ -1187,29 +1141,6 @@ class RepositorioCompraPublicacion:
         ):
             return actual
         return None
-
-    def pendiente_reutilizable(
-        self, usuario_id: uuid.UUID, *, max_edad_seg: int = 7200
-    ) -> CompraPublicacion | None:
-        from datetime import datetime, timedelta, timezone
-
-        from app.dominio.pago_publicacion import ESTADO_PENDIENTE
-
-        limite = datetime.now(timezone.utc) - timedelta(seconds=max(60, max_edad_seg))
-        stmt = (
-            select(orm.CompraPublicacion)
-            .where(
-                orm.CompraPublicacion.usuario_id == usuario_id,
-                orm.CompraPublicacion.estado == ESTADO_PENDIENTE,
-                orm.CompraPublicacion.token.is_not(None),
-                orm.CompraPublicacion.business_id.is_(None),
-                orm.CompraPublicacion.creado_en >= limite,
-            )
-            .order_by(orm.CompraPublicacion.creado_en.desc())
-            .limit(1)
-        )
-        r = self.session.scalars(stmt).first()
-        return _compra_publicacion(r) if r else None
 
     def anular_pendientes_abiertos(
         self, usuario_id: uuid.UUID, *, excepto_id=None

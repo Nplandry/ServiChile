@@ -71,7 +71,6 @@ __all__ = [
     "EvaluadorIndisponible",
 ]
 
-
 def rut_desde_documento(texto: str | None) -> str | None:
     if not texto or not str(texto).strip():
         return None
@@ -80,16 +79,14 @@ def rut_desde_documento(texto: str | None) -> str | None:
     except RutInvalido:
         return None
 
-
 def _texto_opcional(valor: str | None) -> str | None:
     if valor is None:
         return None
     limpio = valor.strip()
     return limpio or None
 
-
 def _telefono_ficha(valor: str | None) -> str | None:
-    """Misma regla que perfil persona: móvil +56 9 XXXX XXXX o vacío."""
+
     texto = _texto_opcional(valor)
     if not texto:
         return None
@@ -98,16 +95,14 @@ def _telefono_ficha(valor: str | None) -> str | None:
     except TelefonoInvalido as error:
         raise DocEmpresaInvalido(str(error)) from None
 
-
 def normalizar_sitio_web(valor: str | None) -> str | None:
-    """Asegura esquema https:// para rastreador_web/Places."""
+
     texto = _texto_opcional(valor)
     if not texto:
         return None
     if not texto.lower().startswith(("http://", "https://")):
         texto = "https://" + texto
     return texto.rstrip("/")
-
 
 class ServicioNegocio:
     def __init__(
@@ -182,16 +177,22 @@ class ServicioNegocio:
         ]
 
     def obtener_reputacion(self, business_id: uuid.UUID) -> Reputacion:
-        """Lectura: sincroniza la señal de trabajos en memoria (sin pisar el índice en disco)."""
+
+        from app.servicios.negocio_reputacion import metricas_de
+
         negocio = self._buscar(business_id)
+        metricas = metricas_de(negocio)
+        nota_publicada = float(metricas.final_score or 0.0)
         conteo = self._conteos_concretados([negocio.id]).get(negocio.id, 0)
         persistir_indice(negocio, trabajos_concretados=conteo)
+
+        metricas.final_score = nota_publicada
         return reputacion_de(negocio)
 
     def respuesta_doc_empresa(
         self, negocio: Negocio, tipo: str, resultado: ResultadoDocEmpresa
     ) -> DocEmpresaVerificado:
-        """Resultado de dominio tras upload (mapeo HTTP en la capa API)."""
+
         docs = docs_copia(negocio)
         rating = calcular_valoracion_documentos(docs)
         indice, pct = indice_global(metricas_de(negocio))
@@ -245,7 +246,7 @@ class ServicioNegocio:
     def _aplicar_evaluador(
         self, negocio: Negocio, *, exigir_evaluador: bool = False
     ) -> Negocio:
-        """Evalúa señales públicas, junta documentos y persiste un solo índice."""
+
         if self.evaluador is None:
             if exigir_evaluador:
                 raise EvaluadorIndisponible("Evaluador de señales no disponible.")
@@ -270,10 +271,10 @@ class ServicioNegocio:
         )
         rastreador_fail = meta.get("rastreador_web", {}).get("modo") == "fallido"
         if places_rl or places_sin_fisica:
-            # 429 o Places sin fis_* medidos: no borrar local/teléfono/reseñas previos.
+
             observables = self._conservar_fisica_previa(metricas, observables)
         if rastreador_fail:
-            # Ciber/contractual: rastreo fresco falló → no borrar lo persistido.
+
             observables = self._conservar_sitio_previa(metricas, observables)
         global_pts = resultado.puntaje_global
         pct_eval = float(global_pts) if global_pts is not None else 0.0
@@ -302,7 +303,7 @@ class ServicioNegocio:
 
     @staticmethod
     def _conservar_fisica_previa(metricas, observables: list):
-        """Ante 429 de Places, no pisar fis_* buenos ni la nota Google guardada."""
+
         from app.dominio.entidades import ObservableSenal
 
         prev = {
@@ -311,7 +312,7 @@ class ServicioNegocio:
             if o.id.startswith("fis_") or o.id == "dig_website"
         }
         by_id = {o.id: o for o in observables}
-        # Si el snapshot ya tenía fis en 0 pero sí hay nota Google, reconstruir.
+
         avg = metricas.google_rating_avg
         count = metricas.google_reviews_count or 0
         if avg and (not prev.get("fis_rating") or prev["fis_rating"].score <= 0):
@@ -344,8 +345,7 @@ class ServicioNegocio:
             return observables
         out = []
         for o in observables:
-            # En 429: conservar cualquier fis_* / dig_website previo con score > 0
-            # (antes solo rating/reviews; dirección/teléfono/horario quedaban en 0).
+
             if o.id in prev and prev[o.id].score > 0 and o.score <= 0:
                 out.append(prev[o.id])
             else:
@@ -357,7 +357,7 @@ class ServicioNegocio:
 
     @staticmethod
     def _conservar_sitio_previa(metricas, observables: list):
-        """Ante rastreador_web fallido, conservar cyb_*/con_*/dig_website ya persistidos."""
+
         from app.dominio.transparencia.evaluador.parametros import IDS_SITIO
 
         ids = set(IDS_SITIO)
@@ -384,7 +384,7 @@ class ServicioNegocio:
     def refrescar_indice_titular(
         self, business_id: uuid.UUID, usuario_id: uuid.UUID
     ) -> Reputacion:
-        """Re-evalúa señales (titular). Falla visible si el evaluador no responde."""
+
         negocio = self._buscar(business_id)
         if negocio.reclamado_por != usuario_id:
             raise NoEsTitularDelNegocio()
@@ -454,7 +454,7 @@ class ServicioNegocio:
             ),
         )
         self._aplicar_coordenadas(negocio, negocio.direccion)
-        # commit=False: flush para empaquetar con consumo de cupón en una TX.
+
         guardado = self.negocios.guardar(negocio, commit=commit)
         return self._proyeccion_titular(guardado)
 
@@ -481,7 +481,7 @@ class ServicioNegocio:
 
     @staticmethod
     def _firma_evaluador(negocio: Negocio) -> tuple[str, ...]:
-        """Campos que alimentan Places / rastreador_web / ChileCompra / pesos."""
+
         return (
             (negocio.nombre or "").strip().casefold(),
             (negocio.categoria or "").strip().casefold(),
@@ -641,7 +641,7 @@ class ServicioNegocio:
         if negocio.reclamado_por != usuario_id:
             raise NoEsTitularDelNegocio()
 
-        tipo_doc: TipoDocEmpresa = tipo  # type: ignore[assignment]
+        tipo_doc: TipoDocEmpresa = tipo
         resultado = self.analizador_docs.analizar(
             contenido,
             tipo=tipo_doc,

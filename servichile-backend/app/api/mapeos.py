@@ -1,4 +1,4 @@
-"""Pasa entidades del dominio a las respuestas JSON de la API."""
+
 
 from app.api.esquemas import (
     DocEmpresaMetaSalida,
@@ -8,7 +8,6 @@ from app.api.esquemas import (
 )
 
 from app.dominio.entidades import DocEmpresaVerificado, EstadoReporte, Usuario
-
 
 def to_perfil_out(estado: EstadoReporte) -> PerfilSalida:
 
@@ -41,7 +40,6 @@ def to_perfil_out(estado: EstadoReporte) -> PerfilSalida:
         tipo_cuenta=estado.tipo_cuenta,
     )
 
-
 def to_usuario_out(usuario: Usuario, estado: EstadoReporte) -> UsuarioSalida:
 
     return UsuarioSalida(
@@ -51,7 +49,6 @@ def to_usuario_out(usuario: Usuario, estado: EstadoReporte) -> UsuarioSalida:
         creado_en=usuario.creado_en,
         perfil=to_perfil_out(estado),
     )
-
 
 def to_doc_empresa_out(resultado: DocEmpresaVerificado) -> DocEmpresaSalida:
     from app.dominio.docs_empresa import MetaDocEmpresa

@@ -1,4 +1,4 @@
-"""Utilidades compartidas para validar PDF textual (aval, docs empresa, etc.)."""
+
 
 from __future__ import annotations
 
@@ -10,23 +10,18 @@ from app.dominio.rut import RutInvalido, normalizar_rut
 MIN_TEXTO_ALNUM = 120
 PDF_MAX_BYTES = 8 * 1024 * 1024
 
-
 def sin_acentos(texto: str) -> str:
     nfd = unicodedata.normalize("NFD", texto or "")
     return "".join(c for c in nfd if unicodedata.category(c) != "Mn")
 
-
 def compact(texto: str) -> str:
     return re.sub(r"[^a-z0-9]", "", sin_acentos(texto).lower())
-
 
 def texto_lower(texto: str) -> str:
     return sin_acentos(texto or "").lower()
 
-
 def contar_alnum(texto: str) -> int:
     return sum(1 for ch in (texto or "") if ch.isalnum())
-
 
 def extraer_ruts(texto: str) -> list[str]:
     encontrados: list[str] = []
@@ -44,7 +39,6 @@ def extraer_ruts(texto: str) -> list[str]:
             encontrados.append(norm)
     return encontrados
 
-
 def extraer_montos(texto: str) -> list[str]:
     out: list[str] = []
     patrones = (
@@ -56,7 +50,6 @@ def extraer_montos(texto: str) -> list[str]:
         for m in re.finditer(pat, texto or "", re.I):
             out.append(m.group(0).strip())
     return out
-
 
 def extraer_fechas(texto: str) -> list[str]:
     out: list[str] = []
@@ -71,11 +64,9 @@ def extraer_fechas(texto: str) -> list[str]:
         out.append(m.group(0))
     return out
 
-
 def tokens_nombre(nombre: str) -> set[str]:
     limpio = re.sub(r"[^a-záéíóúñ\s]", " ", sin_acentos(nombre).lower())
     return {t for t in limpio.split() if len(t) >= 2}
-
 
 def nombre_coincide(texto: str, nombre: str | None) -> bool:
     if not nombre:
@@ -86,7 +77,6 @@ def nombre_coincide(texto: str, nombre: str | None) -> bool:
     t = texto_lower(texto)
     hits = sum(1 for tok in toks if tok in t)
     return hits >= min(2, len(toks))
-
 
 def contiene_alguna(texto: str, claves: tuple[str, ...]) -> bool:
     t = texto_lower(texto)

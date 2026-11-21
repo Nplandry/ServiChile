@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Servidor estático local con página 404 de ServiChile."""
+
 
 from __future__ import annotations
 
@@ -10,7 +9,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PAGE_404 = ROOT / "404.html"
-
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -32,10 +30,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
 
     def log_message(self, fmt, *args):
-        # Silencia ruido; útil en demo local.
+
         if args and str(args[0]).startswith("404"):
             super().log_message(fmt, *args)
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ServiChile frontend con 404 propio")
@@ -49,7 +46,6 @@ def main() -> None:
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nDetenido.")
-
 
 if __name__ == "__main__":
     main()

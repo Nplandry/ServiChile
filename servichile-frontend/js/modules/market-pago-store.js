@@ -1,4 +1,4 @@
-/** Persistencia de pago Webpay / print_token (sessionStorage). */
+
 (function () {
   if (typeof MarketMonetizacion === 'undefined') {
     throw new Error('market-pago-store requiere market-monetizacion.js');
@@ -23,12 +23,12 @@
         JSON.stringify(payload)
       );
     } catch (_) {
-      /* ignore */
+
     }
     try {
       localStorage.removeItem(MarketMonetizacion.STORAGE_PAGO);
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -37,9 +37,9 @@
       const ses = sessionStorage.getItem(MarketMonetizacion.STORAGE_PAGO);
       if (ses) return JSON.parse(ses);
     } catch (_) {
-      /* ignore */
+
     }
-    // Migración one-shot desde localStorage legacy.
+
     try {
       const legacy = localStorage.getItem(MarketMonetizacion.STORAGE_PAGO);
       if (legacy) {
@@ -48,7 +48,7 @@
         return JSON.parse(legacy);
       }
     } catch (_) {
-      /* ignore */
+
     }
     return null;
   },
@@ -61,19 +61,19 @@
       producto: params.producto || null,
       ts: Date.now()
     };
-    // token_ws solo en sessionStorage (no queda en disco tras cerrar pestaña).
+
     try {
       sessionStorage.setItem(
         MarketMonetizacion.STORAGE_PAGO_RETORNO,
         JSON.stringify(payload)
       );
     } catch (_) {
-      /* ignore */
+
     }
     try {
       localStorage.removeItem(MarketMonetizacion.STORAGE_PAGO_RETORNO);
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -82,9 +82,9 @@
       const ses = sessionStorage.getItem(MarketMonetizacion.STORAGE_PAGO_RETORNO);
       if (ses) return JSON.parse(ses);
     } catch (_) {
-      /* ignore */
+
     }
-    // Migración one-shot desde localStorage legacy.
+
     try {
       const legacy = localStorage.getItem(MarketMonetizacion.STORAGE_PAGO_RETORNO);
       if (legacy) {
@@ -93,7 +93,7 @@
         return JSON.parse(legacy);
       }
     } catch (_) {
-      /* ignore */
+
     }
     return null;
   },
@@ -120,7 +120,7 @@
         JSON.stringify(mapa)
       );
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -142,14 +142,14 @@
       localStorage.removeItem(MarketMonetizacion.STORAGE_PAGO);
       localStorage.removeItem(MarketMonetizacion.STORAGE_PAGO_RETORNO);
     } catch (_) {
-      /* ignore */
+
     }
     try {
       sessionStorage.removeItem(MarketMonetizacion.STORAGE_PAGO);
       sessionStorage.removeItem(MarketMonetizacion.STORAGE_PAGO_RETORNO);
       sessionStorage.removeItem(MarketMonetizacion.STORAGE_PRINT);
     } catch (_) {
-      /* ignore */
+
     }
   }
   });

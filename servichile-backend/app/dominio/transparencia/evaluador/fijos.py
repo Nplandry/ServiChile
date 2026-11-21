@@ -1,8 +1,7 @@
-"""Valores fijos temporales para Places/ChileCompra sin API key (y APP_ENV=test)."""
+
 
 from __future__ import annotations
 
-# Scores 0–100 estables mientras falta key o en tests.
 HINTS_FIJOS: dict[str, float] = {
     "cyb_https": 100.0,
     "cyb_hsts": 70.0,
@@ -29,7 +28,6 @@ HINTS_FIJOS: dict[str, float] = {
     "dig_website": 100.0,
     "est_proveedor": 100.0,
 }
-
 
 def hints_fijos() -> dict[str, float]:
     return dict(HINTS_FIJOS)

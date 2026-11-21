@@ -1,4 +1,4 @@
--- Observable DataLux: vigencia/estado de la persona jurídica.
+
 ALTER TABLE business_reputation_metrics
     ADD COLUMN IF NOT EXISTS score_persona_juridica double precision;
 

@@ -24,7 +24,6 @@ router = APIRouter(prefix="/v1/auth", tags=["Autenticación"])
 
 CREDENCIALES_INCORRECTAS = "Correo o contraseña incorrectos."
 
-
 def _ip(request: Request, settings) -> str:
 
     if settings.trust_proxy:
@@ -36,7 +35,6 @@ def _ip(request: Request, settings) -> str:
             return xff.split(",")[-1].strip()
 
     return request.client.host if request.client else "desconocida"
-
 
 def _limitar_intento(
     request: Request, accion: str, email: str, limiter, settings
@@ -51,7 +49,6 @@ def _limitar_intento(
     ):
 
         raise demasiadas_solicitudes()
-
 
 @router.post(
     "/registro", response_model=UsuarioSalida, status_code=status.HTTP_201_CREATED
@@ -81,7 +78,6 @@ def registro(
 
     return to_usuario_out(usuario, identidad.estado(usuario))
 
-
 @router.post("/login", response_model=TokenSalida)
 def login(
     datos: LoginEntrada,
@@ -105,12 +101,10 @@ def login(
 
     return TokenSalida(access_token=token.access_token, expires_in=token.expires_in)
 
-
 @router.get("/yo", response_model=UsuarioSalida)
 def yo(usuario: UsuarioActualDep, identidad: ServicioReporteIdentidadDep):
 
     return to_usuario_out(usuario, identidad.estado(usuario))
-
 
 @router.delete("/yo", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_cuenta(

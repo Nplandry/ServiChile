@@ -1,4 +1,4 @@
-"""Reglas y metadatos de la selfie biométrica (sin I/O)."""
+
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ BIOMETRIA_JPEG_QUALITY_DEFAULT = 75
 BIOMETRIA_RETENCION_DIAS_DEFAULT = 180
 BIOMETRIA_CONTENT_TYPE = "image/jpeg"
 
-
 @dataclass(frozen=True)
 class MetaBiometria:
     ruta_relativa: str
@@ -20,7 +19,6 @@ class MetaBiometria:
     ancho: int
     alto: int
     content_type: str = BIOMETRIA_CONTENT_TYPE
-
 
 def retener_hasta(
     desde: datetime | None = None, *, dias: int = BIOMETRIA_RETENCION_DIAS_DEFAULT

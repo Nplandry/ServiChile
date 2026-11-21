@@ -10,7 +10,6 @@ from app.servicios.negocio import ServicioNegocio
 
 __all__ = ["ServicioCuenta", "ContrasenaIncorrecta"]
 
-
 class ServicioCuenta:
     def __init__(
         self,

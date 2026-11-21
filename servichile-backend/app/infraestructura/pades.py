@@ -1,4 +1,4 @@
-"""Verificación PAdES endurecida: intact → coverage → trusted → emisor."""
+
 
 from __future__ import annotations
 
@@ -18,13 +18,11 @@ from app.infraestructura.trust_vault import (
 
 logger = logging.getLogger(__name__)
 
-
 def _nombre_cert(cert) -> str:
     try:
         return str(cert.subject.human_friendly)
     except Exception:
         return str(getattr(cert, "subject", "") or "")
-
 
 def _issuer_cert(cert) -> str:
     try:
@@ -32,9 +30,8 @@ def _issuer_cert(cert) -> str:
     except Exception:
         return str(getattr(cert, "issuer", "") or "")
 
-
 def _bytes_cubiertos_por_firma(pdf_bytes: bytes, sig) -> bytes:
-    """Reconstruye el stream firmado (byte ranges) para extracción de texto."""
+
     br = list(getattr(sig, "byte_range", []) or [])
     if len(br) != 4:
         return pdf_bytes
@@ -44,10 +41,9 @@ def _bytes_cubiertos_por_firma(pdf_bytes: bytes, sig) -> bytes:
     parte1 = buf.read(len1)
     buf.seek(start2)
     parte2 = buf.read(len2)
-    # Hueco de la firma: rellenar con espacios para mantener offsets legibles
+
     hueco = max(0, start2 - (start1 + len1))
     return parte1 + (b" " * hueco) + parte2
-
 
 def verificar_firma_pades(
     pdf_bytes: bytes,
@@ -55,13 +51,7 @@ def verificar_firma_pades(
     perfil: str,
     ca_pem_path: str | None = None,
 ) -> ResultadoPades:
-    """
-    Orden estricto:
-    1) intact
-    2) coverage == ENTIRE_FILE (última firma)
-    3) trusted contra ca_chile.pem
-    4) emisor_coincide(subject, issuer, perfil)
-    """
+
     digest = sha256_hex(pdf_bytes)
     vacio = ResultadoPades(
         ok=False,
@@ -135,7 +125,6 @@ def verificar_firma_pades(
             }
         )
 
-    # Última firma = revisión más reciente (anti shadow / incremental).
     sig = firmas[-1]
     subject = None
     issuer = None
@@ -160,7 +149,6 @@ def verificar_firma_pades(
     issuer = _issuer_cert(cert) if cert else None
     coverage = getattr(status, "coverage", None) or sig.evaluate_signature_coverage()
 
-    # 1) intact
     if not status.intact:
         return ResultadoPades(
             ok=False,
@@ -178,7 +166,6 @@ def verificar_firma_pades(
             senales=("pades-alterada",),
         )
 
-    # 2) coverage ENTIRE_FILE
     if coverage != SignatureCoverageLevel.ENTIRE_FILE:
         return ResultadoPades(
             ok=False,
@@ -196,7 +183,6 @@ def verificar_firma_pades(
             senales=("pades-coverage-parcial", str(coverage)),
         )
 
-    # 3) trusted contra ca_chile.pem
     if not bool(getattr(status, "trusted", False)):
         return ResultadoPades(
             ok=False,
@@ -214,7 +200,6 @@ def verificar_firma_pades(
             senales=("pades-no-confiable",),
         )
 
-    # 4) emisor / organismo esperado
     if not emisor_coincide(subject or "", issuer or "", perfil):
         return ResultadoPades(
             ok=False,

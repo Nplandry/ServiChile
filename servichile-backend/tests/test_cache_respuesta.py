@@ -14,9 +14,7 @@ from app.infraestructura.cache_respuesta import (
 )
 from app.infraestructura.redis_cliente import cliente_redis
 
-
 class _CacheDict:
-    """Fake mínimo para probar invalidación sin Redis."""
 
     def __init__(self) -> None:
         self._d: dict[str, Any] = {}
@@ -35,21 +33,17 @@ class _CacheDict:
         for k in [x for x in self._d if x.startswith(prefijo)]:
             del self._d[k]
 
-
 def test_cache_nulo_no_guarda():
     c = CacheNulo()
     c.guardar_json("k", [1], ttl_s=60)
     assert c.obtener_json("k") is None
 
-
 def test_construir_cache_nulo_en_test():
     assert isinstance(construir_cache_respuesta(None, activo=False), CacheNulo)
-
 
 def test_construir_cache_exige_redis_si_activo():
     with pytest.raises(ValueError, match="REDIS_URL"):
         construir_cache_respuesta("", activo=True)
-
 
 def test_invalidar_negocio_borra_mapa_y_rep():
     from app.infraestructura.cache_respuesta import invalidar_lecturas_publicas
@@ -69,7 +63,6 @@ def test_invalidar_negocio_borra_mapa_y_rep():
     assert c.obtener_json(clave_mapa({"q": "x"})) is None
     assert c.obtener_json(clave_reputacion("z")) is None
     assert c.obtener_json("otra") == 1
-
 
 def test_cache_redis_roundtrip():
     url = "redis://localhost:6379/0"

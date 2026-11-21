@@ -6,8 +6,6 @@ from PIL import Image
 
 from app.dominio.cedula import validar_cedula
 
-
-# Texto OCR típico de cédula nueva (Registro Civil), afinado con foto real.
 _TEXTO_CEDULA_OK = """
 CÉDULA DE REPÚBLICA DE CHILE
 IDENTIDAD SERVICIO DE REGISTRO CIVIL E IDENTIFICACIÓN
@@ -27,7 +25,6 @@ RUN
 12.345.678-5
 """
 
-# Emisión 2025 + vigencia 2033 en la misma zona (no tomar la primera como vencida).
 _TEXTO_CEDULA_NUEVA_VIGENTE = """
 REPÚBLICA DE CHILE
 CÉDULA DE IDENTIDAD
@@ -41,10 +38,9 @@ FECHA DE EMISION FECHA DE VENCIMIENTO
 RUN 12.345.678-5
 """
 
-
 def _foto_carnet(w: int = 900, h: int = 560) -> bytes:
     img = Image.new("RGB", (w, h), (240, 240, 235))
-    # Ruido para que el JPEG no quede demasiado liviano tras comprimir.
+
     px = img.load()
     for y in range(0, h, 3):
         for x in range(0, w, 3):
@@ -52,7 +48,6 @@ def _foto_carnet(w: int = 900, h: int = 560) -> bytes:
     buf = BytesIO()
     img.save(buf, format="JPEG", quality=92)
     return buf.getvalue()
-
 
 def _selfie() -> bytes:
     img = Image.new("RGB", (480, 640), (210, 180, 160))
@@ -64,7 +59,6 @@ def _selfie() -> bytes:
     img.save(buf, format="JPEG", quality=88)
     return buf.getvalue()
 
-
 def _subir_biometria(client: TestClient, headers: dict) -> None:
     r = client.post(
         "/v1/perfil/biometria",
@@ -72,7 +66,6 @@ def _subir_biometria(client: TestClient, headers: dict) -> None:
         files={"foto": ("selfie.jpg", _selfie(), "image/jpeg")},
     )
     assert r.status_code in (200, 201), r.text
-
 
 def test_validar_cedula_texto_ok():
     r = validar_cedula(
@@ -93,7 +86,6 @@ def test_validar_cedula_texto_ok():
     assert "vigente" in r.senales
     assert r.nombre_ocr and "GONZALEZ" in r.nombre_ocr.upper()
 
-
 def test_validar_cedula_no_marca_vencida_si_emision_pasa():
     r = validar_cedula(
         texto_ocr=_TEXTO_CEDULA_NUEVA_VIGENTE,
@@ -108,7 +100,6 @@ def test_validar_cedula_no_marca_vencida_si_emision_pasa():
     assert "vigente" in r.senales
     assert "cédula vencida" not in r.motivo.lower()
 
-
 def test_validar_cedula_rechaza_sin_face_match():
     r = validar_cedula(
         texto_ocr=_TEXTO_CEDULA_OK,
@@ -120,7 +111,6 @@ def test_validar_cedula_rechaza_sin_face_match():
     assert r.aceptado is False
     assert "face-match" not in r.senales
 
-
 def test_validar_cedula_rechaza_sin_selfie():
     r = validar_cedula(
         texto_ocr=_TEXTO_CEDULA_OK,
@@ -130,7 +120,6 @@ def test_validar_cedula_rechaza_sin_selfie():
         face_score=None,
     )
     assert r.aceptado is False
-
 
 def test_validar_cedula_rechaza_rut_distinto():
     r = validar_cedula(
@@ -144,7 +133,6 @@ def test_validar_cedula_rechaza_rut_distinto():
     )
     assert r.aceptado is False
 
-
 def test_endpoint_cedula_exige_biometria_previa(client: TestClient, token: str):
     h = {"Authorization": f"Bearer {token}"}
     r = client.post(
@@ -154,7 +142,6 @@ def test_endpoint_cedula_exige_biometria_previa(client: TestClient, token: str):
     )
     assert r.status_code == 422
     assert "biométr" in r.json()["detail"].lower() or "selfie" in r.json()["detail"].lower()
-
 
 def test_endpoint_cedula_verifica_rut_sin_guardar_foto(
     client: TestClient, token: str, cedula_dir: Path
@@ -187,7 +174,6 @@ def test_endpoint_cedula_verifica_rut_sin_guardar_foto(
     assert perfil["rut_verificado"] is True
     assert perfil.get("cedula_retener_hasta") in (None,)
 
-
 def test_endpoint_cedula_basura_422(client: TestClient, token: str):
     h = {"Authorization": f"Bearer {token}"}
     _subir_biometria(client, h)
@@ -197,7 +183,6 @@ def test_endpoint_cedula_basura_422(client: TestClient, token: str):
         files={"foto": ("x.bin", b"no-es-imagen", "application/octet-stream")},
     )
     assert r.status_code == 422
-
 
 def test_cedula_ok_deja_carpeta_vacia(client: TestClient, token: str, cedula_dir: Path):
     h = {"Authorization": f"Bearer {token}"}

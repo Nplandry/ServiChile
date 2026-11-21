@@ -346,12 +346,12 @@ const ReporteQr = {
     sub.className = 'reporte-qr__sub';
     if (propio) {
       sub.textContent = tipoTxt
-        ? 'Reporte de confianza · ' + tipoTxt
+        ? 'Reporte de confianza ' + tipoTxt
         : 'Reporte de confianza';
     } else if (d.es_propio) {
       sub.textContent = 'Es su propio reporte';
     } else {
-      sub.textContent = tipoTxt ? 'Carnet validado · ' + tipoTxt : 'Carnet validado';
+      sub.textContent = tipoTxt ? 'Carnet validado ' + tipoTxt : 'Carnet validado';
     }
     cabezal.append(marca, sub);
 
@@ -590,7 +590,7 @@ const ReporteQr = {
       ['Estado', ReporteQr.etiquetaEstado(d.estado_reporte)]
     ];
     if (tipo === 'proveedor') {
-      filas.push(['Contexto', 'Proveedor · reporte de transparencia']);
+      filas.push(['Contexto', 'Proveedor reporte de transparencia']);
       if (d.score_confiabilidad != null && d.score_confiabilidad !== '') {
         filas.push(['Confiabilidad', Number(d.score_confiabilidad).toFixed(1) + '%']);
       }
@@ -615,7 +615,7 @@ const ReporteQr = {
             ? 'Sí'
             : d.antecedentes_anotaciones === false
               ? 'No'
-              : '—'
+              : '-'
       ]);
     }
     filas.push(['Válido hasta', ReporteQr.formatoFecha(d.expires_at)]);
@@ -644,12 +644,12 @@ const ReporteQr = {
     } else if (esProveedor) {
       titulo = 'Proveedor validado';
       detalle = rutOk
-        ? 'Carnet de proveedor válido · RUT verificado.'
-        : 'Carnet de proveedor válido · RUT aún pendiente.';
+        ? 'Carnet de proveedor válido RUT verificado.'
+        : 'Carnet de proveedor válido RUT aún pendiente.';
       if (!rutOk) tono = 'warn';
     } else if (rutOk) {
       titulo = etiqueta + ' validada';
-      detalle = 'Carnet de ' + etiqueta.toLowerCase() + ' válido · RUT verificado.';
+      detalle = 'Carnet de ' + etiqueta.toLowerCase() + ' válido RUT verificado.';
     } else {
       tono = 'warn';
       titulo = etiqueta + ' con RUT pendiente';

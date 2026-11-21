@@ -1,4 +1,4 @@
--- Índice local CMF Bancos + score observable cmf.
+
 ALTER TABLE business_reputation_metrics
     ADD COLUMN IF NOT EXISTS score_cmf double precision;
 

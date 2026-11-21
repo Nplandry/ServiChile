@@ -1,9 +1,4 @@
--- Migración 004: Pasaporte de Confianza.
--- Agrega RUT verificado y teléfono al usuario, reservas (nivel 1) y resultados de arriendo (nivel 2).
--- Las columnas preocupacion y proposito NO se eliminan aquí: quedan nullable durante la transición.
--- Uso en una base existente (después de 003):
---   psql "postgresql://USUARIO@HOST:5432/servichile" -v ON_ERROR_STOP=1 -f db/migrations/004_pasaporte.sql
--- Las bases nuevas lo reciben desde db/init_script.sql.
+
 
 BEGIN;
 
@@ -12,7 +7,6 @@ ALTER TABLE usuarios
     ADD COLUMN IF NOT EXISTS rut_verificado boolean NOT NULL DEFAULT false,
     ADD COLUMN IF NOT EXISTS telefono varchar(30);
 
--- Transición: los campos del perfil antiguo siguen existiendo y pueden ser null.
 ALTER TABLE perfiles ALTER COLUMN preocupacion DROP NOT NULL;
 ALTER TABLE perfiles ALTER COLUMN proposito DROP NOT NULL;
 

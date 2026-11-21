@@ -12,20 +12,17 @@ from app.infraestructura.persistencia.modelos import Usuario
 
 from app.principal import app
 
-
 class SinLimite:
 
     def permitir(self, clave, limite, ventana_s=60):
 
         return True
 
-
 def _hash_de(session_factory, email: str) -> str:
 
     with session_factory() as s:
 
         return s.scalar(select(Usuario.password_hash).where(Usuario.email == email))
-
 
 def test_sal_distinto_para_la_misma_contrasena(client: TestClient, session_factory):
 
@@ -53,7 +50,6 @@ def test_sal_distinto_para_la_misma_contrasena(client: TestClient, session_facto
 
     assert len(sal1) >= 22
 
-
 def test_no_hay_sal_fijo_en_el_codigo():
 
     import pathlib
@@ -68,7 +64,6 @@ def test_no_hay_sal_fijo_en_el_codigo():
             "salt=" not in texto and "salt =" not in texto
         ), f"posible sal fija en {archivo}"
 
-
 def test_hash_no_contiene_la_contrasena(client: TestClient, session_factory):
 
     client.post(
@@ -82,7 +77,6 @@ def test_hash_no_contiene_la_contrasena(client: TestClient, session_factory):
     )
 
     assert "clave-visible-99" not in _hash_de(session_factory, "h@servichile.cl")
-
 
 def test_mismo_mensaje_correo_inexistente_y_clave_incorrecta(client: TestClient):
 
@@ -109,7 +103,6 @@ def test_mismo_mensaje_correo_inexistente_y_clave_incorrecta(client: TestClient)
     assert a.status_code == b.status_code == 401
 
     assert a.json() == b.json() == {"detail": "Correo o contraseña incorrectos."}
-
 
 def test_usuario_inactivo_recibe_el_mismo_error(client: TestClient, session_factory):
 
@@ -140,7 +133,6 @@ def test_usuario_inactivo_recibe_el_mismo_error(client: TestClient, session_fact
 
     assert r.json() == {"detail": "Correo o contraseña incorrectos."}
 
-
 def _mediana_login(client: TestClient, email: str, repeticiones: int) -> float:
 
     tiempos = []
@@ -156,7 +148,6 @@ def _mediana_login(client: TestClient, email: str, repeticiones: int) -> float:
         tiempos.append(time.perf_counter() - inicio)
 
     return statistics.median(tiempos)
-
 
 def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
 
@@ -189,7 +180,6 @@ def test_tiempo_similar_con_y_sin_cuenta(client: TestClient):
         cociente < 1.5
     ), f"con cuenta {con_cuenta:.3f}s vs sin cuenta {sin_cuenta:.3f}s"
 
-
 def test_limite_por_correo(client: TestClient):
 
     codigos = [
@@ -203,7 +193,6 @@ def test_limite_por_correo(client: TestClient):
 
     assert codigos[5] == 429
 
-
 def test_limite_por_ip_aunque_cambie_el_correo(client: TestClient):
 
     codigos = [
@@ -216,7 +205,6 @@ def test_limite_por_ip_aunque_cambie_el_correo(client: TestClient):
     assert codigos[:20] == [401] * 20
 
     assert codigos[20] == 429
-
 
 def test_limite_registro_por_ip(client: TestClient, monkeypatch):
 
@@ -248,7 +236,6 @@ def test_limite_registro_por_ip(client: TestClient, monkeypatch):
 
     assert codigos[0] == 201
 
-
 def test_respuesta_429_incluye_retry_after(client: TestClient):
 
     for _ in range(5):
@@ -265,13 +252,11 @@ def test_respuesta_429_incluye_retry_after(client: TestClient):
 
     assert r.headers["retry-after"] == "60"
 
-
 def _settings_con_proxy(valor: bool):
 
     from app.configuracion import obtener_configuracion
 
     return obtener_configuracion().model_copy(update={"trust_proxy": valor})
-
 
 def test_sin_proxy_de_confianza_se_ignora_x_forwarded_for(client: TestClient):
 
@@ -295,7 +280,6 @@ def test_sin_proxy_de_confianza_se_ignora_x_forwarded_for(client: TestClient):
         app.dependency_overrides.pop(obtener_configuracion, None)
 
     assert codigos[20] == 429
-
 
 def test_con_proxy_usa_la_ip_agregada_por_el_proxy_no_la_falsificada(
     client: TestClient,

@@ -1,4 +1,4 @@
-"""Documentos legales de empresa: Grupo 1 PAdES, Grupo 2 híbrido (PDF textual)."""
+
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ DOCS_EMPRESA_MAX_BYTES = PDF_MAX_BYTES
 UMBRAL_ACEPTACION = 70
 
 TipoDocEmpresa = Literal[
-    # Grupo 1 — PAdES obligatorio
+
     "carpeta_tributaria",
     "inicio_actividades",
     "vigencia_sociedad",
@@ -40,7 +40,7 @@ TipoDocEmpresa = Literal[
     "f30",
     "no_quiebra",
     "antecedentes_rl",
-    # Grupo 2 — híbrido (PDF textual)
+
     "patente",
     "titularidad_cuenta",
 ]
@@ -306,7 +306,6 @@ _REGLAS: dict[str, dict] = {
     },
 }
 
-
 @dataclass(frozen=True)
 class ResultadoDocEmpresa:
     aceptado: bool
@@ -322,18 +321,14 @@ class ResultadoDocEmpresa:
     glosa: str | None = None
     grupo: int = 1
 
-
 def es_tipo_doc_empresa(valor: str) -> bool:
     return valor in TIPOS_DOC_EMPRESA
-
 
 def label_tipo(tipo: TipoDocEmpresa) -> str:
     return str(_REGLAS[tipo]["label"])
 
-
 def perfil_pades_de(tipo: TipoDocEmpresa) -> str | None:
     return _REGLAS[tipo].get("perfil_pades")
-
 
 def validar_doc_empresa(
     *,

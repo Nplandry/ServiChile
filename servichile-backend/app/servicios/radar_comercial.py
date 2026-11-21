@@ -1,7 +1,4 @@
-"""El comprador paga el informe: lo imprime en el cliente y ServiChile avisa por SMTP.
 
-Una sola ficha visual (JS). El correo de plataforma es texto simple al email del registro.
-"""
 
 from __future__ import annotations
 
@@ -23,14 +20,12 @@ from app.servicios.negocio_reputacion import reputacion_de
 
 _PREFIJO_QR = "servichile://reporte/"
 
-
 @dataclass(frozen=True)
 class ResultadoInforme:
     enviado: bool
     destino: str
     qr_payload: str | None
     qr_expira: datetime | None
-
 
 class ServicioRadarComercial:
     def __init__(

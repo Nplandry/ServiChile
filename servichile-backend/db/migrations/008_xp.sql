@@ -1,4 +1,4 @@
--- Experiencia (XP) del Pasaporte: total en usuario + log idempotente de eventos.
+
 BEGIN;
 
 ALTER TABLE usuarios

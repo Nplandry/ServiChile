@@ -1,4 +1,4 @@
-"""Rutas de evidencia contractuales del rastreador (no headers cyb_*)."""
+
 
 from app.dominio.transparencia.evaluador.motor import construir_puntajes
 from app.infraestructura.evaluador.rastreador_web import (
@@ -7,13 +7,11 @@ from app.infraestructura.evaluador.rastreador_web import (
     ruta_mostrar,
 )
 
-
 def test_ruta_mostrar_acorta_url_y_link():
     assert ruta_mostrar("https://ejemplo.cl/politica-de-privacidad") == "/politica-de-privacidad"
     assert ruta_mostrar("link:/terminos-y-condiciones") == "/terminos-y-condiciones"
     assert ruta_mostrar("link:https://ejemplo.cl/cookies?x=1") == "/cookies"
     assert ruta_mostrar(None) is None
-
 
 def test_analizar_guarda_url_en_ley_cookies_contacto():
     page_texts = {
@@ -38,7 +36,6 @@ def test_analizar_guarda_url_en_ley_cookies_contacto():
     assert by["data_contact"]["found"] is True
     assert by["data_contact"]["url"] == "https://ejemplo.cl/privacidad"
 
-
 def test_rutas_evidencia_solo_con_no_cyb():
     hallazgos = [
         {
@@ -56,7 +53,6 @@ def test_rutas_evidencia_solo_con_no_cyb():
     }
     assert "cyb_https" not in rutas
 
-
 def test_observable_con_privacy_detalle_es_ruta_sin_fuente():
     res = construir_puntajes(
         pistas={"con_privacy": 100.0, "cyb_https": 100.0},
@@ -66,5 +62,5 @@ def test_observable_con_privacy_detalle_es_ruta_sin_fuente():
     )
     by = {o.id: o for o in res.a_observables()}
     assert by["con_privacy"].detalle == "/politica-de-privacidad"
-    # Headers: sin evidencia de ruta → solo fuente; el FE no la muestra en cyb_*.
+
     assert by["cyb_https"].detalle == "rastreador_web"

@@ -1,4 +1,4 @@
--- Verificación biométrica: solo marca de estado. La foto nunca se persiste.
+
 BEGIN;
 
 ALTER TABLE usuarios

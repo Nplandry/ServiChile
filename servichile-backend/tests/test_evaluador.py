@@ -4,7 +4,6 @@ from app.dominio.entidades import Negocio
 from app.dominio.transparencia.evaluador.parametros import IDS_ESTADO, PARAMETROS
 from app.infraestructura.evaluador.adaptador import AdaptadorEvaluador, ConfiguracionEvaluador
 
-
 def _negocio(**kwargs) -> Negocio:
     base = dict(
         id=uuid4(),
@@ -26,7 +25,6 @@ def _negocio(**kwargs) -> Negocio:
     base.update(kwargs)
     return Negocio(**base)
 
-
 def test_evaluador_test_sin_campos_deja_ceros():
     svc = AdaptadorEvaluador(ConfiguracionEvaluador(app_env="test"))
     res = svc.evaluar(_negocio())
@@ -39,9 +37,8 @@ def test_evaluador_test_sin_campos_deja_ceros():
     assert by_id["dig_website"].puntaje == 0.0
     assert by_id["cyb_https"].puntaje == 0.0
 
-
 def test_evaluador_sin_keys_simula_solo_places_y_chilecompra():
-    """Sin keys: Places/ChileCompra fijos; rastreador_web no se simula (sin sitio aquí)."""
+
     svc = AdaptadorEvaluador(
         ConfiguracionEvaluador(
             app_env="local",
@@ -63,7 +60,6 @@ def test_evaluador_sin_keys_simula_solo_places_y_chilecompra():
     assert res.metadatos.get("places", {}).get("modo") == "fijos"
     assert res.metadatos.get("chilecompra", {}).get("modo") == "fijos"
     assert res.metadatos.get("rastreador_web", {}).get("omitido") is True
-
 
 def test_evaluador_test_con_ficha_completa_usa_fijos():
     svc = AdaptadorEvaluador(ConfiguracionEvaluador(app_env="test"))
@@ -88,7 +84,6 @@ def test_evaluador_test_con_ficha_completa_usa_fijos():
     }
     assert res.metadatos.get("rastreador_web", {}).get("modo") == "fijos"
 
-
 def test_reputacion_incluye_observables_evaluador(client, token_empresa):
     alta = client.post(
         "/v1/businesses",
@@ -103,7 +98,7 @@ def test_reputacion_incluye_observables_evaluador(client, token_empresa):
     )
     assert alta.status_code == 201, alta.text
     bid = alta.json()["id"]
-    # Público: teaser de 3 observables (monetización); el resto en el informe.
+
     publico = client.get(f"/v1/businesses/{bid}/reputation")
     assert publico.status_code == 200
     pub = publico.json()
@@ -114,7 +109,7 @@ def test_reputacion_incluye_observables_evaluador(client, token_empresa):
     }
     assert pub["observables_restantes"] >= 31
     assert pub["docs_empresa"] is None
-    # Titular con Bearer: desglose completo.
+
     r = client.get(
         f"/v1/businesses/{bid}/reputation",
         headers={"Authorization": f"Bearer {token_empresa}"},
@@ -124,7 +119,6 @@ def test_reputacion_incluye_observables_evaluador(client, token_empresa):
     assert len(cuerpo["observables"]) >= len(PARAMETROS)
     ids = {o["id"] for o in cuerpo["observables"]}
     assert "fis_address" in ids and "est_proveedor" in ids and "cyb_https" in ids
-
 
 def test_reputacion_bearer_sin_compra_oculta_observables(
     client, token_empresa, token
@@ -142,7 +136,7 @@ def test_reputacion_bearer_sin_compra_oculta_observables(
     )
     assert alta.status_code == 201, alta.text
     bid = alta.json()["id"]
-    # Usuario autenticado sin compra ni titularidad: solo teaser.
+
     ajeno = client.get(
         f"/v1/businesses/{bid}/reputation",
         headers={"Authorization": f"Bearer {token}"},
@@ -156,7 +150,6 @@ def test_reputacion_bearer_sin_compra_oculta_observables(
     }
     assert cuerpo_ajeno["observables_restantes"] >= 31
     assert cuerpo_ajeno["docs_empresa"] is None
-
 
 def test_refresco_evaluador_titular_refresca_indice(client, token_empresa):
     h = {"Authorization": f"Bearer {token_empresa}"}
@@ -180,7 +173,6 @@ def test_refresco_evaluador_titular_refresca_indice(client, token_empresa):
     assert len(cuerpo["observables"]) >= len(PARAMETROS)
     assert "descargo" in cuerpo
 
-
 def test_refresco_evaluador_ajeno_da_403(client, token_empresa, token):
     h = {"Authorization": f"Bearer {token_empresa}"}
     alta = client.post(
@@ -199,7 +191,6 @@ def test_refresco_evaluador_ajeno_da_403(client, token_empresa, token):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert r.status_code == 403
-
 
 def test_conservar_sitio_previa_no_pisa_ciber_contractual():
     from uuid import uuid4

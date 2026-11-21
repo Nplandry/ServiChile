@@ -1,4 +1,4 @@
--- Tipo de cuenta del onboarding: persona natural o empresa.
+
 BEGIN;
 
 ALTER TABLE perfiles
@@ -11,7 +11,6 @@ ALTER TABLE perfiles
     ADD CONSTRAINT perfiles_tipo_cuenta_check
     CHECK (tipo_cuenta IS NULL OR tipo_cuenta IN ('persona', 'empresa'));
 
--- Permisos para el rol de la app (si existe).
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'servichile') THEN

@@ -1,6 +1,6 @@
 # ServiChile PWA
 
-Aplicación web progresiva de **due diligence B2B** e índice de transparencia de proveedores, con capa de confianza (Reportes / QR + verificación).
+Aplicación web progresiva de **catálogo B2B** e índice de transparencia de proveedores, con capa de confianza (Reportes / QR + verificación).
 
 ## Pantallas
 

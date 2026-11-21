@@ -1,4 +1,4 @@
-"""Compra del cupón para publicar ficha de empresa vía Webpay Plus."""
+
 
 from __future__ import annotations
 
@@ -6,30 +6,26 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-# Precio oficial del producto (única fuente de verdad; no hay override por env).
 PRECIO_PUBLICACION_CLP = 8990
 
 ESTADO_PENDIENTE = "pendiente"
 ESTADO_CONFIRMANDO = "confirmando"
 ESTADO_AUTORIZADO = "autorizado"
-ESTADO_RESERVADO = "reservado"  # cupón tomado antes del alta (evita ventana create→consume)
+ESTADO_RESERVADO = "reservado"
 ESTADO_CONSUMIDO = "consumido"
 ESTADO_RECHAZADO = "rechazado"
 ESTADO_ERROR = "error"
 ESTADO_ANULADO = "anulado"
 
-
 def formato_monto_clp(monto: int) -> str:
-    """$8.990 (miles con punto)."""
-    return "$" + f"{int(monto):,}".replace(",", ".")
 
+    return "$" + f"{int(monto):,}".replace(",", ".")
 
 @dataclass(frozen=True)
 class CatalogoPagoPublicacion:
     monto: int
     moneda: str = "CLP"
     producto: str = "publicacion_empresa"
-
 
 @dataclass
 class CompraPublicacion:
@@ -49,13 +45,11 @@ class CompraPublicacion:
     creado_en: datetime | None = None
     actualizado_en: datetime | None = None
 
-
 @dataclass(frozen=True)
 class CanalReclamoPublicacion:
     email: str
     whatsapp: str
     instruccion: str
-
 
 @dataclass(frozen=True)
 class InicioPagoPublicacion:
@@ -64,7 +58,6 @@ class InicioPagoPublicacion:
     url: str
     monto: int
     reclamo: CanalReclamoPublicacion
-
 
 @dataclass(frozen=True)
 class ConfirmacionPagoPublicacion:

@@ -1,4 +1,4 @@
--- Aval / garantía de respaldo: flags y score (PDF no se retiene).
+
 BEGIN;
 
 ALTER TABLE usuarios

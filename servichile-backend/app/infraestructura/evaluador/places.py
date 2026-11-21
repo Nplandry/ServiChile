@@ -11,7 +11,6 @@ from app.dominio.transparencia.evaluador.ficha import (
 )
 from app.infraestructura.evaluador.http_sync import enviar_json
 
-
 class ClienteGooglePlaces:
     def __init__(self, api_key: str, *, base: str | None = None) -> None:
         self.api_key = (api_key or "").strip()

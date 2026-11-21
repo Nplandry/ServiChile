@@ -1,11 +1,4 @@
-"""Verificadores de identidad (RUT).
 
-El modo lo elige ``Configuracion.rut_verifier`` (derivado, no va en ``.env``):
-
-- ``muestra``: solo ``APP_ENV=test`` (pytest).
-- ``chilecompra``: si hay ``CHILECOMPRA_TICKET``.
-- ``estricto``: default local/prod sin ticket (exige cédula u otro canal real).
-"""
 
 from __future__ import annotations
 
@@ -16,23 +9,17 @@ from app.infraestructura.evaluador.chilecompra import ClienteChileCompra
 
 log = logging.getLogger(__name__)
 
-
 class MuestraVerificadorRut:
-    """Solo para tests: no consulta fuentes externas."""
 
     def existe_y_activo(self, rut: str) -> bool:
         return bool((rut or "").strip())
 
-
 class EstrictoVerificadorRut:
-    """Cierra el camino cosmética: no marca RUT verificado solo por formato."""
 
     def existe_y_activo(self, rut: str) -> bool:
         return False
 
-
 class ChileCompraVerificadorRut:
-    """Verifica existencia del RUT como proveedor en Mercado Público."""
 
     def __init__(self, ticket: str, *, tiempo_espera: float = 3.0) -> None:
         self.cliente = ClienteChileCompra(ticket)
@@ -50,7 +37,6 @@ class ChileCompraVerificadorRut:
             return False
         codigo = ClienteChileCompra.codigo_desde(data if isinstance(data, dict) else None)
         return bool(codigo)
-
 
 def construir_verificador_rut(
     nombre: str,

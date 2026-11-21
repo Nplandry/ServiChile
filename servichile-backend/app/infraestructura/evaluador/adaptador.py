@@ -1,4 +1,4 @@
-"""Adaptador del evaluador: combina clientes HTTP + motor de dominio."""
+
 
 from __future__ import annotations
 
@@ -20,24 +20,16 @@ from app.infraestructura.evaluador.chilecompra import ClienteChileCompra
 from app.infraestructura.evaluador.places import ClienteGooglePlaces
 from app.infraestructura.evaluador.rastreador_web import dominio_de_url, rastrear_sitio
 
-
 @dataclass(frozen=True, slots=True)
 class ConfiguracionEvaluador:
-    """Siempre orientado a producción.
-
-    Places / ChileCompra: sin API key → HINTS_FIJOS solo para esa fuente.
-    Rastreador web: siempre red (no requiere key), salvo APP_ENV=test.
-    """
 
     app_env: str = "local"
     chilecompra_ticket: str = ""
     google_places_api_key: str = ""
     presupuesto_segundos: float = 2.0
 
-
 def _es_test(app_env: str) -> bool:
     return (app_env or "").strip().lower() == "test"
-
 
 def _places_limite_cuota(err: str | None, data: Any) -> bool:
     partes = [str(err or "")]
@@ -48,13 +40,11 @@ def _places_limite_cuota(err: str | None, data: Any) -> bool:
     blob = " ".join(partes)
     return "429" in blob
 
-
 def _simular_fuente_con_key(*, app_env: str, configurado: bool) -> bool:
-    """Solo Places/ChileCompra: sin key (o tests) → datos fijos de esa fuente."""
+
     if _es_test(app_env):
         return True
     return not configurado
-
 
 def _aplicar_fijos(
     pistas: dict[str, float],
@@ -70,7 +60,6 @@ def _aplicar_fijos(
         fuentes[pid] = fuente
         estados[pid] = "ok"
 
-
 def _comuna_ciudad(direccion: str | None) -> tuple[str | None, str | None]:
     if not direccion or not direccion.strip():
         return None, None
@@ -81,14 +70,13 @@ def _comuna_ciudad(direccion: str | None) -> tuple[str | None, str | None]:
         return partes[0], partes[0]
     return partes[-2] if len(partes) >= 2 else partes[0], partes[-1]
 
-
 def _aplicar_ceros_por_campos(
     pistas: dict[str, float],
     estados: dict[str, str],
     evidencia: dict[str, str],
     negocio: Negocio,
 ) -> None:
-    """Campos no rellenados por la empresa → puntaje 0 (no inventar)."""
+
     if not (negocio.direccion or "").strip():
         pistas["fis_address"] = 0.0
         estados["fis_address"] = "ok"
@@ -108,7 +96,6 @@ def _aplicar_ceros_por_campos(
             estados[pid] = "ok"
             evidencia.pop(pid, None)
 
-
 def _nombre_proveedor(prov: dict[str, Any] | None) -> str | None:
     if not isinstance(prov, dict):
         return None
@@ -118,21 +105,17 @@ def _nombre_proveedor(prov: dict[str, Any] | None) -> str | None:
         return str(nombre) if nombre else None
     return None
 
-
 def _confiable_ficha(evaluacion: dict[str, Any]) -> bool:
     if "confiable" in evaluacion:
         return bool(evaluacion.get("confiable"))
     return bool(evaluacion.get("reliable"))
-
 
 def _coincidencia_dominio(evaluacion: dict[str, Any]) -> bool:
     if "coincidencia_dominio" in evaluacion:
         return bool(evaluacion.get("coincidencia_dominio"))
     return bool(evaluacion.get("domain_match"))
 
-
 class AdaptadorEvaluador:
-    """Adaptador infra del puerto ``PuertoEvaluador``."""
 
     def __init__(self, config: ConfiguracionEvaluador) -> None:
         self.config = config
@@ -257,7 +240,7 @@ class AdaptadorEvaluador:
                 for pid in pistas_rastreador:
                     fuentes[pid] = "rastreador_web"
                     estados[pid] = "ok"
-                # Solo contractuales con_*: ruta corta en evidencia (nunca cyb_*).
+
                 rutas = rastreador_out.get("rutas_evidencia") or {}
                 if isinstance(rutas, dict):
                     for pid, ruta in rutas.items():

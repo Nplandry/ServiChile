@@ -93,7 +93,7 @@ _PLANTILLAS = {
             "Contabilidad B2B",
             "Contabilidad, reportes SII y cierre financiero para pymes.",
         ),
-        ("Asesoría legal", "Contratos, compliance y acompañamiento en due diligence."),
+        ("Asesoría legal", "Contratos, compliance y acompañamiento en contrataciones."),
         (
             "Consultora laboral",
             "Prevención de riesgos y cumplimiento laboral/previsional.",
@@ -111,7 +111,7 @@ _PLANTILLAS = {
         ),
         (
             "Courier B2B express",
-            "Última milla corporativa. Riesgo de empresas fachada y siniestros; due diligence en segundos.",
+            "Última milla corporativa. Riesgo de empresas fachada y siniestros; transparencia en segundos.",
         ),
         (
             "Bodegaje y fulfillment",
@@ -169,7 +169,6 @@ _CUOTAS = {
     "logistica": 10,
 }
 
-
 def _generar_negocios() -> list[dict]:
 
     out: list[dict] = []
@@ -198,7 +197,7 @@ def _generar_negocios() -> list[dict]:
                     "nombre": f"{tipo} {ciudad} {n:02d}",
                     "categoria": categoria,
                     "direccion": f"Av. Industrial {100 + n}, {ciudad}",
-                    "descripcion": f"{blurb} Operación en {ciudad}. Ficha orientada a due diligence B2B (32 observables).",
+                    "descripcion": f"{blurb} Operación en {ciudad}. Ficha orientada a transparencia B2B (32 observables).",
                     "imagen_url": IMAGEN_POR_CATEGORIA[categoria],
                     "logo_url": None,
                     "latitud": round(lat, 6),
@@ -211,7 +210,6 @@ def _generar_negocios() -> list[dict]:
 
     return out
 
-
 NEGOCIOS = _generar_negocios()
 
 COLUMNAS_REQUERIDAS = (
@@ -222,12 +220,10 @@ COLUMNAS_REQUERIDAS = (
     "logo_url",
 )
 
-
 def _indice(n: dict) -> float:
-    # Semilla sin docs validados: rating 0 hasta que se carguen documentos.
+
     del n
     return calcular_indice(docs=None)
-
 
 def _aplicar_negocio(negocio: EntidadNegocio, n: dict) -> None:
 
@@ -249,7 +245,6 @@ def _aplicar_negocio(negocio: EntidadNegocio, n: dict) -> None:
 
     negocio.requiere_nivel = n["requiere_nivel"]
 
-
 def _aplicar_metricas(negocio: EntidadNegocio, n: dict) -> None:
 
     if negocio.metricas is None:
@@ -263,7 +258,6 @@ def _aplicar_metricas(negocio: EntidadNegocio, n: dict) -> None:
     negocio.metricas.final_score = _indice(n)
 
     negocio.metricas.rater_escaneado_en = ahora_utc()
-
 
 def _verificar_esquema(engine) -> None:
 
@@ -292,7 +286,6 @@ def _verificar_esquema(engine) -> None:
         raise RuntimeError(
             "Falta business_reputation_metrics. Corra db/init_script.sql o python -m scripts.cargar_db_demo."
         )
-
 
 def sembrar(reset: bool, purge_all: bool = False) -> None:
 
@@ -377,7 +370,6 @@ def sembrar(reset: bool, purge_all: bool = False) -> None:
 
         session.close()
 
-
 def main() -> None:
 
     parser = argparse.ArgumentParser(
@@ -407,7 +399,6 @@ def main() -> None:
         print(e, file=sys.stderr)
 
         raise SystemExit(1) from e
-
 
 if __name__ == "__main__":
 

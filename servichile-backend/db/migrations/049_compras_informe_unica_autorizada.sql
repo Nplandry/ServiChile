@@ -1,5 +1,4 @@
--- Una sola compra autorizada por (usuario, negocio).
--- Antes de crear el índice único parcial, conserva la más reciente.
+
 
 DELETE FROM compras_informe a
 USING compras_informe b

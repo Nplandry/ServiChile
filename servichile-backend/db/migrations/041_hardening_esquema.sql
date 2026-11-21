@@ -1,4 +1,4 @@
--- Índices de listado, default final_score, RUT empresa, FKs PAdES.
+
 
 CREATE INDEX IF NOT EXISTS business_entities_categoria_nombre_idx
     ON business_entities (categoria, nombre);
@@ -9,7 +9,6 @@ CREATE INDEX IF NOT EXISTS business_entities_reclamado_por_idx
 ALTER TABLE business_reputation_metrics
     ALTER COLUMN final_score SET DEFAULT 0.0;
 
--- Formato RUT empresa (mismo patrón que usuarios.rut).
 ALTER TABLE business_entities
     DROP CONSTRAINT IF EXISTS business_entities_rut_empresa_check;
 
@@ -21,7 +20,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS business_entities_rut_empresa_uidx
     ON business_entities (rut_empresa)
     WHERE rut_empresa IS NOT NULL;
 
--- Anti-replay: conservar hash si se borra usuario/empresa.
 UPDATE pades_document_hashes p
 SET usuario_id = NULL
 WHERE usuario_id IS NOT NULL

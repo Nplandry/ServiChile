@@ -24,7 +24,7 @@ const ReporteEmpresa = {
       if (id) localStorage.setItem(ReporteEmpresa.claveSeleccion(), String(id));
       else localStorage.removeItem(ReporteEmpresa.claveSeleccion());
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -94,7 +94,7 @@ const ReporteEmpresa = {
       const hit = Market.CATEGORIAS.find((c) => c.id === id);
       if (hit && hit.label) return hit.label;
     }
-    return id || '—';
+    return id || '-';
   },
 
   textoOpcional(valor, vacio) {
@@ -229,7 +229,7 @@ const ReporteEmpresa = {
 
     const select = document.createElement('select');
     select.id = 'reporteEmpresaSelect';
-    select.className = 'reporte__selector-select';
+    select.className = 'ui-select';
     select.setAttribute('aria-label', 'Elija qué empresa ver en el reporte');
 
     lista.forEach((n) => {
@@ -435,7 +435,7 @@ const ReporteEmpresa = {
     [
       [
         'Razón social / nombre',
-        emp.nombre || ficha.nombre || (rep && rep.nombre) || '—'
+        emp.nombre || ficha.nombre || (rep && rep.nombre) || '-'
       ],
       [
         'RUT empresa',
@@ -501,7 +501,7 @@ const ReporteEmpresa = {
     ref.textContent =
       'Referencia: ' +
       ReporteEmpresa.refId(user) +
-      ' · ' +
+      ' ' +
       ReporteEmpresa.hoy();
     pie.append(aviso, ref);
 
@@ -620,10 +620,6 @@ const ReporteEmpresa = {
     ReporteEmpresa.imprimirDocumento(doc);
   },
 
-  /**
-   * PDF del comprador: exige compra autorizada + print_token (validado en servidor).
-   * opts: { autorizado, buy_order, print_token, payload, expires_at }
-   */
   async imprimirFicha(negocio, rep, opts) {
     const compra = opts && typeof opts === 'object' ? opts : null;
     if (
@@ -645,7 +641,7 @@ const ReporteEmpresa = {
     const sello = document.createElement('p');
     sello.className = 'reporte-doc__compra';
     sello.textContent =
-      'Informe comprado en ServiChile · Orden ' + String(compra.buy_order).trim();
+      'Informe comprado en ServiChile Orden ' + String(compra.buy_order).trim();
     const cabezal = doc.querySelector('.reporte-doc__cabezal');
     if (cabezal && cabezal.parentNode) {
       cabezal.parentNode.insertBefore(sello, cabezal.nextSibling);
@@ -689,7 +685,6 @@ const ReporteEmpresa = {
     return true;
   },
 
-  /** Portal fijo: no toca #reporteRaiz ni #verifyView. */
   imprimirDocumento(nodo) {
     return new Promise((resolve) => {
       const portal = document.getElementById('reportePrintPortal');

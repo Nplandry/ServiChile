@@ -15,7 +15,6 @@ from app.dominio.texto_pdf import MIN_TEXTO_ALNUM, contar_alnum
 from app.infraestructura.pades import verificar_firma_pades
 from app.infraestructura.pdf_textual import extraer_texto_pdf
 
-
 def _parse_pdf_date(raw: str | None) -> datetime | None:
     if not raw:
         return None
@@ -27,7 +26,6 @@ def _parse_pdf_date(raw: str | None) -> datetime | None:
         return datetime(y, mo, d, h, mi, s)
     except ValueError:
         return None
-
 
 def _rechazo(
     motivo: str,
@@ -45,7 +43,6 @@ def _rechazo(
         motivo=motivo,
         sha256_hash=sha256_hash,
     )
-
 
 def analizar_pdf_antecedentes(
     pdf_bytes: bytes,
@@ -119,7 +116,6 @@ def analizar_pdf_antecedentes(
         entidad_emisora=pades.entidad_emisora,
         sha256_hash=pades.sha256_hash,
     )
-
 
 class AnalizadorPdfAntecedentes:
     def __init__(self, ca_pem_path: str | None = None) -> None:

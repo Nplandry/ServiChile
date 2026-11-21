@@ -1,8 +1,4 @@
--- ServiChile: esquema completo desde cero (alineado con migraciones 002–042).
--- Uso:
---   createdb servichile
---   psql "postgresql://USUARIO@HOST:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
--- Bases existentes: aplicar db/migrations/ en orden (ver scripts/cargar_db_demo.py).
+
 
 BEGIN;
 
@@ -204,8 +200,7 @@ CREATE INDEX idx_compras_publicacion_usuario
 CREATE INDEX idx_compras_publicacion_cupon
   ON compras_publicacion (usuario_id, estado)
   WHERE business_id IS NULL;
--- Cupón libre: solo estado autorizado + business_id NULL.
--- Tras consumir → estado 'consumido' (no se recicla si DELETE SET NULL).
+
 CREATE UNIQUE INDEX uq_compras_publicacion_cupon_libre
   ON compras_publicacion (usuario_id)
   WHERE estado = 'autorizado' AND business_id IS NULL;

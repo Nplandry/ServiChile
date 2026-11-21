@@ -1,5 +1,4 @@
--- Renombra reservas → trabajos (modelo proveedor–contratista).
--- Estados: reservada→abierto, asistido→concretado, no_show→no_concretado, cancelada→cancelado.
+
 
 ALTER TABLE reservas RENAME TO trabajos;
 

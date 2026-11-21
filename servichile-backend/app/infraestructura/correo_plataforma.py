@@ -1,4 +1,4 @@
-"""Correo de salida de ServiChile. El destinatario es la cuenta registrada."""
+
 
 from __future__ import annotations
 
@@ -11,9 +11,7 @@ from app.dominio.puertos import EnviadorPlataforma, MensajeSaliente
 
 log = logging.getLogger(__name__)
 
-
 class EnviadorMemoria(EnviadorPlataforma):
-    """Pruebas, o servidor sin buzón propio: no abre la red."""
 
     def __init__(self, simular: bool) -> None:
         self._simular = simular
@@ -26,7 +24,6 @@ class EnviadorMemoria(EnviadorPlataforma):
         if not self._simular:
             raise CorreoRechazado("ServiChile no tiene configurado el correo de salida.")
         self.enviados.append(mensaje)
-
 
 class EnviadorSmtp(EnviadorPlataforma):
     def __init__(

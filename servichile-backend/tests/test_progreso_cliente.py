@@ -5,21 +5,17 @@ from PIL import Image
 
 from app.dominio import progreso_cliente as reglas
 
-
 def _jpeg_bytes() -> bytes:
     img = Image.new("RGB", (96, 128), (20, 80, 140))
     buf = BytesIO()
     img.save(buf, format="JPEG", quality=85)
     return buf.getvalue()
 
-
 _JPEG_BYTES = _jpeg_bytes()
-
 
 def _headers(token: str) -> dict[str, str]:
 
     return {"Authorization": f"Bearer {token}"}
-
 
 def test_registro_otorga_xp_base(client: TestClient):
 
@@ -40,7 +36,6 @@ def test_registro_otorga_xp_base(client: TestClient):
     assert perfil["xp"] == reglas.XP_REGISTRO
 
     assert perfil["nivel_xp"] == 1
-
 
 def test_perfil_basico_suma_xp(client: TestClient, token: str):
 
@@ -63,7 +58,6 @@ def test_perfil_basico_suma_xp(client: TestClient, token: str):
     assert r2.status_code == 200
 
     assert r2.json()["xp"] == antes + reglas.XP_PERFIL_BASICO
-
 
 def test_biometria_suma_xp_una_vez(client: TestClient, token: str):
 
@@ -93,7 +87,6 @@ def test_biometria_suma_xp_una_vez(client: TestClient, token: str):
 
     assert r2.json()["xp"] == antes + reglas.XP_BIOMETRIA
 
-
 def test_rut_suma_xp(client: TestClient, token: str):
 
     h = _headers(token)
@@ -111,7 +104,6 @@ def test_rut_suma_xp(client: TestClient, token: str):
     assert r2.status_code == 200
 
     assert r2.json()["xp"] == antes + reglas.XP_RUT
-
 
 def test_trabajo_concretado_suma_xp(client: TestClient, token_empresa: str):
 
@@ -168,7 +160,6 @@ def test_trabajo_concretado_suma_xp(client: TestClient, token_empresa: str):
     assert despues == antes + reglas.XP_TRABAJO_CONCRETADO
 
     assert uuid.UUID(trabajo["id"])
-
 
 def test_nivel_por_xp_umbrales():
 

@@ -1,4 +1,4 @@
-"""Proyección de reputación e índice (extraído de ServicioNegocio)."""
+
 
 from __future__ import annotations
 
@@ -31,7 +31,6 @@ from app.dominio.transparencia.valoracion import (
 )
 from app.tiempo import ahora_utc
 
-
 def metricas_de(negocio: Negocio) -> Metricas:
     if negocio.metricas is None:
         negocio.metricas = Metricas(
@@ -41,7 +40,6 @@ def metricas_de(negocio: Negocio) -> Metricas:
             actualizado_en=ahora_utc(),
         )
     return negocio.metricas
-
 
 def pct_evaluador_desde_observables(obs: list[ObservableSenal]) -> float | None:
     senales = [o for o in obs if not es_observable_documento(o.id)]
@@ -59,12 +57,10 @@ def pct_evaluador_desde_observables(obs: list[ObservableSenal]) -> float | None:
         peso += w
     return acc / peso if peso else 0.0
 
-
 def indice_global(metricas: Metricas) -> tuple[float, int]:
-    """★ 0–10 y % 0–100 desde final_score persistido (sin recalcular al vuelo)."""
+
     v = round(float(metricas.final_score or 0.0), 1)
     return v, int(max(0, min(100, round(v * 10))))
-
 
 def obs_a_dict(obs: ObservableSenal) -> dict:
     return {
@@ -76,7 +72,6 @@ def obs_a_dict(obs: ObservableSenal) -> dict:
         "grupo": obs.grupo,
         "razones": list(obs.razones or []),
     }
-
 
 def observables_de(metricas: Metricas) -> list[ObservableSenal]:
     raw = metricas.observables
@@ -118,7 +113,6 @@ def observables_de(metricas: Metricas) -> list[ObservableSenal]:
         )
     return out
 
-
 def persistir_indice(
     negocio: Negocio,
     *,
@@ -126,7 +120,7 @@ def persistir_indice(
     pct_evaluador: float | None = None,
     trabajos_concretados: int | None = None,
 ) -> ValoracionDocumentos:
-    """Fusiona señales públicas + docs + trabajos en final_score y observables."""
+
     metricas = metricas_de(negocio)
     docs = negocio.docs_empresa or {}
     docs_rating = calcular_valoracion_documentos(docs)
@@ -139,7 +133,7 @@ def persistir_indice(
             if not es_observable_documento(o.id)
         ]
     )
-    # Completar UI con señales previas no re-medidas (sin bajar el % por ceros inventados).
+
     if senales is not None:
         vistos = {o.id for o in base}
         for prev in observables_de(metricas):
@@ -179,17 +173,14 @@ def persistir_indice(
     metricas.actualizado_en = ahora_utc()
     return docs_rating
 
-
 def aplicar_rating_docs(negocio: Negocio) -> ValoracionDocumentos:
     return persistir_indice(negocio)
-
 
 def docs_copia(negocio: Negocio) -> DocsEmpresa:
     return dict(negocio.docs_empresa or {})
 
-
 def docs_publicos(negocio: Negocio) -> DocsEmpresa:
-    """Solo flags de verificación vigentes; sin hashes ni glosas internas."""
+
     out: DocsEmpresa = {}
     for tipo, meta in (negocio.docs_empresa or {}).items():
         if not isinstance(meta, MetaDocEmpresa):
@@ -203,9 +194,8 @@ def docs_publicos(negocio: Negocio) -> DocsEmpresa:
         out[str(tipo)] = flag
     return out
 
-
 def a_mapa(negocio: Negocio) -> NegocioEnMapa:
-    """Proyección pública de marketplace (sin RUT/tel/web/docs)."""
+
     metricas = metricas_de(negocio)
     indice, pct = indice_global(metricas)
     return NegocioEnMapa(
@@ -232,9 +222,8 @@ def a_mapa(negocio: Negocio) -> NegocioEnMapa:
         referencias=tuple(negocio.referencias or ()),
     )
 
-
 def a_titular(negocio: Negocio) -> NegocioTitular:
-    """Proyección del titular (incluye RUT, contacto y docs completos)."""
+
     metricas = metricas_de(negocio)
     indice, pct = indice_global(metricas)
     return NegocioTitular(
@@ -266,15 +255,13 @@ def a_titular(negocio: Negocio) -> NegocioTitular:
         referencias=tuple(negocio.referencias or ()),
     )
 
-
 _DESCARGO = (
     "Índice global a partir de señales públicas (ficha, sitio, "
     "compras públicas, etc.). No constituye un juicio sobre la calidad del servicio."
 )
 
-
 def reputacion_de(negocio: Negocio) -> Reputacion:
-    """Lee el snapshot persistido del evaluador; no llama APIs en vivo."""
+
     docs_rating = calcular_valoracion_documentos(negocio.docs_empresa)
     metricas = metricas_de(negocio)
     indice, pct = indice_global(metricas)

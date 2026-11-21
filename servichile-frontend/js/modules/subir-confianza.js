@@ -8,12 +8,12 @@ const SubirConfianza = {
   NIVELES: [
     {
       id: 1,
-      titulo: 'Nivel 1 · Identidad',
+      titulo: 'Nivel 1 Identidad',
       evalua: 'Que la persona sea real, accesible y localizable',
       requisito: 'Cuenta activa, identidad verificada y datos de contacto con mayoría de edad.',
       usos: 'Primeros contactos, QR de reporte y primeros trabajos con baja fricción.',
       discriminatorio: false,
-      discriminatorioNota: 'NO — base para cualquier trato',
+      discriminatorioNota: 'NO - base para cualquier trato',
       tareas: [
         {
           id: 'n1-registro',
@@ -34,12 +34,12 @@ const SubirConfianza = {
     },
     {
       id: 2,
-      titulo: 'Nivel 2 · Cumplimiento',
+      titulo: 'Nivel 2 Cumplimiento',
       evalua: 'Que concreté trabajos y mantenga buen historial',
       requisito: 'Al menos un trabajo concretado, reputación alta y pocos no concretados.',
       usos: 'Trabajos concretados, entregas y tratos recurrentes con respaldo de comportamiento.',
       discriminatorio: false,
-      discriminatorioNota: 'NO — se gana concretando trabajos',
+      discriminatorioNota: 'NO - se gana concretando trabajos',
       tareas: [
         {
           id: 'n2-concretados',
@@ -60,12 +60,12 @@ const SubirConfianza = {
     },
     {
       id: 3,
-      titulo: 'Nivel 3 · Identidad reforzada',
+      titulo: 'Nivel 3 Identidad reforzada',
       evalua: 'Mayor certeza para tratos de alto valor',
       requisito: 'Antecedentes, verificación facial y un aval o garantía.',
       usos: 'Contratos sensibles, entregas de alto valor y menor riesgo para ambas partes.',
       discriminatorio: false,
-      discriminatorioNota: 'NO — refuerza identidad, no mide plata',
+      discriminatorioNota: 'NO - refuerza identidad, no mide plata',
       tareas: [
         {
           id: 'n3-antecedentes',
@@ -124,7 +124,7 @@ const SubirConfianza = {
       if (id) localStorage.setItem(SubirConfianza.claveSeleccion(), String(id));
       else localStorage.removeItem(SubirConfianza.claveSeleccion());
     } catch (_) {
-      /* ignore */
+
     }
   },
 
@@ -160,8 +160,13 @@ const SubirConfianza = {
       );
       if (res && res.ok && res.data) {
         SubirConfianza.reputacionMia = res.data;
-        actual.indice_transparencia = res.data.indice_transparencia;
-        actual.indice_pct = res.data.indice_pct;
+
+        if (actual.indice_transparencia == null && res.data.indice_transparencia != null) {
+          actual.indice_transparencia = res.data.indice_transparencia;
+        }
+        if (actual.indice_pct == null && res.data.indice_pct != null) {
+          actual.indice_pct = res.data.indice_pct;
+        }
       }
       return lista;
     } catch (_e) {
@@ -276,23 +281,36 @@ const SubirConfianza = {
     for (let i = 0; i < ids.length; i++) {
       if (SubirConfianza.tieneDoc(ids[i])) docs += 1;
     }
-    if (rep && rep.docs_verificados != null) docs = Number(rep.docs_verificados);
+
+    const repOk =
+      !!rep &&
+      (rep.business_id == null || String(rep.business_id) === String(empresa.id));
+    if (repOk && rep.docs_verificados != null) docs = Number(rep.docs_verificados);
     const totalDocs =
-      rep && rep.docs_total != null ? Number(rep.docs_total) : ids.length || 11;
+      repOk && rep.docs_total != null ? Number(rep.docs_total) : ids.length || 11;
+
+    const enMarket =
+      typeof Market !== 'undefined' && Array.isArray(Market.negocios)
+        ? Market.negocios.find((n) => n && String(n.id) === String(empresa.id))
+        : null;
     const indice =
-      rep && rep.indice_transparencia != null
-        ? Number(rep.indice_transparencia)
+      enMarket && enMarket.indice_transparencia != null
+        ? Number(enMarket.indice_transparencia)
         : empresa.indice_transparencia != null
           ? Number(empresa.indice_transparencia)
-          : null;
+          : repOk && rep.indice_transparencia != null
+            ? Number(rep.indice_transparencia)
+            : null;
     const pct =
-      rep && rep.indice_pct != null
-        ? Number(rep.indice_pct)
+      enMarket && enMarket.indice_pct != null
+        ? Number(enMarket.indice_pct)
         : empresa.indice_pct != null
           ? Number(empresa.indice_pct)
-          : indice != null
-            ? Math.round((indice / 10) * 100)
-            : null;
+          : repOk && rep.indice_pct != null
+            ? Number(rep.indice_pct)
+            : indice != null
+              ? Math.round((indice / 10) * 100)
+              : null;
     return {
       id: empresa.id,
       nombre: empresa.nombre || 'Mi empresa',
@@ -530,7 +548,7 @@ const SubirConfianza = {
               ? 'Anotaciones: Sí'
               : perfil.antecedentes_anotaciones === false
                 ? 'Anotaciones: No'
-                : 'Anotaciones: —';
+                : 'Anotaciones: -';
           return 'Certificado verificado. ' + anot + ' (no afecta el puntaje).';
         }
         return estado === 'ok'
@@ -546,7 +564,7 @@ const SubirConfianza = {
           const partes = ['Aval/garantía verificado'];
           if (perfil.aval_tipo) partes.push(perfil.aval_tipo);
           if (perfil.aval_score != null) partes.push('score ' + perfil.aval_score);
-          return partes.join(' · ') + '.';
+          return partes.join(' ') + '.';
         }
         return estado === 'ok'
           ? 'Aval o garantía registrado.'
@@ -641,7 +659,7 @@ const SubirConfianza = {
 
     const select = document.createElement('select');
     select.id = 'confianzaEmpresaSelect';
-    select.className = 'reporte__selector-select';
+    select.className = 'ui-select';
     select.setAttribute('aria-label', 'Elija a qué empresa aplican estos documentos');
 
     lista.forEach((n) => {
@@ -823,7 +841,7 @@ const SubirConfianza = {
       const n = niveles[idx];
       if (n) {
         badge.textContent = String(n.id);
-        meta.textContent = n.titulo + ' · ' + n.evalua;
+        meta.textContent = n.titulo + ' ' + n.evalua;
         const done = n.tareas.filter(t => SubirConfianza.estaHecha(t.id)).length;
         resumen.textContent = done + '/' + n.tareas.length + ' Tareas Completadas';
       } else {
@@ -864,7 +882,7 @@ const SubirConfianza = {
 
       const nombre = document.createElement('h4');
       nombre.className = 'confianza-todo__grupo-titulo';
-      nombre.textContent = nivel.titulo + ' · ' + nivel.evalua;
+      nombre.textContent = nivel.titulo + ' ' + nivel.evalua;
 
       const doneCount = nivel.tareas.filter(t => SubirConfianza.estaHecha(t.id)).length;
       const resumen = document.createElement('span');
@@ -959,7 +977,7 @@ const SubirConfianza = {
     labelTipo.textContent = 'Tipo de documento';
     const select = document.createElement('select');
     select.id = 'confianzaDocTipo';
-    select.className = 'field__input confianza-docs__select';
+    select.className = 'ui-select';
     SubirConfianza.tiposDocumento().forEach(([value, text]) => {
       const opt = document.createElement('option');
       opt.value = value;
@@ -996,7 +1014,7 @@ const SubirConfianza = {
       const archivo = input.files && input.files[0];
       drop.classList.toggle('confianza-docs__drop--lleno', !!archivo);
       dropNombre.textContent = archivo
-        ? archivo.name + ' · ' + SubirConfianza.formatoTamano(archivo.size)
+        ? archivo.name + ' ' + SubirConfianza.formatoTamano(archivo.size)
         : select.value === 'cedula'
           ? 'Ninguna foto seleccionada'
           : 'Ningún archivo seleccionado';
@@ -1285,28 +1303,28 @@ const SubirConfianza = {
         const meta = document.createElement('span');
         let metaTxt =
           SubirConfianza.etiquetaTipo(doc.tipo) +
-          ' · ' +
+          ' ' +
           SubirConfianza.formatoFecha(doc.fecha) +
-          (doc.tamano != null ? ' · ' + SubirConfianza.formatoTamano(doc.tamano) : '');
+          (doc.tamano != null ? ' ' + SubirConfianza.formatoTamano(doc.tamano) : '');
         if (doc.tipo === 'antecedentes' && doc.verificado) {
           metaTxt +=
-            ' · Anotaciones: ' +
-            (doc.anotaciones === true ? 'Sí' : doc.anotaciones === false ? 'No' : '—');
-          if (doc.score != null) metaTxt += ' · Score ' + doc.score;
+            ' Anotaciones: ' +
+            (doc.anotaciones === true ? 'Sí' : doc.anotaciones === false ? 'No' : '-');
+          if (doc.score != null) metaTxt += ' Score ' + doc.score;
         }
         if (doc.tipo === 'aval' && doc.verificado) {
-          if (doc.avalTipo) metaTxt += ' · ' + doc.avalTipo;
-          if (doc.score != null) metaTxt += ' · Score ' + doc.score;
+          if (doc.avalTipo) metaTxt += ' ' + doc.avalTipo;
+          if (doc.score != null) metaTxt += ' Score ' + doc.score;
         }
         if (doc.vence_en) {
           metaTxt +=
-            ' · ' +
+            ' ' +
             (doc.caducado ? 'Caducó' : 'Vence') +
             ' ' +
             SubirConfianza.formatoFecha(doc.vence_en);
         }
         if (doc.caducado) {
-          metaTxt += ' · Revalide subiendo un PDF nuevo';
+          metaTxt += ' Revalide subiendo un PDF nuevo';
         }
         meta.textContent = metaTxt;
 
@@ -1415,7 +1433,7 @@ const SubirConfianza = {
         partes.push('Validada el ' + SubirConfianza.formatoFecha(perfil.cedula_verificada_en));
       }
       if (perfil.cedula_score != null) partes.push('score ' + perfil.cedula_score + '/100');
-      status.textContent = (partes.join(' · ') || 'Cédula verificada') + '.';
+      status.textContent = (partes.join(' ') || 'Cédula verificada') + '.';
       wrap.append(titulo, lead, status);
       return wrap;
     }
@@ -1455,7 +1473,7 @@ const SubirConfianza = {
     dropLabel.htmlFor = 'confianzaCedulaArchivo';
     dropLabel.innerHTML =
       '<span class="confianza-docs__drop-titulo">Elegir foto frontal</span>' +
-      '<span class="confianza-docs__drop-hint">Solo el frente · JPG o PNG · sin reverso</span>' +
+      '<span class="confianza-docs__drop-hint">Solo el frente JPG o PNG sin reverso</span>' +
       '<span class="confianza-docs__drop-nombre" id="confianzaCedulaNombre">Ninguna foto seleccionada</span>';
 
     const drop = document.createElement('div');
@@ -1510,7 +1528,7 @@ const SubirConfianza = {
     consent.id = 'confianzaCedulaConsent';
     const consentTxt = document.createElement('span');
     consentTxt.textContent =
-      'Autorizo procesar la foto frontal de mi carnet (OCR + comparación facial con mi selfie).';
+      'Autorizo procesar la foto frontal de mi carnet.';
     consentWrap.append(consent, consentTxt);
 
     const btn = document.createElement('button');
@@ -1518,11 +1536,6 @@ const SubirConfianza = {
     btn.className = 'submit-btn confianza-bio__enviar';
     btn.textContent = 'Validar carnet';
     btn.disabled = true;
-
-    const nota = document.createElement('p');
-    nota.className = 'confianza-bio__nota';
-    nota.textContent =
-      'Sin Paddle ni LLM. Tesseract + ROI del RUN + face-match OpenCV contra su selfie en disco. Si falla, reencuadre y reintente.';
 
     let archivoElegido = null;
     let stream = null;
@@ -1548,7 +1561,7 @@ const SubirConfianza = {
       if (span) {
         span.textContent = archivoElegido
           ? (etiqueta || archivoElegido.name) +
-            ' · ' +
+            ' ' +
             SubirConfianza.formatoTamano(archivoElegido.size)
           : 'Ninguna foto seleccionada';
       }
@@ -1663,7 +1676,7 @@ const SubirConfianza = {
         status.textContent = 'La cámara aún no está lista.';
         return;
       }
-      // Recorta al marco (proporción carnet ~1.586) centrado en el video.
+
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       const targetRatio = 1.586;
@@ -1729,8 +1742,7 @@ const SubirConfianza = {
       acciones,
       consentWrap,
       btn,
-      status,
-      nota
+      status
     );
     return wrap;
   },
@@ -1773,7 +1785,7 @@ const SubirConfianza = {
       if (perfil.biometria_bytes) {
         partes.push(SubirConfianza.formatoTamano(perfil.biometria_bytes));
       }
-      status.textContent = partes.join(' · ') + '.';
+      status.textContent = partes.join(' ') + '.';
       wrap.append(titulo, lead, status);
       return wrap;
     }

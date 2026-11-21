@@ -1,4 +1,4 @@
-"""Esquemas de perfil, biometría y autenticación."""
+
 
 from __future__ import annotations
 
@@ -28,7 +28,6 @@ class PerfilEntrada(BaseModel):
 
         return telefono_opcional(value)
 
-
 class PerfilRegistroEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
@@ -36,7 +35,6 @@ class PerfilRegistroEntrada(BaseModel):
     tipo_cuenta: TipoCuenta
 
     edad: int | None = Field(default=None, ge=14, le=120)
-
 
 class PerfilSalida(BaseModel):
 
@@ -96,7 +94,6 @@ class PerfilSalida(BaseModel):
 
     tipo_cuenta: TipoCuenta | None = None
 
-
 class BiometriaSalida(BaseModel):
 
     biometria_verificada: bool
@@ -115,7 +112,6 @@ class BiometriaSalida(BaseModel):
         "Verificación biométrica completada. Se guardó una copia comprimida "
         "con acceso restringido y retención limitada; se borra al eliminar la cuenta."
     )
-
 
 class CedulaSalida(BaseModel):
 
@@ -142,7 +138,6 @@ class CedulaSalida(BaseModel):
     motivo: str = (
         "Cédula validada."
     )
-
 
 class AntecedentesSalida(BaseModel):
 
@@ -172,7 +167,6 @@ class AntecedentesSalida(BaseModel):
 
     motivo: str = "Certificado de antecedentes validado."
 
-
 class AvalSalida(BaseModel):
 
     aval_verificado: bool
@@ -190,7 +184,6 @@ class AvalSalida(BaseModel):
     senales: list[str] = Field(default_factory=list)
 
     motivo: str = "Aval/garantía validado."
-
 
 class RegistroEntrada(BaseModel):
 
@@ -226,13 +219,11 @@ class RegistroEntrada(BaseModel):
 
         return str(value).strip().lower()
 
-
 class LoginEntrada(BaseModel):
 
     email: EmailStr
 
     password: str = Field(min_length=1, max_length=128)
-
 
 class TokenSalida(BaseModel):
 
@@ -241,7 +232,6 @@ class TokenSalida(BaseModel):
     token_type: Literal["bearer"] = "bearer"
 
     expires_in: int
-
 
 class UsuarioSalida(BaseModel):
 
@@ -262,5 +252,4 @@ class UsuarioSalida(BaseModel):
     def _perfil_vacio(cls, value: object) -> object:
 
         return PerfilSalida() if value is None else value
-
 

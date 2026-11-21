@@ -5,7 +5,6 @@ from typing import Any
 
 from app.infraestructura.evaluador.http_sync import obtener_json
 
-
 def _format_rut_dots(rut: str) -> str:
     raw = (rut or "").strip().upper().replace(".", "").replace(" ", "")
     if "-" in raw:
@@ -18,7 +17,6 @@ def _format_rut_dots(rut: str) -> str:
         chunks.append(num[-3:])
         num = num[:-3]
     return f"{'.'.join(reversed(chunks))}-{dv}"
-
 
 class ClienteChileCompra:
     def __init__(self, ticket: str, *, base: str | None = None) -> None:

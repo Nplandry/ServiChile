@@ -1,9 +1,8 @@
-"""Cabeceras de reputación + /salud (deps omitidas en APP_ENV=test)."""
+
 
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
-
 
 def test_salud_incluye_dependencias(client: TestClient):
     r = client.get("/salud")
@@ -16,7 +15,6 @@ def test_salud_incluye_dependencias(client: TestClient):
     assert "background_jobs" in body
     assert "evaluador" in body
     assert "pagos_reconciliar" in body
-
 
 def test_reputation_public_headers_y_teaser(client: TestClient, token_empresa: str):
     h = {"Authorization": f"Bearer {token_empresa}"}
@@ -45,7 +43,6 @@ def test_reputation_public_headers_y_teaser(client: TestClient, token_empresa: s
     assert tit.headers.get("x-cache") == "BYPASS"
     assert tit.headers.get("cache-control", "").startswith("private")
     assert len(tit.json()["observables"]) > 3
-
 
 def test_print_secret_no_es_jwt_crudo():
     from app.configuracion import Configuracion

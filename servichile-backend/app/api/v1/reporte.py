@@ -15,7 +15,6 @@ router = APIRouter(prefix="/v1/reporte", tags=["Reporte"])
 
 VALIDAR_POR_MINUTO = 30
 
-
 @router.get("", response_model=ReporteSalida)
 def emitir_reporte(usuario: UsuarioActualDep, servicio: ServicioReporteDep):
 
@@ -38,7 +37,6 @@ def emitir_reporte(usuario: UsuarioActualDep, servicio: ServicioReporteDep):
         antecedentes_verificados=emitido.antecedentes_verificados,
         antecedentes_anotaciones=emitido.antecedentes_anotaciones,
     )
-
 
 @router.post("/validar", response_model=ReporteValidacionSalida)
 def validar_reporte(

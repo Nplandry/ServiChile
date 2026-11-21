@@ -8,7 +8,6 @@ from app.infraestructura.persistencia.modelos import (
     MetricasReputacionNegocio,
 )
 
-
 def _cuenta(client: TestClient, email: str) -> dict:
     assert (
         client.post(
@@ -27,7 +26,6 @@ def _cuenta(client: TestClient, email: str) -> dict:
     ).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
-
 def _negocio(session_factory, nombre="Gearlabs"):
     with session_factory() as s:
         negocio = EntidadNegocio(
@@ -39,7 +37,6 @@ def _negocio(session_factory, nombre="Gearlabs"):
         s.commit()
         return negocio.id
 
-
 def test_catalogo_pago_informe(client: TestClient):
     from app.dominio.pago_informe import PRECIO_INFORME_CLP
 
@@ -48,9 +45,8 @@ def test_catalogo_pago_informe(client: TestClient):
     assert r.json()["monto"] == PRECIO_INFORME_CLP
     assert r.json()["moneda"] == "CLP"
 
-
 def test_precios_solo_en_dominio_sin_override_env(monkeypatch):
-    """Precios viven en dominio; PAGOS_*_MONTO en env no aplica."""
+
     from app.configuracion import Configuracion, obtener_configuracion
     from app.dominio.pago_informe import PRECIO_INFORME_CLP
     from app.dominio.pago_publicacion import PRECIO_PUBLICACION_CLP
@@ -62,7 +58,7 @@ def test_precios_solo_en_dominio_sin_override_env(monkeypatch):
     monkeypatch.setenv("PAGOS_PUBLICACION_MONTO", "6789")
     obtener_configuracion.cache_clear()
     try:
-        # extra=ignore: env no cambia el cobro; catálogo usa dominio.
+
         from fastapi.testclient import TestClient
 
         from app.principal import app
@@ -78,7 +74,6 @@ def test_precios_solo_en_dominio_sin_override_env(monkeypatch):
         monkeypatch.delenv("PAGOS_INFORME_MONTO", raising=False)
         monkeypatch.delenv("PAGOS_PUBLICACION_MONTO", raising=False)
         obtener_configuracion.cache_clear()
-
 
 def test_pago_informe_iniciar_y_confirmar(client: TestClient, session_factory):
     headers = _cuenta(client, f"pago.{uuid.uuid4().hex[:8]}@example.com")
@@ -112,7 +107,6 @@ def test_pago_informe_iniciar_y_confirmar(client: TestClient, session_factory):
     assert resumen.status_code == 200
     assert resumen.json()["autorizadas_mes"] >= 1
 
-
 def test_pago_informe_negocio_inexistente(client: TestClient):
     headers = _cuenta(client, f"pago.miss.{uuid.uuid4().hex[:8]}@example.com")
     r = client.post(
@@ -121,7 +115,6 @@ def test_pago_informe_negocio_inexistente(client: TestClient):
         headers=headers,
     )
     assert r.status_code == 404
-
 
 def test_informe_riesgo_requiere_compra(client: TestClient, session_factory):
     headers = _cuenta(client, f"pago.gate.{uuid.uuid4().hex[:8]}@example.com")
@@ -147,7 +140,6 @@ def test_informe_riesgo_requiere_compra(client: TestClient, session_factory):
     ok = client.post(f"/v1/businesses/{bid}/informe-riesgo", headers=headers)
     assert ok.status_code == 200, ok.text
 
-
 def test_return_url_no_permitida(client: TestClient, session_factory):
     headers = _cuenta(client, f"pago.url.{uuid.uuid4().hex[:8]}@example.com")
     bid = _negocio(session_factory, "UrlCo")
@@ -161,7 +153,6 @@ def test_return_url_no_permitida(client: TestClient, session_factory):
     )
     assert r.status_code == 400, r.text
     assert r.json()["detail"]["codigo"] == "return_url_no_permitida"
-
 
 def test_compra_ajena(client: TestClient, session_factory):
     a = _cuenta(client, f"pago.a.{uuid.uuid4().hex[:8]}@example.com")
@@ -177,7 +168,6 @@ def test_compra_ajena(client: TestClient, session_factory):
     )
     assert r.status_code == 400
     assert r.json()["detail"]["codigo"] == "compra_ajena"
-
 
 def test_doble_confirmar_idempotente(client: TestClient, session_factory):
     headers = _cuenta(client, f"pago.dup.{uuid.uuid4().hex[:8]}@example.com")
@@ -199,7 +189,6 @@ def test_doble_confirmar_idempotente(client: TestClient, session_factory):
     assert c2.status_code == 200
     assert c2.json()["autorizado"] is True
     assert c2.json()["estado"] == "autorizado"
-
 
 def test_reabrir_informe_ya_comprado(client: TestClient, session_factory):
     headers = _cuenta(client, f"pago.re.{uuid.uuid4().hex[:8]}@example.com")
@@ -227,7 +216,6 @@ def test_reabrir_informe_ya_comprado(client: TestClient, session_factory):
     assert acceso.status_code == 200, acceso.text
     assert acceso.json()["autorizado"] is True
     assert acceso.json()["buy_order"] == conf.json()["buy_order"]
-
 
 def test_print_token_y_verificar(client: TestClient, session_factory):
     headers = _cuenta(client, f"pago.print.{uuid.uuid4().hex[:8]}@example.com")
@@ -266,7 +254,6 @@ def test_print_token_y_verificar(client: TestClient, session_factory):
     assert malo.status_code == 400
     assert malo.json()["detail"]["codigo"] == "print_token_invalido"
 
-
 def test_recuperar_pago_autorizado(client: TestClient, session_factory):
     headers = _cuenta(client, f"pago.rec.{uuid.uuid4().hex[:8]}@example.com")
     bid = _negocio(session_factory, "RecCo")
@@ -288,8 +275,8 @@ def test_recuperar_pago_autorizado(client: TestClient, session_factory):
     assert rec.json()["autorizado"] is True
     assert rec.json()["print_token"]
 
+def test_iniciar_crea_token_nuevo_si_habia_pendiente(client: TestClient, session_factory):
 
-def test_iniciar_reutiliza_pendiente_previo(client: TestClient, session_factory):
     headers = _cuenta(client, f"pago.pend.{uuid.uuid4().hex[:8]}@example.com")
     bid = _negocio(session_factory, "PendCo")
     a = client.post(
@@ -298,18 +285,19 @@ def test_iniciar_reutiliza_pendiente_previo(client: TestClient, session_factory)
     assert a.status_code == 200
     orden_a = a.json()["buy_order"]
     token_a = a.json()["token"]
-    url_a = a.json()["url"]
     b = client.post(
         "/v1/pagos/informe", json={"business_id": str(bid)}, headers=headers
     )
     assert b.status_code == 200
-    assert b.json()["buy_order"] == orden_a
-    assert b.json()["token"] == token_a
-    assert b.json()["url"] == url_a
-    estado = client.get(f"/v1/pagos/informe/{orden_a}", headers=headers)
-    assert estado.status_code == 200
-    assert estado.json()["estado"] == "pendiente"
+    assert b.json()["buy_order"] != orden_a
+    assert b.json()["token"] != token_a
 
+    vieja = client.get(f"/v1/pagos/informe/{orden_a}", headers=headers)
+    assert vieja.status_code == 200
+    assert vieja.json()["estado"] == "anulado"
+    nueva = client.get(f"/v1/pagos/informe/{b.json()['buy_order']}", headers=headers)
+    assert nueva.status_code == 200
+    assert nueva.json()["estado"] == "pendiente"
 
 def test_reconciliar_pendientes_autoriza(session_factory):
     from datetime import datetime, timedelta, timezone
@@ -390,7 +378,6 @@ def test_reconciliar_pendientes_autoriza(session_factory):
         assert len(enviador.enviados) == 1
         assert enviador.enviados[0].destino == email
 
-
 def _env_prod_base(monkeypatch):
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("JWT_SECRET", "test-secret-de-al-menos-32-caracteres-xx")
@@ -400,7 +387,6 @@ def _env_prod_base(monkeypatch):
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("PUBLIC_FRONTEND_URL", "https://app.servichile.cl/")
     monkeypatch.setenv("CORS_ORIGINS", "https://app.servichile.cl")
-
 
 def test_transbank_test_bloqueado_en_production(monkeypatch):
     _env_prod_base(monkeypatch)
@@ -424,7 +410,6 @@ def test_transbank_test_bloqueado_en_production(monkeypatch):
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
 
-
 def test_front_localhost_bloqueado_en_production(monkeypatch):
     _env_prod_base(monkeypatch)
     monkeypatch.setenv("TRANSBANK_HOST", "https://webpay3g.transbank.cl")
@@ -447,7 +432,6 @@ def test_front_localhost_bloqueado_en_production(monkeypatch):
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
 
-
 def test_redis_y_print_secret_obligatorios_en_production(monkeypatch):
     _env_prod_base(monkeypatch)
     monkeypatch.setenv("TRANSBANK_HOST", "https://webpay3g.transbank.cl")
@@ -459,7 +443,7 @@ def test_redis_y_print_secret_obligatorios_en_production(monkeypatch):
 
     obtener_configuracion.cache_clear()
     try:
-        # Init gana a .env; redis vacío debe fallar (env_ignore_empty no aplica a kwargs).
+
         with pytest.raises(Exception, match="REDIS_URL"):
             Configuracion(redis_url=None)
         monkeypatch.delenv("PRINT_TOKEN_SECRET", raising=False)
@@ -468,7 +452,6 @@ def test_redis_y_print_secret_obligatorios_en_production(monkeypatch):
     finally:
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
-
 
 def test_redis_obligatorio_en_local(monkeypatch):
     monkeypatch.setenv("APP_ENV", "local")
@@ -482,7 +465,6 @@ def test_redis_obligatorio_en_local(monkeypatch):
     finally:
         monkeypatch.setenv("APP_ENV", "test")
         obtener_configuracion.cache_clear()
-
 
 def test_require_production_en_cloud(monkeypatch):
     from app.configuracion import Configuracion
@@ -500,7 +482,6 @@ def test_require_production_en_cloud(monkeypatch):
     with pytest.raises(RuntimeError, match="SERVICHILE_REQUIRE_PRODUCTION"):
         verificar_entorno_produccion(cfg)
     monkeypatch.delenv("SERVICHILE_REQUIRE_PRODUCTION", raising=False)
-
 
 def test_deploy_flag_y_db_remota(monkeypatch):
     from app.configuracion import Configuracion
@@ -526,7 +507,6 @@ def test_deploy_flag_y_db_remota(monkeypatch):
     cfg2 = Configuracion()
     with pytest.raises(RuntimeError, match="DATABASE_URL parece remota"):
         verificar_entorno_produccion(cfg2)
-
 
 def test_verificar_redis_falla_sin_ping(monkeypatch):
     from app.configuracion import Configuracion
@@ -560,7 +540,6 @@ def test_verificar_redis_falla_sin_ping(monkeypatch):
         arranque.verificar_redis(cfg)
     cliente_redis.cache_clear()
 
-
 def test_permitir_pasarela_memoria_sin_flag_ni_pytest(monkeypatch):
     monkeypatch.delenv("SERVICHILE_ALLOW_MEMORIA_PASARELA", raising=False)
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
@@ -569,7 +548,6 @@ def test_permitir_pasarela_memoria_sin_flag_ni_pytest(monkeypatch):
     assert permitir_pasarela_memoria() is False
     monkeypatch.setenv("SERVICHILE_ALLOW_MEMORIA_PASARELA", "1")
     assert permitir_pasarela_memoria() is True
-
 
 def test_pasarela_memoria_falla_si_no_permitida(monkeypatch):
     monkeypatch.setenv("APP_ENV", "test")

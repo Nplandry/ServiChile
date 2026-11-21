@@ -4,7 +4,6 @@ const Auth = {
   STORAGE_KEY: 'servichile.session',
   sesion: null,
 
-  /** Resuelve API en deploy (meta / window) o localhost:8000 en desarrollo. */
   resolverApiBase() {
     if (typeof window === 'undefined') return 'http://localhost:8000';
     const override = window.SERVICHILE_API_BASE;
@@ -18,7 +17,7 @@ const Auth = {
         return content.trim().replace(/\/$/, '');
       }
     } catch (_) {
-      /* ignore */
+
     }
     try {
       const { protocol, hostname, origin } = window.location;
@@ -39,7 +38,7 @@ const Auth = {
     if (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) {
       return String(window.SERVICHILE_APP_VERSION);
     }
-    return '173';
+    return '219';
   },
 
   init() {
@@ -91,7 +90,7 @@ const Auth = {
       if (d.mensaje) partes.push(String(d.mensaje));
       if (d.buy_order) partes.push('Orden: ' + d.buy_order);
       if (d.codigo) partes.push('Código: ' + d.codigo);
-      if (partes.length) return partes.join(' · ');
+      if (partes.length) return partes.join(' ');
     }
     if (status === 422) {
       const msg = Auth.mensajeValidacion(data);
@@ -451,9 +450,9 @@ const Auth = {
       const ses = sessionStorage.getItem(Auth.STORAGE_KEY);
       if (ses) return ses;
     } catch (_) {
-      /* ignore */
+
     }
-    // Migración one-shot: saca el JWT de localStorage (menos persistente).
+
     try {
       const legacy = localStorage.getItem(Auth.STORAGE_KEY);
       if (legacy) {
@@ -462,7 +461,7 @@ const Auth = {
         return legacy;
       }
     } catch (_) {
-      /* ignore */
+
     }
     return null;
   },
@@ -484,7 +483,7 @@ const Auth = {
     try {
       localStorage.removeItem(Auth.STORAGE_KEY);
     } catch {}
-    // No dejar sellos/pago de otra cuenta en la misma pestaña.
+
     if (
       typeof MarketMonetizacion !== 'undefined' &&
       MarketMonetizacion.limpiarPagoPendiente
@@ -504,12 +503,12 @@ const Auth = {
       try {
         sessionStorage.removeItem(k);
       } catch (_) {
-        /* ignore */
+
       }
       try {
         localStorage.removeItem(k);
       } catch (_) {
-        /* ignore */
+
       }
     });
   },

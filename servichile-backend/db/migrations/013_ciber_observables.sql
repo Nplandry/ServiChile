@@ -1,4 +1,4 @@
--- Observables de ciberseguridad (0–100) persistidos en métricas de reputación.
+
 ALTER TABLE business_reputation_metrics
     ADD COLUMN IF NOT EXISTS score_ssl_tls double precision;
 ALTER TABLE business_reputation_metrics

@@ -1,4 +1,4 @@
-"""Esquemas de reporte firmado."""
+
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.api.esquemas.comunes import TipoCuenta
-
 
 class ReporteSalida(BaseModel):
 
@@ -42,13 +41,11 @@ class ReporteSalida(BaseModel):
 
     antecedentes_anotaciones: bool | None = None
 
-
 class ReporteValidarEntrada(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
     payload: str = Field(min_length=10, max_length=2048)
-
 
 class ReporteValidacionSalida(BaseModel):
 

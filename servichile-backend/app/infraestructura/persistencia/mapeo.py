@@ -1,4 +1,4 @@
-"""Mapeo ORM ↔ entidades de dominio."""
+
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ from sqlalchemy.orm import joinedload, load_only
 from app.dominio.docs_empresa import docs_empresa_desde_raw
 from app.dominio.entidades import Metricas, Negocio, Perfil, Trabajo, Usuario
 from app.infraestructura.persistencia import modelos as orm
-
 
 def _perfil(p: orm.Perfil | None) -> Perfil | None:
 
@@ -19,7 +18,6 @@ def _perfil(p: orm.Perfil | None) -> Perfil | None:
         edad=p.edad,
         tipo_cuenta=p.tipo_cuenta,
     )
-
 
 def _usuario(u: orm.Usuario) -> Usuario:
 
@@ -70,7 +68,6 @@ def _usuario(u: orm.Usuario) -> Usuario:
         perfil=_perfil(u.perfil),
     )
 
-
 def _metricas(m: orm.MetricasReputacionNegocio | None) -> Metricas | None:
 
     if m is None:
@@ -91,12 +88,10 @@ def _metricas(m: orm.MetricasReputacionNegocio | None) -> Metricas | None:
         actualizado_en=m.actualizado_en,
     )
 
-
 def _textos(valor) -> tuple[str, ...]:
     if not isinstance(valor, (list, tuple)):
         return ()
     return tuple(str(item) for item in valor if isinstance(item, str) and item.strip())
-
 
 def _oferta(n: orm.EntidadNegocio) -> dict:
     return {
@@ -107,7 +102,6 @@ def _oferta(n: orm.EntidadNegocio) -> dict:
         "plazo": n.plazo,
         "referencias": _textos(n.referencias),
     }
-
 
 def _negocio_lista(n: orm.EntidadNegocio) -> Negocio:
 
@@ -143,7 +137,6 @@ def _negocio_lista(n: orm.EntidadNegocio) -> Negocio:
         **_oferta(n),
     )
 
-
 def _opciones_lista():
 
     return (
@@ -177,7 +170,6 @@ def _opciones_lista():
         ),
     )
 
-
 def _negocio(n: orm.EntidadNegocio) -> Negocio:
 
     return Negocio(
@@ -201,7 +193,6 @@ def _negocio(n: orm.EntidadNegocio) -> Negocio:
         **_oferta(n),
     )
 
-
 def _trabajo(r: orm.Trabajo) -> Trabajo:
 
     return Trabajo(
@@ -213,5 +204,4 @@ def _trabajo(r: orm.Trabajo) -> Trabajo:
         creado_en=r.creado_en,
         actualizado_en=r.actualizado_en,
     )
-
 

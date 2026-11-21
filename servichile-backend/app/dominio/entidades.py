@@ -8,14 +8,12 @@ from datetime import date, datetime
 
 from app.dominio.docs_empresa import DocsEmpresa
 
-
 @dataclass
 class Perfil:
 
     edad: int | None = None
 
     tipo_cuenta: str | None = None
-
 
 @dataclass
 class Usuario:
@@ -108,7 +106,6 @@ class Usuario:
 
     perfil: Perfil | None = None
 
-
 @dataclass
 class Metricas:
 
@@ -122,11 +119,9 @@ class Metricas:
 
     rater_escaneado_en: datetime | None = None
 
-    # Snapshot JSON del evaluador (lista de dicts id/etiqueta/score/…); no se evalúa en vivo.
     observables: list | None = None
 
     actualizado_en: datetime | None = None
-
 
 @dataclass
 class Negocio:
@@ -177,14 +172,8 @@ class Negocio:
 
     metricas: Metricas | None = None
 
-
 @dataclass
 class Trabajo:
-    """Encargo B2B entre contratista/persona y un proveedor (ficha).
-
-    Estados: abierto → concretado | no_concretado | cancelado.
-    El qr_token lo muestra quien abre el trabajo; el titular confirma concreción.
-    """
 
     id: uuid.UUID
 
@@ -199,7 +188,6 @@ class Trabajo:
     creado_en: datetime | None = None
 
     actualizado_en: datetime | None = None
-
 
 @dataclass
 class EstadoReporte:
@@ -256,7 +244,6 @@ class EstadoReporte:
 
     nivel_xp: int = 1
 
-
 @dataclass
 class ObservableSenal:
 
@@ -273,7 +260,6 @@ class ObservableSenal:
     grupo: str
 
     razones: list[str] = field(default_factory=list)
-
 
 @dataclass
 class Reputacion:
@@ -309,10 +295,8 @@ class Reputacion:
         "compras públicas, etc.). No constituye un juicio sobre la calidad del servicio."
     )
 
-
 @dataclass(frozen=True)
 class DocEmpresaVerificado:
-    """Resultado de dominio tras validar un PDF de empresa (sin shape HTTP)."""
 
     business_id: uuid.UUID
     tipo: str
@@ -331,10 +315,8 @@ class DocEmpresaVerificado:
     glosa: str | None
     motivo: str
 
-
 @dataclass
 class NegocioEnMapa:
-    """Proyección pública de marketplace (sin datos sensibles del titular)."""
 
     id: uuid.UUID
 
@@ -380,10 +362,8 @@ class NegocioEnMapa:
 
     trabajos_concretados: int = 0
 
-
 @dataclass
 class NegocioTitular:
-    """Proyección del titular: mapa + RUT, contacto y docs completos."""
 
     id: uuid.UUID
 
@@ -439,14 +419,12 @@ class NegocioTitular:
 
     trabajos_concretados: int = 0
 
-
 @dataclass
 class TokenEmitido:
 
     access_token: str
 
     expires_in: int
-
 
 @dataclass
 class ReporteEmitido:
@@ -480,7 +458,6 @@ class ReporteEmitido:
     antecedentes_verificados: bool = False
 
     antecedentes_anotaciones: bool | None = None
-
 
 @dataclass
 class ReporteValidado:

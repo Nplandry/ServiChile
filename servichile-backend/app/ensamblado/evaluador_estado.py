@@ -1,8 +1,4 @@
-"""Estado operativo del evaluador en segundo plano (para /salud).
 
-Prioridad: Redis (si REDIS_URL) → archivo local. Incluye instancia para
-multi-réplica (cada pod reporta la suya; Redis centraliza la última marca).
-"""
 
 from __future__ import annotations
 
@@ -21,7 +17,6 @@ _REDIS_KEY = "servichile:evaluador_estado"
 _INSTANCIA = os.environ.get("HOSTNAME") or socket.gethostname() or "local"
 _log = logging.getLogger(__name__)
 
-
 @dataclass
 class EstadoEvaluador:
     ok: bool = True
@@ -29,7 +24,6 @@ class EstadoEvaluador:
     ultimo_error: str | None = None
     ultimo_lote: int | None = None
     instancia: str = _INSTANCIA
-
 
 def _redis_client():
     try:
@@ -43,7 +37,6 @@ def _redis_client():
     except Exception:
         _log.warning("Cliente Redis de evaluador_estado no disponible", exc_info=True)
         return None
-
 
 def _cargar_archivo() -> EstadoEvaluador:
     try:
@@ -62,7 +55,6 @@ def _cargar_archivo() -> EstadoEvaluador:
     except Exception:
         _log.warning("No se pudo leer %s", _PATH, exc_info=True)
         return EstadoEvaluador()
-
 
 def _cargar_redis() -> EstadoEvaluador | None:
     client = _redis_client()
@@ -86,7 +78,6 @@ def _cargar_redis() -> EstadoEvaluador | None:
         _log.warning("No se pudo leer estado del evaluador en Redis", exc_info=True)
         return None
 
-
 def _payload(estado: EstadoEvaluador) -> dict[str, object]:
     return {
         "ok": estado.ok,
@@ -95,7 +86,6 @@ def _payload(estado: EstadoEvaluador) -> dict[str, object]:
         "ultimo_lote": estado.ultimo_lote,
         "instancia": estado.instancia,
     }
-
 
 def _persistir(estado: EstadoEvaluador) -> None:
     data = _payload(estado)
@@ -114,9 +104,7 @@ def _persistir(estado: EstadoEvaluador) -> None:
     except Exception:
         _log.warning("No se pudo persistir estado del evaluador en Redis", exc_info=True)
 
-
 _estado = _cargar_redis() or _cargar_archivo()
-
 
 def marcar_exito(n: int) -> None:
     with _LOCK:
@@ -127,14 +115,12 @@ def marcar_exito(n: int) -> None:
         _estado.instancia = _INSTANCIA
         _persistir(_estado)
 
-
 def marcar_error(mensaje: str) -> None:
     with _LOCK:
         _estado.ok = False
         _estado.ultimo_error = (mensaje or "error")[:500]
         _estado.instancia = _INSTANCIA
         _persistir(_estado)
-
 
 def snapshot() -> dict[str, object]:
     with _LOCK:

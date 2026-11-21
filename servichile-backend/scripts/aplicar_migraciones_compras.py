@@ -1,22 +1,4 @@
-#!/usr/bin/env python3
-"""Aplica migraciones 046–051 de compras (informe + publicación).
 
-Correr en el VPS *antes* del primer deploy con APP_ENV=production:
-el arranque falla si faltan FKs (047–048, 051) o índices únicos (049, 050).
-050 crea compras_publicacion; 051 añade FKs.
-
-Uso:
-  cd servichile-backend
-  source .venv/bin/activate
-  python -m scripts.aplicar_migraciones_compras
-
-O con URL explícita:
-  DATABASE_URL=postgresql+psycopg://user:pass@host:5432/db \\
-    python -m scripts.aplicar_migraciones_compras
-
-Si 047/048/051 fallan por privilegios, ejecute el psql como owner de
-usuarios/business_entities (GRANT REFERENCES ON … TO rol_app).
-"""
 
 from __future__ import annotations
 
@@ -36,17 +18,14 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "051_compras_publicacion_fks.sql",
 ]
 
-
 def _psql_url(database_url: str) -> str:
     return database_url.replace("postgresql+psycopg://", "postgresql://", 1)
-
 
 def _correr_sql(archivo: Path, database_url: str) -> None:
     url = _psql_url(database_url)
     cmd = ["psql", url, "-v", "ON_ERROR_STOP=1", "-f", str(archivo)]
     print("→", " ".join(cmd))
     subprocess.run(cmd, check=True)
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -107,7 +86,6 @@ def main() -> None:
         "verifique: SELECT conname FROM pg_constraint WHERE conname LIKE "
         "'compras_publicacion%';"
     )
-
 
 if __name__ == "__main__":
     main()

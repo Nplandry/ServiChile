@@ -1,4 +1,4 @@
--- Categorías del directorio B2B (transparencia / due diligence de proveedores).
+
 ALTER TABLE business_entities
   DROP CONSTRAINT IF EXISTS business_entities_categoria_check;
 

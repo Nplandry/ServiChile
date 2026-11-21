@@ -1,4 +1,4 @@
-"""Almacén local de selfies: comprime a JPEG liviano y escribe fuera del web root."""
+
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ from app.dominio.biometria import (
     MetaBiometria,
 )
 from app.dominio.errores import BiometriaInvalida
-
 
 class AlmacenamientoBiometriaLocal:
     def __init__(
@@ -90,7 +89,7 @@ class AlmacenamientoBiometriaLocal:
             img = img.convert("RGB")
 
         img.thumbnail((self.max_lado, self.max_lado), Image.Resampling.LANCZOS)
-        # Descarta EXIF / GPS al re-encodear sin info=
+
         buf = io.BytesIO()
         img.save(
             buf,

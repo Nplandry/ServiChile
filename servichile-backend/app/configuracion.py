@@ -21,7 +21,7 @@ class Configuracion(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
-        # REDIS_URL= vacío en el shell no debe tapar el valor del .env.
+
         env_ignore_empty=True,
     )
 
@@ -39,7 +39,6 @@ class Configuracion(BaseSettings):
 
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5500"]
 
-    # Se deriva al cargar (no configurar en .env salvo override de depuración).
     rut_verifier: Literal["muestra", "estricto", "chilecompra"] = "estricto"
 
     redis_url: str | None = None
@@ -50,18 +49,14 @@ class Configuracion(BaseSettings):
 
     trust_proxy: bool = False
 
-    # Bucles evaluador + reconciliación TBK. En réplicas extra: false.
     run_background_jobs: bool = True
 
-    # Pool Postgres (lecturas concurrentes del marketplace).
     db_pool_size: int = Field(default=20, ge=1, le=100)
     db_pool_max_overflow: int = Field(default=40, ge=0, le=200)
 
-    # Caché de lecturas públicas (mapa / reputación). 0 = desactivar TTL (no guardar).
     cache_ttl_mapa_seconds: int = Field(default=45, ge=0, le=3600)
     cache_ttl_reputacion_seconds: int = Field(default=60, ge=0, le=3600)
 
-    # Selfie biométrica: filesystem local (no nube) + metadata en Postgres.
     biometria_dir: str = "var/biometria"
 
     biometria_retencion_dias: int = Field(
@@ -80,7 +75,6 @@ class Configuracion(BaseSettings):
             ruta = Path.cwd() / ruta
         return ruta
 
-    # Cédula: foto frontal en disco local + OCR Tesseract (sin LLM).
     cedula_dir: str = "var/cedulas"
 
     cedula_retencion_dias: int = Field(
@@ -95,43 +89,35 @@ class Configuracion(BaseSettings):
 
     cedula_ocr: Literal["tesseract"] = "tesseract"
 
-    # PAdES: bóveda CA Chile (pem maestro). En tests se puede apuntar a un PEM temporal.
     pades_ca_pem: str = "app/infraestructura/certs/ca_chile.pem"
 
-    # Evaluador fijo en producción: sin GOOGLE_PLACES_API_KEY / CHILECOMPRA_TICKET
-    # se simulan solo esas fuentes (HINTS_FIJOS). El rastreador_web no requiere key.
-    # 4s: rastreador_web (home + rutas legales) + Places + ChileCompra en paralelo.
     rater_budget_seconds: float = Field(default=4.0, ge=0.5, le=30.0)
-    # Refresco en segundo plano (minutos). 0 = desactivado. En APP_ENV=test no arranca.
+
     rater_refresh_minutes: float = Field(default=30.0, ge=0.0, le=24 * 60)
     chilecompra_ticket: str = ""
     google_places_api_key: str = ""
 
-    # Correo de salida de ServiChile. El destinatario es el correo del registro.
     smtp_host: str = ""
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_usuario: str = ""
     smtp_clave: SecretStr = SecretStr("")
     smtp_desde: str = ""
-    # Mailhog / SMTP local sin TLS: false. Production: true (default).
+
     smtp_starttls: bool = True
 
-    # Webpay Plus. En local/test se permiten defaults de integración Transbank.
-    # En production deben ser credenciales reales (fail-fast si no).
     public_frontend_url: str = "http://localhost:5500/index.html"
     transbank_commerce_code: str = "597055555532"
     transbank_api_key: SecretStr = SecretStr(
         "579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C"
     )
     transbank_host: str = "https://webpay3gint.transbank.cl"
-    # Precios de producto: solo dominio (PRECIO_INFORME_CLP / PRECIO_PUBLICACION_CLP).
+
     pagos_reclamo_email: str = "pagos@servichile.cl"
     pagos_reclamo_whatsapp: str = "+56912345678"
-    # Polling TBK de pendientes sin retorno del navegador. 0 = desactivado.
-    # En APP_ENV=test no arranca. Min edad: no tocar órdenes aún en checkout.
+
     pagos_reconciliar_seconds: float = Field(default=120.0, ge=0.0, le=3600.0)
     pagos_reconciliar_min_edad_seg: int = Field(default=180, ge=60, le=7200)
-    # Sello de impresión del PDF. Vacío fuera de production → derivado de JWT.
+
     print_token_secret: SecretStr | None = None
 
     def pades_ca_ruta(self) -> Path:
@@ -158,7 +144,7 @@ class Configuracion(BaseSettings):
 
     @model_validator(mode="after")
     def _derivar_rut_verifier(self) -> Self:
-        """test→muestra; con ticket ChileCompra→chilecompra; si no→estricto."""
+
         if self.app_env == "test":
             self.rut_verifier = "muestra"
         elif (self.chilecompra_ticket or "").strip():
@@ -172,7 +158,7 @@ class Configuracion(BaseSettings):
             val = self.print_token_secret.get_secret_value().strip()
             if val:
                 return val
-        # Distinto del JWT crudo (local/test): no reutilizar la misma clave de sesión.
+
         import hashlib
 
         material = "servichile-print:" + self.jwt_secret.get_secret_value()
@@ -242,7 +228,7 @@ class Configuracion(BaseSettings):
 
     @model_validator(mode="after")
     def _exigir_redis_y_print_prod(self) -> Self:
-        # Redis: obligatorio en local y production (caché + límites). Tests sin Redis.
+
         if self.app_env != "test" and not (self.redis_url or "").strip():
             raise ValueError(
                 "Configure REDIS_URL (ej. redis://localhost:6379/0). "
@@ -265,7 +251,6 @@ class Configuracion(BaseSettings):
                 "PRINT_TOKEN_SECRET debe tener al menos 32 caracteres."
             )
         return self
-
 
 @lru_cache
 def obtener_configuracion() -> Configuracion:

@@ -10,7 +10,6 @@ from app.tiempo import ahora_utc
 
 _ALGORITHM = "HS256"
 
-
 class JwtSesion:
     def __init__(self, secreto: str, minutos: int) -> None:
         self.secreto = secreto

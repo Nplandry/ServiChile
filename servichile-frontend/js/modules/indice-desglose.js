@@ -12,13 +12,13 @@ const IndiceDesglose = {
     const obs = (rep && Array.isArray(rep.observables) && rep.observables) || [];
     return obs.map((o) => {
       const id = o.id || '';
-      // Solo contractuales del crawler (con_*): ruta corta en texto pequeño.
-      // Nunca headers cyb_* ni "rastreador_web" suelto.
+
       let detalle = '';
       if (String(id).indexOf('con_') === 0) {
         const raw = String((o && o.detalle) || '').trim();
         if (raw.charAt(0) === '/') {
-          detalle = raw.split('·')[0].trim();
+          const m = raw.match(/^(\/\S+)/);
+          detalle = (m ? m[1] : raw.split(/\s+/)[0] || '').trim();
         }
       }
       return {
@@ -194,7 +194,7 @@ const IndiceDesglose = {
     }
 
     if (esTeaser) {
-      // Muestra los filtros bloqueados + aviso de compra en el mismo bloque.
+
       IndiceDesglose.filtrosIndiceGrupos().forEach((g) => {
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -253,7 +253,7 @@ const IndiceDesglose = {
     if (f.valor) {
       const meta = document.createElement('span');
       meta.className = 'indice-desglose__meta';
-      meta.textContent = f.valor + (f.peso ? ' · ' + f.peso : '');
+      meta.textContent = f.valor + (f.peso ? ' ' + f.peso : '');
       cabezal.appendChild(meta);
     }
     li.appendChild(cabezal);

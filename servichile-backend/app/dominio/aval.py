@@ -1,4 +1,4 @@
-"""Validación determinista de aval / garantía de respaldo (PDF texto; sin LLM obligatorio)."""
+
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from app.dominio.rut import normalizar_rut, RutInvalido
 
 AVAL_MAX_BYTES = 8 * 1024 * 1024
 UMBRAL_ACEPTACION = 70
-# Mínimo de caracteres alfanuméricos para considerar “PDF con texto real”.
+
 MIN_TEXTO_ALNUM = 120
 
 TipoAval = Literal["carta_aval", "boleta", "poliza", "otro"]
@@ -43,7 +43,6 @@ _EMISORES = (
     "institucion financiera",
 )
 
-
 @dataclass(frozen=True)
 class ResultadoAval:
     aceptado: bool
@@ -54,22 +53,18 @@ class ResultadoAval:
     rut_detectado: str | None = None
     monto_detectado: str | None = None
 
-
 def _sin_acentos(texto: str) -> str:
     nfd = unicodedata.normalize("NFD", texto or "")
     return "".join(c for c in nfd if unicodedata.category(c) != "Mn")
 
-
 def _compact(texto: str) -> str:
     return re.sub(r"[^a-z0-9]", "", _sin_acentos(texto).lower())
-
 
 def _texto_lower(texto: str) -> str:
     return _sin_acentos(texto or "").lower()
 
-
 def clasificar_tipo(texto: str) -> TipoAval:
-    """Clasificación solo por keywords (sin LLM)."""
+
     t = _texto_lower(texto)
     c = _compact(texto)
     if "boletadegarantia" in c or "boleta de garantia" in t or (
@@ -89,7 +84,6 @@ def clasificar_tipo(texto: str) -> TipoAval:
         return "carta_aval"
     return "otro"
 
-
 def _tiene_palabra_clave(texto: str) -> bool:
     t = _texto_lower(texto)
     c = _compact(texto)
@@ -101,7 +95,6 @@ def _tiene_palabra_clave(texto: str) -> bool:
         elif k in c or re.search(rf"\b{re.escape(k)}\b", t):
             return True
     return False
-
 
 def _extraer_ruts(texto: str) -> list[str]:
     encontrados: list[str] = []
@@ -119,7 +112,6 @@ def _extraer_ruts(texto: str) -> list[str]:
             encontrados.append(norm)
     return encontrados
 
-
 def _extraer_montos(texto: str) -> list[str]:
     out: list[str] = []
     patrones = (
@@ -132,7 +124,6 @@ def _extraer_montos(texto: str) -> list[str]:
         for m in re.finditer(pat, texto or "", re.I):
             out.append(m.group(0).strip())
     return out
-
 
 def _extraer_fechas(texto: str) -> list[str]:
     out: list[str] = []
@@ -149,7 +140,6 @@ def _extraer_fechas(texto: str) -> list[str]:
         out.append(m.group(0))
     return out
 
-
 def _tiene_emisor(texto: str) -> bool:
     t = _texto_lower(texto)
     c = _compact(texto)
@@ -158,11 +148,9 @@ def _tiene_emisor(texto: str) -> bool:
             return True
     return False
 
-
 def _tokens_nombre(nombre: str) -> set[str]:
     limpio = re.sub(r"[^a-záéíóúñ\s]", " ", _sin_acentos(nombre).lower())
     return {t for t in limpio.split() if len(t) >= 2}
-
 
 def _nombre_coincide(texto: str, nombre_perfil: str | None) -> bool:
     if not nombre_perfil:
@@ -173,7 +161,6 @@ def _nombre_coincide(texto: str, nombre_perfil: str | None) -> bool:
     t = _texto_lower(texto)
     hits = sum(1 for tok in tokens if tok in t)
     return hits >= min(2, len(tokens))
-
 
 def validar_aval(
     *,
@@ -252,7 +239,7 @@ def validar_aval(
 
     score = min(100, score)
     tiene_obligatorias = _OBLIGATORIAS.issubset(senales)
-    # Además de keywords: al menos 2 de {rut, monto, fecha, emisor}
+
     soporte = sum(
         1
         for s in ("rut-valido", "monto", "fecha", "emisor")

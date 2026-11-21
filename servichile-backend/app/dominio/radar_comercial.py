@@ -1,9 +1,4 @@
-"""Radar comercial simulado y el texto del correo de contacto.
 
-No es el índice de transparencia. Los puntajes salen de una semilla del id
-para que la ficha, el PDF y el correo muestren los mismos números.
-La fórmula es la misma que `semilla` y `datosDemo` en market-monetizacion.js.
-"""
 
 from __future__ import annotations
 
@@ -28,13 +23,11 @@ PLAZOS = {
     "cotizando": "Solo cotizando",
 }
 
-
 @dataclass(frozen=True)
 class AlertaRadar:
     tipo: str
     titulo: str
     detalle: str
-
 
 @dataclass(frozen=True)
 class RadarSimulado:
@@ -43,7 +36,6 @@ class RadarSimulado:
     contratos: float
     alertas: tuple[AlertaRadar, ...]
 
-
 def semilla(texto: str) -> int:
     h = 2166136261
     for ch in texto or "x":
@@ -51,16 +43,13 @@ def semilla(texto: str) -> int:
         h = (h * 16777619) & 0xFFFFFFFF
     return h
 
-
 def _nota(seed: int, base: int, desplazamiento: int, modulo: int) -> float:
     valor = (base + ((seed >> desplazamiento) % modulo)) / 10
     return min(5.0, round(valor, 1))
 
-
 def _slug(nombre: str) -> str:
     limpio = "".join(ch for ch in (nombre or "").lower() if ch.isalnum())
     return limpio[:10] or "pyme"
-
 
 def construir_radar(clave: str, nombre: str) -> RadarSimulado:
     seed = semilla(clave or nombre or "x")
@@ -91,7 +80,6 @@ def construir_radar(clave: str, nombre: str) -> RadarSimulado:
         ),
     )
 
-
 def correo_opcional(valor: str | None) -> str | None:
     from app.dominio.errores import RadarInvalido
 
@@ -101,7 +89,6 @@ def correo_opcional(valor: str | None) -> str | None:
     if len(correo) > 254 or not _CORREO.match(correo):
         raise RadarInvalido("Ingrese un correo válido.")
     return correo
-
 
 def mensaje_contacto(
     *,
@@ -142,7 +129,6 @@ def mensaje_contacto(
     asunto = f"Consulta desde ServiChile: {comprador} escribe a {empresa}"
     return asunto[:200], "\n".join(lineas)
 
-
 _CATEGORIAS = {
     "tecnologia": "Tecnología",
     "industria": "Minería e industria",
@@ -169,17 +155,14 @@ _OFERTA = {
     "24-48h": "24 a 48 horas",
 }
 
-
 def _etiqueta(valor: str | None) -> str:
     if not valor:
         return "—"
     return _OFERTA.get(valor, valor)
 
-
 def _lista(valores: tuple[str, ...] | list[str]) -> str:
     textos = [_etiqueta(v) for v in valores if v]
     return ", ".join(textos) if textos else "—"
-
 
 @dataclass(frozen=True)
 class ObservableReporte:
@@ -189,10 +172,8 @@ class ObservableReporte:
     score: int
     grupo: str
 
-
 @dataclass(frozen=True)
 class DatosReporte:
-    """Datos del mismo informe que el proveedor imprime o guarda en PDF."""
 
     nombre: str
     categoria: str
@@ -217,9 +198,8 @@ class DatosReporte:
     qr_payload: str | None = None
     qr_expira: object | None = None
 
-
 def lineas_reporte(datos: DatosReporte) -> list[str]:
-    """Resumen textual del reporte (tests / respaldo sin Chrome)."""
+
     descripcion = " ".join((datos.descripcion or "").split()) or "Sin descripción"
     return [
         "ServiChile",
@@ -250,5 +230,4 @@ def lineas_reporte(datos: DatosReporte) -> list[str]:
         "El índice refleja señales públicas y documentos del perfil.",
         "No sustituye auditorías oficiales.",
     ]
-
 

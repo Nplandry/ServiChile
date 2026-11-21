@@ -1,9 +1,4 @@
-"""Composición del pago informe + bucle de reconciliación TBK (N5).
 
-Única fábrica de pasarela Webpay (API HTTP y worker).
-Sin webhook Transbank: el worker hace commit + entrega (correo) de pendientes
-viejos cuando el navegador no volvió a /confirmar ni a /recuperar.
-"""
 
 from __future__ import annotations
 
@@ -36,13 +31,11 @@ from app.servicios.radar_comercial import ServicioRadarComercial
 
 log = logging.getLogger(__name__)
 
-
 def permitir_pasarela_memoria() -> bool:
-    """True solo en pytest o con flag explícito (nunca en production)."""
+
     if os.environ.get("SERVICHILE_ALLOW_MEMORIA_PASARELA") == "1":
         return True
     return bool(os.environ.get("PYTEST_CURRENT_TEST"))
-
 
 @lru_cache
 def obtener_pasarela_webpay():
@@ -79,7 +72,6 @@ def obtener_pasarela_webpay():
         host=host,
     )
 
-
 def _enviador():
     settings = obtener_configuracion()
     if settings.app_env == "test":
@@ -94,7 +86,6 @@ def _enviador():
         settings.smtp_desde.strip(),
         starttls=settings.smtp_starttls,
     )
-
 
 def armar_servicio_pago(session: Session) -> ServicioPagoInforme:
     settings = obtener_configuracion()
@@ -128,7 +119,6 @@ def armar_servicio_pago(session: Session) -> ServicioPagoInforme:
         usuarios=usuarios,
     )
 
-
 def armar_servicio_publicacion(session: Session) -> ServicioPagoPublicacion:
     settings = obtener_configuracion()
     retorno = (settings.public_frontend_url or "").strip()
@@ -151,7 +141,6 @@ def armar_servicio_publicacion(session: Session) -> ServicioPagoPublicacion:
         enviador=_enviador(),
     )
 
-
 def _reconciliar_lote() -> int:
     settings = obtener_configuracion()
     SesionLocal = obtener_sessionmaker()
@@ -167,7 +156,6 @@ def _reconciliar_lote() -> int:
             limite=25,
         )
         return int(n_inf) + int(n_pub)
-
 
 async def bucle_reconciliar_pagos(stop: asyncio.Event) -> None:
     from app.ensamblado import pagos_estado

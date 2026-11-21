@@ -1,4 +1,4 @@
-"""Compra del informe Radar de riesgo vía Webpay Plus."""
+
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-# Precio oficial del producto (única fuente de verdad; no hay override por env).
 PRECIO_INFORME_CLP = 9990
 
 ESTADO_PENDIENTE = "pendiente"
@@ -16,20 +15,17 @@ ESTADO_RECHAZADO = "rechazado"
 ESTADO_ERROR = "error"
 ESTADO_ANULADO = "anulado"
 
-
 @dataclass(frozen=True)
 class CatalogoPagoInforme:
     monto: int
     moneda: str = "CLP"
     producto: str = "informe_proveedor"
 
-
 @dataclass(frozen=True)
 class ResumenComprasInforme:
     autorizadas_mes: int
     gastado_mes: int
     monto_unitario: int
-
 
 @dataclass
 class CompraInforme:
@@ -49,13 +45,11 @@ class CompraInforme:
     creado_en: datetime | None = None
     actualizado_en: datetime | None = None
 
-
 @dataclass(frozen=True)
 class CanalReclamo:
     email: str
     whatsapp: str
     instruccion: str
-
 
 @dataclass(frozen=True)
 class InicioPagoInforme:
@@ -65,7 +59,6 @@ class InicioPagoInforme:
     monto: int
     business_id: uuid.UUID
     reclamo: CanalReclamo
-
 
 @dataclass(frozen=True)
 class ConfirmacionPagoInforme:

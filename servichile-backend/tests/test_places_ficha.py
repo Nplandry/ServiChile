@@ -1,8 +1,7 @@
-"""Selección de ficha Places: dual listing y caché."""
+
 
 from app.dominio.transparencia.evaluador.ficha import elegir_lugar_confiable
 from app.infraestructura.evaluador import cache_lugares
-
 
 def test_elige_ficha_con_website_sobre_duplicado_sin_web():
     principal = {
@@ -34,7 +33,6 @@ def test_elige_ficha_con_website_sobre_duplicado_sin_web():
     assert elegido["id"] == "a"
     assert evaluacion.coincidencia_dominio is True
     assert evaluacion.nombre_lugar == "Gearlabs"
-
 
 def test_cache_lugares_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setattr(

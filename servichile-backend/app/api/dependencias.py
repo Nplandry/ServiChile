@@ -1,8 +1,4 @@
-"""Ensambla la aplicación: crea servicios y les inyecta repositorios.
 
-Los routers no tocan la base. Piden un servicio aquí (por ejemplo
-``ServicioNegocioDep``) y FastAPI lo construye con las implementaciones concretas.
-"""
 
 from functools import lru_cache
 
@@ -99,12 +95,10 @@ SesionDep = Annotated[Session, Depends(obtener_sesion)]
 
 ConfiguracionDep = Annotated[Configuracion, Depends(obtener_configuracion)]
 
-
 @lru_cache
 def obtener_limite_solicitudes() -> LimiteSolicitudes:
 
     return construir_limite_solicitudes(obtener_configuracion().redis_url)
-
 
 @lru_cache
 def obtener_cache_respuesta():
@@ -115,17 +109,14 @@ def obtener_cache_respuesta():
         cfg.redis_url, activo=cfg.app_env != "test"
     )
 
-
 def obtener_servicio_progreso(session: SesionDep) -> ServicioProgresoCliente:
 
     return ServicioProgresoCliente(RepositorioXp(session))
-
 
 @lru_cache
 def obtener_hasheador() -> HasheadorContrasena:
 
     return HasheadorArgon2()
-
 
 @lru_cache
 def obtener_emisor_sesion() -> EmisorSesion:
@@ -136,7 +127,6 @@ def obtener_emisor_sesion() -> EmisorSesion:
         settings.jwt_secret.get_secret_value(), settings.jwt_expires_minutes
     )
 
-
 @lru_cache
 def obtener_emisor_reporte() -> EmisorReporte:
 
@@ -145,7 +135,6 @@ def obtener_emisor_reporte() -> EmisorReporte:
     return JwtReporte(
         settings.jwt_secret.get_secret_value(), settings.reporte_expires_minutes
     )
-
 
 def obtener_servicio_autenticacion(
     session: SesionDep,
@@ -160,7 +149,6 @@ def obtener_servicio_autenticacion(
         obtener_servicio_progreso(session),
     )
 
-
 def obtener_verificador_rut() -> VerificadorIdentidad:
     s = obtener_configuracion()
     return construir_verificador_rut(
@@ -169,12 +157,10 @@ def obtener_verificador_rut() -> VerificadorIdentidad:
         chilecompra_ticket=getattr(s, "chilecompra_ticket", "") or "",
     )
 
-
 @lru_cache
 def obtener_analizador_antecedentes() -> AnalizadorAntecedentes:
     settings = obtener_configuracion()
     return AnalizadorPdfAntecedentes(str(settings.pades_ca_ruta()))
-
 
 @lru_cache
 def obtener_almacenamiento_biometria() -> AlmacenamientoBiometria:
@@ -185,7 +171,6 @@ def obtener_almacenamiento_biometria() -> AlmacenamientoBiometria:
         calidad_jpeg=settings.biometria_jpeg_quality,
     )
 
-
 @lru_cache
 def obtener_almacenamiento_cedula() -> AlmacenamientoCedula:
     settings = obtener_configuracion()
@@ -195,22 +180,18 @@ def obtener_almacenamiento_cedula() -> AlmacenamientoCedula:
         calidad_jpeg=settings.cedula_jpeg_quality,
     )
 
-
 @lru_cache
 def obtener_analizador_cedula() -> AnalizadorCedula:
     return AnalizadorCedulaOcr(LectorOcrTesseract(), ComparadorRostrosOpenCv())
-
 
 @lru_cache
 def obtener_analizador_aval() -> AnalizadorAval:
     return AnalizadorPdfAval()
 
-
 @lru_cache
 def obtener_analizador_docs_empresa() -> AnalizadorDocEmpresa:
     settings = obtener_configuracion()
     return AnalizadorPdfDocEmpresa(str(settings.pades_ca_ruta()))
-
 
 def obtener_servicio_reporte_identidad(
     session: SesionDep,
@@ -239,7 +220,6 @@ def obtener_servicio_reporte_identidad(
         analizador_aval=analizador_aval,
     )
 
-
 def obtener_servicio_negocio(
     session: SesionDep,
     analizador_docs: Annotated[
@@ -247,7 +227,6 @@ def obtener_servicio_negocio(
     ],
 ) -> ServicioNegocio:
     return armar_servicio_negocio(session, analizador_docs)
-
 
 @lru_cache
 def obtener_enviador() -> EnviadorPlataforma:
@@ -265,7 +244,6 @@ def obtener_enviador() -> EnviadorPlataforma:
         starttls=settings.smtp_starttls,
     )
 
-
 def obtener_servicio_radar(
     session: SesionDep,
     enviador: Annotated[EnviadorPlataforma, Depends(obtener_enviador)],
@@ -278,7 +256,6 @@ def obtener_servicio_radar(
         enviador,
         emisor,
     )
-
 
 def obtener_servicio_pago_informe(
     session: SesionDep,
@@ -305,7 +282,6 @@ def obtener_servicio_pago_informe(
         usuarios=RepositorioUsuario(session),
     )
 
-
 def obtener_servicio_pago_publicacion(
     session: SesionDep,
     enviador: Annotated[EnviadorPlataforma, Depends(obtener_enviador)],
@@ -331,7 +307,6 @@ def obtener_servicio_pago_publicacion(
         enviador=enviador,
     )
 
-
 def obtener_servicio_trabajo(session: SesionDep) -> ServicioTrabajo:
 
     return ServicioTrabajo(
@@ -339,7 +314,6 @@ def obtener_servicio_trabajo(session: SesionDep) -> ServicioTrabajo:
         RepositorioTrabajo(session),
         obtener_servicio_progreso(session),
     )
-
 
 def obtener_servicio_reporte(
     session: SesionDep,
@@ -350,7 +324,6 @@ def obtener_servicio_reporte(
 ) -> ServicioReporte:
 
     return ServicioReporte(RepositorioUsuario(session), identidad, emisor)
-
 
 def obtener_servicio_cuenta(
     session: SesionDep,
@@ -365,7 +338,6 @@ def obtener_servicio_cuenta(
     return ServicioCuenta(
         RepositorioUsuario(session), negocios, hasheador, biometria, cedula
     )
-
 
 ServicioReporteIdentidadDep = Annotated[
     ServicioReporteIdentidad, Depends(obtener_servicio_reporte_identidad)
@@ -391,7 +363,6 @@ ServicioCuentaDep = Annotated[ServicioCuenta, Depends(obtener_servicio_cuenta)]
 
 _bearer = HTTPBearer(auto_error=False)
 
-
 def obtener_usuario_actual(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
     auth: Annotated[ServicioAutenticacion, Depends(obtener_servicio_autenticacion)],
@@ -409,7 +380,6 @@ def obtener_usuario_actual(
 
         raise _no_autorizado() from None
 
-
 def obtener_usuario_opcional(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
     auth: Annotated[ServicioAutenticacion, Depends(obtener_servicio_autenticacion)],
@@ -421,7 +391,6 @@ def obtener_usuario_opcional(
     except CredencialesInvalidas:
         return None
 
-
 def _no_autorizado() -> HTTPException:
 
     return HTTPException(
@@ -429,7 +398,6 @@ def _no_autorizado() -> HTTPException:
         detail="Sesión inválida o expirada.",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
 
 ServicioAutenticacionDep = Annotated[
     ServicioAutenticacion, Depends(obtener_servicio_autenticacion)
@@ -441,7 +409,6 @@ UsuarioOpcionalDep = Annotated[Usuario | None, Depends(obtener_usuario_opcional)
 LimiteSolicitudesDep = Annotated[LimiteSolicitudes, Depends(obtener_limite_solicitudes)]
 
 CacheRespuestaDep = Annotated[CacheRespuesta, Depends(obtener_cache_respuesta)]
-
 
 def demasiadas_solicitudes() -> HTTPException:
 

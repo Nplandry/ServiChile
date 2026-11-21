@@ -6,7 +6,6 @@ from app.infraestructura.persistencia.modelos import EntidadNegocio
 
 CLAVE = "clave-segura-123"
 
-
 def _cuenta(client: TestClient, email: str, tipo: str = "persona") -> dict[str, str]:
 
     datos = {
@@ -22,7 +21,6 @@ def _cuenta(client: TestClient, email: str, tipo: str = "persona") -> dict[str, 
 
     return {"Authorization": f"Bearer {t['access_token']}"}
 
-
 def _negocio(session_factory, nombre="Proveedor TI Central") -> uuid.UUID:
 
     with session_factory() as s:
@@ -37,7 +35,6 @@ def _negocio(session_factory, nombre="Proveedor TI Central") -> uuid.UUID:
 
         return negocio.id
 
-
 def _abrir_trabajo(client: TestClient, headers, business_id) -> dict:
 
     r = client.post(
@@ -47,7 +44,6 @@ def _abrir_trabajo(client: TestClient, headers, business_id) -> dict:
     assert r.status_code == 201, r.text
 
     return r.json()
-
 
 def test_cancelar_trabajo_propio_cambia_estado(client: TestClient, session_factory):
 
@@ -71,7 +67,6 @@ def test_cancelar_trabajo_propio_cambia_estado(client: TestClient, session_facto
 
     assert activas[0]["estado"] == "cancelado"
 
-
 def test_cancelar_dos_veces_da_409(client: TestClient, session_factory):
 
     bid = _negocio(session_factory)
@@ -83,7 +78,6 @@ def test_cancelar_dos_veces_da_409(client: TestClient, session_factory):
     client.delete(f"/v1/trabajos/{trabajo['id']}", headers=h)
 
     assert client.delete(f"/v1/trabajos/{trabajo['id']}", headers=h).status_code == 409
-
 
 def test_cancelar_trabajo_ajeno_da_404(client: TestClient, session_factory):
 
@@ -99,11 +93,9 @@ def test_cancelar_trabajo_ajeno_da_404(client: TestClient, session_factory):
         client.delete(f"/v1/trabajos/{trabajo['id']}", headers=otro).status_code == 404
     )
 
-
 def test_cancelar_requiere_sesion(client: TestClient):
 
     assert client.delete(f"/v1/trabajos/{uuid.uuid4()}").status_code == 401
-
 
 def test_eliminar_cuenta_con_contrasena_incorrecta_da_403(client: TestClient):
 
@@ -116,7 +108,6 @@ def test_eliminar_cuenta_con_contrasena_incorrecta_da_403(client: TestClient):
     assert r.status_code == 403
 
     assert client.get("/v1/auth/yo", headers=h).status_code == 200
-
 
 def test_eliminar_cuenta_borra_el_acceso(client: TestClient):
 
@@ -133,7 +124,6 @@ def test_eliminar_cuenta_borra_el_acceso(client: TestClient):
     )
 
     assert login.status_code == 401
-
 
 def test_eliminar_cuenta_borra_sus_empresas(client: TestClient):
 
@@ -156,7 +146,6 @@ def test_eliminar_cuenta_borra_sus_empresas(client: TestClient):
     client.request("DELETE", "/v1/auth/yo", json={"password": CLAVE}, headers=h)
 
     assert client.get(f"/v1/businesses/{bid}/reputation").status_code == 404
-
 
 def test_eliminar_cuenta_requiere_sesion(client: TestClient):
 

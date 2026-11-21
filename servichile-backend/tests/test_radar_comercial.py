@@ -8,7 +8,6 @@ from app.infraestructura.persistencia.modelos import (
     MetricasReputacionNegocio,
 )
 
-
 def test_el_resumen_textual_no_es_el_radar():
     texto = "\n".join(
         lineas_reporte(
@@ -35,7 +34,6 @@ def test_el_resumen_textual_no_es_el_radar():
     )
     assert "Reporte de transparencia empresarial" in texto
     assert "Alerta Legal" not in texto
-
 
 def test_smtp_de_plataforma_avisa_al_correo_del_registro(
     client: TestClient, session_factory

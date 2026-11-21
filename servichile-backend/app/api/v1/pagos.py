@@ -1,4 +1,4 @@
-"""Pago Webpay Plus del informe Radar de riesgo."""
+
 
 from __future__ import annotations
 
@@ -50,12 +50,10 @@ from app.servicios.pago_publicacion import ServicioPagoPublicacion
 
 router = APIRouter(prefix="/v1/pagos", tags=["Pagos"])
 
-
 def _reclamo(c: CanalReclamo) -> CanalReclamoSalida:
     return CanalReclamoSalida(
         email=c.email, whatsapp=c.whatsapp, instruccion=c.instruccion
     )
-
 
 def _inicio(out: InicioPagoInforme) -> InicioPagoInformeSalida:
     return InicioPagoInformeSalida(
@@ -66,7 +64,6 @@ def _inicio(out: InicioPagoInforme) -> InicioPagoInformeSalida:
         business_id=out.business_id,
         reclamo=_reclamo(out.reclamo),
     )
-
 
 def _confirmacion(out: ConfirmacionPagoInforme) -> ConfirmacionPagoInformeSalida:
     return ConfirmacionPagoInformeSalida(
@@ -87,7 +84,6 @@ def _confirmacion(out: ConfirmacionPagoInforme) -> ConfirmacionPagoInformeSalida
         print_token=out.print_token,
     )
 
-
 def _http_pago(
     e: PagoInformeError, servicio: ServicioPagoInforme | None = None
 ) -> HTTPException:
@@ -105,14 +101,12 @@ def _http_pago(
         codigo_http = status.HTTP_409_CONFLICT
     return HTTPException(codigo_http, detalle)
 
-
 @router.get("/informe/catalogo", response_model=CatalogoPagoInformeSalida)
 def catalogo_pago_informe(servicio: ServicioPagoInformeDep):
     cat = servicio.catalogo()
     return CatalogoPagoInformeSalida(
         monto=cat.monto, moneda=cat.moneda, producto=cat.producto
     )
-
 
 @router.get("/informe/resumen", response_model=ResumenComprasInformeSalida)
 def resumen_compras_informe(
@@ -126,7 +120,6 @@ def resumen_compras_informe(
         monto_unitario=r.monto_unitario,
     )
 
-
 @router.get(
     "/informe/acceso/{business_id}",
     response_model=ConfirmacionPagoInformeSalida,
@@ -137,7 +130,7 @@ def acceso_informe_comprado(
     servicio: ServicioPagoInformeDep,
     limiter: LimiteSolicitudesDep,
 ):
-    """Reentrega el informe si el usuario ya tiene compra autorizada."""
+
     if not limiter.permitir(f"pago-acceso:{usuario.id}", 20):
         raise demasiadas_solicitudes()
     try:
@@ -151,7 +144,6 @@ def acceso_informe_comprado(
             status.HTTP_402_PAYMENT_REQUIRED,
             {"mensaje": e.mensaje, "codigo": e.codigo, "autorizado": False},
         ) from None
-
 
 @router.post("/informe", response_model=InicioPagoInformeSalida)
 def iniciar_pago_informe(
@@ -172,7 +164,6 @@ def iniciar_pago_informe(
     except PagoInformeError as e:
         raise _http_pago(e, servicio) from None
 
-
 @router.post("/informe/recuperar", response_model=ConfirmacionPagoInformeSalida)
 def recuperar_pago_informe(
     datos: RecuperarPagoInformeEntrada,
@@ -186,7 +177,6 @@ def recuperar_pago_informe(
         return _confirmacion(servicio.recuperar(usuario, datos.buy_order))
     except PagoInformeError as e:
         raise _http_pago(e, servicio) from None
-
 
 @router.post("/informe/verificar-print", response_model=ConfirmacionPagoInformeSalida)
 def verificar_print_informe(
@@ -211,7 +201,6 @@ def verificar_print_informe(
     except PagoInformeError as e:
         raise _http_pago(e, servicio) from None
 
-
 @router.post("/informe/confirmar", response_model=ConfirmacionPagoInformeSalida)
 def confirmar_pago_informe(
     datos: ConfirmarPagoInformeEntrada,
@@ -225,7 +214,6 @@ def confirmar_pago_informe(
         return _confirmacion(servicio.confirmar(usuario, datos.token))
     except PagoInformeError as e:
         raise _http_pago(e, servicio) from None
-
 
 @router.post("/informe/anular", response_model=ConfirmacionPagoInformeSalida)
 def anular_pago_informe(
@@ -245,7 +233,6 @@ def anular_pago_informe(
     except PagoInformeError as e:
         raise _http_pago(e, servicio) from None
 
-
 @router.get("/informe/{buy_order}", response_model=ConfirmacionPagoInformeSalida)
 def estado_pago_informe(
     buy_order: str,
@@ -260,12 +247,10 @@ def estado_pago_informe(
     except PagoInformeError as e:
         raise _http_pago(e, servicio) from None
 
-
 def _reclamo_pub(c: CanalReclamoPublicacion) -> CanalReclamoSalida:
     return CanalReclamoSalida(
         email=c.email, whatsapp=c.whatsapp, instruccion=c.instruccion
     )
-
 
 def _inicio_pub(out: InicioPagoPublicacion) -> InicioPagoPublicacionSalida:
     return InicioPagoPublicacionSalida(
@@ -275,7 +260,6 @@ def _inicio_pub(out: InicioPagoPublicacion) -> InicioPagoPublicacionSalida:
         monto=out.monto,
         reclamo=_reclamo_pub(out.reclamo),
     )
-
 
 def _confirmacion_pub(
     out: ConfirmacionPagoPublicacion,
@@ -293,7 +277,6 @@ def _confirmacion_pub(
         business_id=out.business_id,
         consumido=out.consumido,
     )
-
 
 def _http_pago_pub(
     e: PagoPublicacionError, servicio: ServicioPagoPublicacion | None = None
@@ -314,14 +297,12 @@ def _http_pago_pub(
         codigo_http = status.HTTP_409_CONFLICT
     return HTTPException(codigo_http, detalle)
 
-
 @router.get("/publicacion/catalogo", response_model=CatalogoPagoPublicacionSalida)
 def catalogo_pago_publicacion(servicio: ServicioPagoPublicacionDep):
     cat = servicio.catalogo()
     return CatalogoPagoPublicacionSalida(
         monto=cat.monto, moneda=cat.moneda, producto=cat.producto
     )
-
 
 @router.get("/publicacion/acceso", response_model=ConfirmacionPagoPublicacionSalida)
 def acceso_cupon_publicacion(
@@ -344,7 +325,6 @@ def acceso_cupon_publicacion(
         )
     return _confirmacion_pub(cupon)
 
-
 @router.post("/publicacion", response_model=InicioPagoPublicacionSalida)
 def iniciar_pago_publicacion(
     datos: IniciarPagoPublicacionEntrada,
@@ -360,7 +340,6 @@ def iniciar_pago_publicacion(
         return _inicio_pub(servicio.iniciar(usuario, retorno))
     except PagoPublicacionError as e:
         raise _http_pago_pub(e, servicio) from None
-
 
 @router.post(
     "/publicacion/confirmar", response_model=ConfirmacionPagoPublicacionSalida
@@ -379,7 +358,6 @@ def confirmar_pago_publicacion(
     except PagoPublicacionError as e:
         raise _http_pago_pub(e, servicio) from None
 
-
 @router.post(
     "/publicacion/recuperar", response_model=ConfirmacionPagoPublicacionSalida
 )
@@ -396,7 +374,6 @@ def recuperar_pago_publicacion(
         return _confirmacion_pub(servicio.recuperar(usuario, datos.buy_order))
     except PagoPublicacionError as e:
         raise _http_pago_pub(e, servicio) from None
-
 
 @router.post(
     "/publicacion/anular", response_model=ConfirmacionPagoPublicacionSalida
@@ -418,7 +395,6 @@ def anular_pago_publicacion(
         )
     except PagoPublicacionError as e:
         raise _http_pago_pub(e, servicio) from None
-
 
 @router.get(
     "/publicacion/{buy_order}", response_model=ConfirmacionPagoPublicacionSalida

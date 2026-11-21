@@ -2,10 +2,8 @@ import re
 
 _RUT_PATRON = re.compile("^(\\d{1,8})-?([0-9K])$")
 
-
 class RutInvalido(ValueError):
     pass
-
 
 def dv_rut(cuerpo: str) -> str:
     suma = 0
@@ -19,7 +17,6 @@ def dv_rut(cuerpo: str) -> str:
     if resto == 10:
         return "K"
     return str(resto)
-
 
 def normalizar_rut(texto: str) -> str:
     limpio = texto.replace(".", "").replace(" ", "").upper()

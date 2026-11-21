@@ -4,7 +4,6 @@ from typing import Any
 
 import httpx
 
-
 def obtener_json(
     url: str,
     *,
@@ -20,9 +19,8 @@ def obtener_json(
             if "json" in ctype:
                 return True, r.json(), None
             return True, r.text, None
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, None, str(exc) or type(exc).__name__
-
 
 def enviar_json(
     url: str,
@@ -36,5 +34,5 @@ def enviar_json(
             r = cliente.post(url, json=carga, headers=headers)
             r.raise_for_status()
             return True, r.json(), None
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, None, str(exc) or type(exc).__name__

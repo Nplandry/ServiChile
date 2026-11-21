@@ -1,4 +1,4 @@
-"""Índice único: señales públicas (evaluador) + documentos legales → un solo score."""
+
 
 from __future__ import annotations
 
@@ -14,35 +14,30 @@ from app.dominio.docs_empresa import (
 from app.dominio.entidades import ObservableSenal
 
 _TOTAL_DOCS = len(TIPOS_DOC_EMPRESA)
-# Mitad señales públicas, mitad documentación verificada.
+
 _PESO_EVALUADOR = 0.5
 _PESO_DOCS = 0.5
-
 
 @dataclass(frozen=True, slots=True)
 class ValoracionDocumentos:
     verificados: int
     total: int
-    pct: int  # 0–100
-    indice: float  # ★ 0.0–10.0
-
+    pct: int
+    indice: float
 
 _VALORACION_VACIA = ValoracionDocumentos(0, _TOTAL_DOCS, 0, 0.0)
 _VALORACION_COMPLETA = ValoracionDocumentos(_TOTAL_DOCS, _TOTAL_DOCS, 100, 10.0)
 
-
 def _meta_verificado(meta: object) -> bool:
     return isinstance(meta, MetaDocEmpresa) and meta_doc_esta_vigente(meta)
-
 
 def doc_esta_verificado(docs: DocsEmpresa | None, tipo: str) -> bool:
     if not docs:
         return False
     return _meta_verificado(docs.get(tipo))
 
-
 def calcular_valoracion_documentos(docs: DocsEmpresa | None) -> ValoracionDocumentos:
-    """Proporción de documentos legales validados (0–100% → ★ 0–10)."""
+
     if not docs:
         return _VALORACION_VACIA
 
@@ -63,17 +58,15 @@ def calcular_valoracion_documentos(docs: DocsEmpresa | None) -> ValoracionDocume
         indice=round(10.0 * verificados / _TOTAL_DOCS, 1),
     )
 
-
 def score_unificado(*, pct_evaluador: float | None, docs_pct: int) -> tuple[float, int]:
-    """Un solo índice: ★ 0–10 y % 0–100 (evaluador + documentos)."""
+
     r = 0.0 if pct_evaluador is None else max(0.0, min(100.0, float(pct_evaluador)))
     d = max(0, min(100, int(docs_pct)))
     pct = int(round(_PESO_EVALUADOR * r + _PESO_DOCS * d))
     return round(pct / 10.0, 1), pct
 
-
 def observables_documentos(docs: DocsEmpresa | None) -> list[ObservableSenal]:
-    """Cada documento legal es una señal del índice (legal, 0 o 100)."""
+
     out: list[ObservableSenal] = []
     for tipo in TIPOS_DOC_EMPRESA:
         ok = doc_esta_verificado(docs, tipo)
@@ -90,16 +83,12 @@ def observables_documentos(docs: DocsEmpresa | None) -> list[ObservableSenal]:
         )
     return out
 
-
 def calcular_indice(docs: DocsEmpresa | None = None) -> float:
     return calcular_valoracion_documentos(docs).indice
-
 
 def es_observable_documento(oid: str) -> bool:
     return str(oid or "").startswith("doc_")
 
-
-# Vista previa pública (sin compra): 3 señales reales; el resto en el informe.
 IDS_OBSERVABLES_TEASER: tuple[str, ...] = (
     "doc_patente",
     "fis_reviews",
@@ -112,19 +101,17 @@ _TEASER_META: dict[str, tuple[str, str]] = {
     "cyb_referrer": ("Referrer-Policy", "ciber"),
 }
 
-
 def catalogo_observables_esperado() -> int:
-    """Total de señales del índice (evaluador + docs + trabajos)."""
+
     from app.dominio.docs_empresa import TIPOS_DOC_EMPRESA
     from app.dominio.transparencia.evaluador.parametros import PARAMETROS
 
     return len(PARAMETROS) + len(TIPOS_DOC_EMPRESA) + 1
 
-
 def teaser_observables_publico(
     observables: list[ObservableSenal] | None,
 ) -> tuple[list[ObservableSenal], int]:
-    """Devuelve (3 señales teaser, cuántas quedan ocultas)."""
+
     lista = list(observables or [])
     by_id = {o.id: o for o in lista}
     total = len(lista) if lista else catalogo_observables_esperado()

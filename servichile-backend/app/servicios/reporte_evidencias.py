@@ -1,4 +1,4 @@
-"""Evidencias del reporte de confianza: biometría, cédula, antecedentes y aval."""
+
 
 from __future__ import annotations
 
@@ -30,7 +30,6 @@ _FIRMAS_IMAGEN = (
     (b"GIF87a", "gif"),
     (b"GIF89a", "gif"),
 )
-
 
 class MezclaReporteEvidencias:
     def procesar_biometria(self, usuario: Usuario, contenido: bytes) -> Usuario:
@@ -66,7 +65,7 @@ class MezclaReporteEvidencias:
     def procesar_cedula(
         self, usuario: Usuario, contenido: bytes
     ) -> tuple[Usuario, ResultadoCedula]:
-        """Valida la foto frontal (OCR + face-match vs selfie) y descarta el carnet."""
+
         if len(contenido) > CEDULA_MAX_BYTES:
             raise CedulaMuyGrande("La foto del carnet supera el tamaño máximo de 8 MB.")
         if not self._parece_imagen(contenido):
@@ -89,7 +88,6 @@ class MezclaReporteEvidencias:
         if usuario.cedula_ruta:
             self.cedula.eliminar(usuario.id, usuario.cedula_ruta)
 
-        # Zero-retention: comprimir y analizar en memoria (sin write/read/delete).
         jpeg, meta = self.cedula.preparar_en_memoria(contenido)
         resultado = self.analizador_cedula.analizar(
             jpeg,
@@ -105,7 +103,6 @@ class MezclaReporteEvidencias:
         if not resultado.aceptado:
             raise CedulaInvalida(resultado.motivo)
 
-        # Si aún no tiene RUT verificado, adoptar el del carnet (identidad Nivel 1).
         if resultado.rut and not usuario.rut_verificado:
             otro = self.usuarios.obtener_por_rut(resultado.rut)
             if otro is not None and otro.id != usuario.id:

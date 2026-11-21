@@ -1,4 +1,4 @@
-"""Contrato persistido de docs_empresa (MetaDocEmpresa)."""
+
 
 from __future__ import annotations
 
@@ -6,13 +6,10 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-# Vigencia por defecto tras verificar (revalidar subiendo de nuevo).
 DOCS_EMPRESA_VIGENCIA_DIAS = 365
-
 
 @dataclass
 class MetaDocEmpresa:
-    """Metadatos persistidos de un documento de empresa (contrato de dominio)."""
 
     verificado: bool = False
     verificado_en: str | None = None
@@ -31,9 +28,7 @@ class MetaDocEmpresa:
     def a_dict(self) -> dict[str, Any]:
         return {k: v for k, v in asdict(self).items() if v is not None and v != []}
 
-
 DocsEmpresa = dict[str, MetaDocEmpresa]
-
 
 def _parse_iso(valor: str | None) -> datetime | None:
     if not valor or not isinstance(valor, str):
@@ -51,9 +46,8 @@ def _parse_iso(valor: str | None) -> datetime | None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
 
-
 def vence_en_efectivo(meta: MetaDocEmpresa) -> datetime | None:
-    """Fecha de caducidad explícita o derivada de verificado_en + vigencia."""
+
     directo = _parse_iso(meta.vence_en)
     if directo is not None:
         return directo
@@ -62,11 +56,10 @@ def vence_en_efectivo(meta: MetaDocEmpresa) -> datetime | None:
         return None
     return base + timedelta(days=DOCS_EMPRESA_VIGENCIA_DIAS)
 
-
 def meta_doc_esta_vigente(
     meta: MetaDocEmpresa, *, ahora: datetime | None = None
 ) -> bool:
-    """Verificado y dentro de la ventana de vigencia."""
+
     if not meta.verificado:
         return False
     hasta = vence_en_efectivo(meta)
@@ -76,7 +69,6 @@ def meta_doc_esta_vigente(
     if ref.tzinfo is None:
         ref = ref.replace(tzinfo=timezone.utc)
     return hasta >= ref
-
 
 def meta_doc_desde_raw(raw: Any) -> MetaDocEmpresa | None:
     if not isinstance(raw, dict):
@@ -98,7 +90,6 @@ def meta_doc_desde_raw(raw: Any) -> MetaDocEmpresa | None:
         documento_tipo=raw.get("documento_tipo"),
     )
 
-
 def docs_empresa_desde_raw(raw: Any) -> DocsEmpresa:
     if not isinstance(raw, dict):
         return {}
@@ -108,7 +99,6 @@ def docs_empresa_desde_raw(raw: Any) -> DocsEmpresa:
         if normalizado is not None:
             out[str(tipo)] = normalizado
     return out
-
 
 def docs_empresa_a_raw(docs: DocsEmpresa | None) -> dict[str, Any]:
     if not docs:

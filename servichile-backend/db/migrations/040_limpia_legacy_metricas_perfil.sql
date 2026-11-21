@@ -1,4 +1,4 @@
--- Limpieza de columnas/tablas muertas (rater vive en observables_ciber + final_score).
+
 
 ALTER TABLE business_reputation_metrics
     DROP COLUMN IF EXISTS google_place_nombre,

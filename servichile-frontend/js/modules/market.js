@@ -16,31 +16,31 @@ const Market = {
     {
       id: 'tecnologia',
       label: 'Tecnología',
-      hint: 'SaaS · TI · agencias',
+      hint: 'SaaS, TI, agencias',
       categoria: 'tecnologia'
     },
     {
       id: 'industria',
       label: 'Minería e industria',
-      hint: 'Plantas · faenas',
+      hint: 'Plantas, faenas',
       categoria: 'industria'
     },
     {
       id: 'construccion',
       label: 'Construcción',
-      hint: 'Obras · montaje',
+      hint: 'Obras, montaje',
       categoria: 'construccion'
     },
     {
       id: 'profesionales',
       label: 'Profesionales',
-      hint: 'RR.HH. · legal',
+      hint: 'RR.HH., legal',
       categoria: 'servicios-profesionales'
     },
     {
       id: 'logistica',
       label: 'Logística',
-      hint: 'Flotas · courier · bodega',
+      hint: 'Flotas, courier, bodega',
       categoria: 'logistica'
     }
   ],
@@ -125,14 +125,19 @@ const Market = {
       ['contratacion', 'Contratación', Oferta.CONTRATACIONES],
       ['monto', 'Monto', Oferta.MONTOS],
       ['plazo', 'Plazo', Oferta.PLAZOS],
-      ['concretados', 'Trabajos Concretados en ServiChile', Oferta.CONCRETADOS]
+      ['concretados', 'Trabajos concretados', Oferta.CONCRETADOS]
     ].forEach(([clave, etiqueta, opciones]) => {
+      const campo = document.createElement('label');
+      campo.className = 'market__oferta-campo';
+      const titulo = document.createElement('span');
+      titulo.className = 'market__oferta-label';
+      titulo.textContent = etiqueta;
       const select = document.createElement('select');
-      select.className = 'field__input';
+      select.className = 'ui-select';
       select.setAttribute('aria-label', etiqueta);
       const vacio = document.createElement('option');
       vacio.value = '';
-      vacio.textContent = etiqueta;
+      vacio.textContent = 'Cualquiera';
       select.appendChild(vacio);
       (opciones || []).forEach((opcion) => {
         const opt = document.createElement('option');
@@ -143,9 +148,12 @@ const Market = {
       select.value = Market[clave] || '';
       select.addEventListener('change', () => {
         Market[clave] = select.value;
+        campo.classList.toggle('market__oferta-campo--activo', Boolean(select.value));
         Market.cargar();
       });
-      host.appendChild(select);
+      campo.classList.toggle('market__oferta-campo--activo', Boolean(select.value));
+      campo.append(titulo, select);
+      host.appendChild(campo);
     });
   },
 
@@ -165,13 +173,16 @@ const Market = {
       const v =
         (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
         (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
-        '173';
-      await Carga.script('js/modules/subir-confianza.js?v=' + v);
+        '223';
+      try {
+        await Carga.script('js/modules/subir-confianza.js?v=' + v);
+      } catch (_e) {
+        return false;
+      }
     }
     if (typeof SubirConfianza === 'undefined') return false;
-    if (!Array.isArray(SubirConfianza.empresas)) {
-      await SubirConfianza.cargarEmpresas();
-    }
+
+    await SubirConfianza.cargarEmpresas();
     return SubirConfianza.tieneEmpresa();
   },
 
@@ -199,18 +210,19 @@ const Market = {
       cta.className = 'submit-btn market__empresa-accion-cta';
 
       barra.append(texto, cta);
+    }
 
-      const search = Market.el.search && Market.el.search.closest
-        ? Market.el.search.closest('.market__search') || Market.el.search
-        : Market.el.search;
-      const head = Market.el.list.querySelector('.market__head');
-      if (head && search && search.parentNode === head) {
-        head.insertBefore(barra, search);
-      } else if (head) {
-        head.appendChild(barra);
-      } else {
-        Market.el.list.insertBefore(barra, Market.el.list.firstChild);
-      }
+    const head = Market.el.list.querySelector('.market__head');
+    const primerFiltro =
+      (head && head.querySelector('.market__grupo-label')) ||
+      (head && head.querySelector('#marketJobs, .market__jobs')) ||
+      null;
+    if (head && primerFiltro) {
+      head.insertBefore(barra, primerFiltro);
+    } else if (head && barra.parentNode !== head) {
+      head.appendChild(barra);
+    } else if (!head && barra.parentNode !== Market.el.list) {
+      Market.el.list.insertBefore(barra, Market.el.list.firstChild);
     }
 
     const texto = barra.querySelector('.market__empresa-accion-texto');
@@ -253,6 +265,16 @@ const Market = {
         while (Market.el.progreso.firstChild) {
           Market.el.progreso.removeChild(Market.el.progreso.firstChild);
         }
+        return;
+      }
+    } else if (typeof SubirConfianza === 'undefined' && typeof Carga !== 'undefined') {
+      const v =
+        (typeof Auth !== 'undefined' && Auth.APP_VERSION) ||
+        (typeof window !== 'undefined' && window.SERVICHILE_APP_VERSION) ||
+        '223';
+      try {
+        await Carga.script('js/modules/subir-confianza.js?v=' + v);
+      } catch (_e) {
         return;
       }
     }
@@ -346,6 +368,20 @@ const Market = {
     Market._cache = { clave: clave, lista: Market.negocios };
     Market._firma = '';
     Market.render();
+
+    if (
+      Market.esProveedor() &&
+      Market.el.progreso &&
+      typeof ProgresoCuenta !== 'undefined' &&
+      typeof SubirConfianza !== 'undefined' &&
+      SubirConfianza.tieneEmpresa()
+    ) {
+      ProgresoCuenta.actual().montarIndicador(Market.el.progreso, {
+        onAbrir: () => {
+          if (typeof App !== 'undefined' && App.openSection) App.openSection('subir-confianza');
+        }
+      });
+    }
   },
 
   render() {
@@ -683,7 +719,7 @@ const Market = {
       ctaLabel.textContent = 'Contactar a esta empresa';
       const ctaHint = document.createElement('span');
       ctaHint.className = 'market-detalle__cta-hint';
-      ctaHint.textContent = 'Pedir cotización · respuesta rápida';
+      ctaHint.textContent = 'Pedir cotización respuesta rápida';
       cta.append(ctaLabel, ctaHint);
     }
     cta.addEventListener('click', () => Market.accion(n, bloqueado, cta, estado));
@@ -691,11 +727,11 @@ const Market = {
     const tipQr = document.createElement('p');
     tipQr.className = 'market-detalle__tip-qr';
     tipQr.textContent =
-      'Use el QR del reporte para verificar identidad en terreno, entregas o reuniones de due diligence.';
+      'Use el QR del reporte para verificar identidad en terreno, entregas o reuniones comerciales.';
 
     sticky.append(cta, estado, tipQr);
     if (typeof Trabajos !== 'undefined' && !bloqueado) {
-      sticky.appendChild(Trabajos.panelTrabajoContratista(n, estado));
+      sticky.appendChild(Trabajos.panelTrabajoContratista(n));
     }
     colDer.appendChild(sticky);
     cuerpo.append(colIzq, colDer);
@@ -788,12 +824,12 @@ const Market = {
     const lbl = document.createElement('span');
     lbl.className = 'market__card-score-lbl';
     if (n.indice_transparencia == null || n.indice_transparencia === '') {
-      num.textContent = '—';
+      num.textContent = '-';
       lbl.textContent = ' Sin índice';
     } else {
       const indice = Number(n.indice_transparencia);
       if (!Number.isFinite(indice)) {
-        num.textContent = '—';
+        num.textContent = '-';
         lbl.textContent = ' Índice inválido';
       } else if (indice === 0) {
         num.textContent = '★ 0.0';
@@ -809,7 +845,7 @@ const Market = {
 
   textoDireccion(n) {
     const dist = Market.distanciaTexto(n);
-    return n.direccion + (dist ? ' · ' + dist : '');
+    return n.direccion + (dist ? ' ' + dist : '');
   },
 
   ordenarPorCercania(negocios) {

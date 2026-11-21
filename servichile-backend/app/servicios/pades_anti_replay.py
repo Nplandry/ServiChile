@@ -1,4 +1,4 @@
-"""Anti-replay PAdES: un mismo sha256 no se reutiliza entre cuentas/empresas."""
+
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import uuid
 from collections.abc import Callable
 
 from app.dominio.puertos import RegistroHashPades
-
 
 def registrar_hash_unico(
     puerto: RegistroHashPades,

@@ -1,4 +1,4 @@
-"""Webpay Plus (ambiente de integración Transbank) vía REST API v1.2."""
+
 
 from __future__ import annotations
 
@@ -14,12 +14,10 @@ from app.dominio.puertos import (
 
 log = logging.getLogger(__name__)
 
-# Credenciales públicas de integración Webpay Plus (documentación Transbank).
 COMMERCE_CODE_TEST = "597055555532"
 API_KEY_TEST = "579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C"
 HOST_TEST = "https://webpay3gint.transbank.cl"
 PATH_TX = "/rswebpaytransaction/api/webpay/v1.2/transactions"
-
 
 class PasarelaWebpayHttp:
     def __init__(
@@ -36,7 +34,7 @@ class PasarelaWebpayHttp:
         self.timeout = timeout
 
     def url_formulario(self, token: str = "") -> str:
-        """URL POST del formulario Webpay (reutilizable con el mismo token)."""
+
         _ = token
         return f"{self.host}/webpayserver/initTransaction"
 
@@ -129,9 +127,7 @@ class PasarelaWebpayHttp:
             detalle=str(data.get("status") or "") or None,
         )
 
-
 class PasarelaWebpayMemoria:
-    """Pasarela de prueba: crea y confirma sin red."""
 
     def __init__(self, *, autorizar: bool = True) -> None:
         self.autorizar = autorizar

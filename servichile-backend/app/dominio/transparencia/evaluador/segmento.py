@@ -1,4 +1,4 @@
-"""Ajuste de pesos por segmento B2B vs B2C."""
+
 
 from __future__ import annotations
 
@@ -75,13 +75,11 @@ B2C_WEIGHT_MULTIPLIERS: dict[str, float] = {
     "con_dpa": 0.90,
 }
 
-
 @dataclass(frozen=True)
 class PerfilSegmento:
     segmento: Segmento
     razon: str
     multiplicadores: dict[str, float]
-
 
 def detectar_segmento(
     rubro: str | None = None,
@@ -123,7 +121,6 @@ def detectar_segmento(
         razon="sin señal clara; pesos base",
         multiplicadores={},
     )
-
 
 def peso_efectivo(
     peso_base: float, param_id: str, perfil: PerfilSegmento

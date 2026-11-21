@@ -1,8 +1,4 @@
-"""Composición compartida del evaluador de señales (API + segundo plano).
 
-El resto de fábricas HTTP viven en ``app.api.dependencias``; aquí solo lo
-que también arranca fuera de FastAPI (bucle de refresco).
-"""
 
 from __future__ import annotations
 
@@ -23,7 +19,6 @@ from app.servicios.negocio import ServicioNegocio
 
 log = logging.getLogger(__name__)
 
-
 @lru_cache
 def obtener_adaptador_evaluador() -> AdaptadorEvaluador:
     s = obtener_configuracion()
@@ -36,12 +31,11 @@ def obtener_adaptador_evaluador() -> AdaptadorEvaluador:
         )
     )
 
-
 def armar_servicio_negocio(
     session: Session,
     analizador_docs: AnalizadorDocEmpresa | None = None,
 ) -> ServicioNegocio:
-    """Única composición de ServicioNegocio (API y segundo plano)."""
+
     from app.infraestructura.persistencia.repositorios import RepositorioTrabajo
 
     return ServicioNegocio(
@@ -52,13 +46,11 @@ def armar_servicio_negocio(
         RepositorioTrabajo(session),
     )
 
-
 def _cache_lecturas():
     from app.infraestructura.cache_respuesta import construir_cache_respuesta
 
     cfg = obtener_configuracion()
     return construir_cache_respuesta(cfg.redis_url, activo=cfg.app_env != "test")
-
 
 def _invalidar_cache_lecturas() -> None:
     try:
@@ -68,7 +60,6 @@ def _invalidar_cache_lecturas() -> None:
     except Exception:
         log.exception("No se pudo invalidar caché tras el evaluador.")
 
-
 def _invalidar_cache_negocio(negocio_id) -> None:
     try:
         from app.infraestructura.cache_respuesta import invalidar_negocio
@@ -76,7 +67,6 @@ def _invalidar_cache_negocio(negocio_id) -> None:
         invalidar_negocio(_cache_lecturas(), negocio_id)
     except Exception:
         log.exception("No se pudo invalidar caché del negocio %s.", negocio_id)
-
 
 def _refrescar_lote() -> int:
     SesionLocal = obtener_sessionmaker()
@@ -86,27 +76,25 @@ def _refrescar_lote() -> int:
         _invalidar_cache_lecturas()
     return n
 
-
 def refrescar_evaluador_negocio(negocio_id) -> None:
-    """Sesión propia; el bucle prioriza sin rater_escaneado_en."""
+
     from uuid import UUID
 
     bid = negocio_id if isinstance(negocio_id, UUID) else UUID(str(negocio_id))
     SesionLocal = obtener_sessionmaker()
     with SesionLocal() as session:
         try:
-            # guardar() ya hace commit; no hace falta commit extra.
+
             armar_servicio_negocio(session).refrescar_evaluador(bid)
             _invalidar_cache_negocio(bid)
         except Exception:
             session.rollback()
             log.exception("Evaluador diferido falló para negocio %s", bid)
 
-
 def encolar_evaluador(
     tareas_segundo_plano, negocio_id, *, servicio: ServicioNegocio | None = None
 ):
-    """Prod/local: BackgroundTasks. Test: sincrónico en la misma sesión de la petición."""
+
     from app.servicios.negocio_reputacion import a_titular
 
     if obtener_configuracion().app_env == "test":
@@ -115,7 +103,6 @@ def encolar_evaluador(
         return a_titular(servicio.refrescar_evaluador(negocio_id))
     tareas_segundo_plano.add_task(refrescar_evaluador_negocio, negocio_id)
     return None
-
 
 async def bucle_evaluador(stop: asyncio.Event) -> None:
     config = obtener_configuracion()

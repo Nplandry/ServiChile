@@ -1,4 +1,4 @@
-"""Puntos y nivel del cliente (registro, RUT, biometría, trabajo concretado)."""
+
 
 XP_REGISTRO = 10
 
@@ -26,11 +26,9 @@ EVENTO_ANTECEDENTES = "antecedentes"
 
 EVENTO_AVAL = "aval"
 
-
 def evento_trabajo_concretado(trabajo_id: str) -> str:
 
     return f"trabajo:{trabajo_id}"
-
 
 def nivel_por_xp(xp: int) -> int:
 

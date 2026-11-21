@@ -39,16 +39,13 @@ FECHA DE EMISION FECHA DE VENCIMIENTO
 RUN 12.345.678-5
 """
 
-
 @pytest.fixture
 def biometria_dir(tmp_path):
     return tmp_path / "biometria"
 
-
 @pytest.fixture
 def cedula_dir(tmp_path):
     return tmp_path / "cedulas"
-
 
 @pytest.fixture
 def session_factory():
@@ -76,10 +73,9 @@ def session_factory():
     )
     return sessionmaker(bind=engine, expire_on_commit=False)
 
-
 @pytest.fixture
 def vault_pades(tmp_path):
-    """ca_chile.pem + CA de prueba para firmar PDFs sintéticos confiables."""
+
     from tests.helpers_pades import crear_ca_y_hoja, vault_con_raiz_prueba
 
     root_pem, leaf_pem, leaf_key = crear_ca_y_hoja(
@@ -93,7 +89,6 @@ def vault_pades(tmp_path):
         "leaf_pem": leaf_pem,
         "leaf_key": leaf_key,
     }
-
 
 @pytest.fixture
 def client(session_factory, biometria_dir, cedula_dir, vault_pades):
@@ -135,7 +130,6 @@ def client(session_factory, biometria_dir, cedula_dir, vault_pades):
     app.dependency_overrides.clear()
     invalidar_cache_confianza()
 
-
 @pytest.fixture
 def token(client: TestClient) -> str:
     datos = {
@@ -149,7 +143,6 @@ def token(client: TestClient) -> str:
         "/v1/auth/login", json={"email": datos["email"], "password": datos["password"]}
     )
     return r.json()["access_token"]
-
 
 @pytest.fixture
 def token_empresa(client: TestClient) -> str:

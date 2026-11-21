@@ -4,10 +4,8 @@ from typing import Protocol
 
 from app.infraestructura.redis_cliente import cliente_redis
 
-
 class LimiteSolicitudes(Protocol):
     def permitir(self, clave: str, limite: int, ventana_s: int = 60) -> bool: ...
-
 
 class LimiteSolicitudesRedis:
     def __init__(self, url: str) -> None:
@@ -21,9 +19,7 @@ class LimiteSolicitudesRedis:
         count, _ = pipe.execute()
         return int(count) <= limite
 
-
 class LimiteSolicitudesMemoria:
-    """Solo para APP_ENV=test (sin Redis)."""
 
     def __init__(self) -> None:
         self._counts: dict[str, int] = {}
@@ -38,7 +34,6 @@ class LimiteSolicitudesMemoria:
             }
             self._counts[bucket] = self._counts.get(bucket, 0) + 1
             return self._counts[bucket] <= limite
-
 
 def construir_limite_solicitudes(redis_url: str | None) -> LimiteSolicitudes:
     url = (redis_url or "").strip()

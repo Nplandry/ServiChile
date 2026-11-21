@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Consolida certificados raíz/intermedios Chile en app/infraestructura/certs/ca_chile.pem."""
+
 
 from __future__ import annotations
 
@@ -12,7 +11,6 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 
 EXTS = {".pem", ".crt", ".cer", ".cert", ".der"}
-
 
 def _convert_p7b(path: Path, out_dir: Path) -> Path | None:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -36,7 +34,6 @@ def _convert_p7b(path: Path, out_dir: Path) -> Path | None:
             return tmp
     return None
 
-
 def _load(data: bytes) -> list[x509.Certificate]:
     if b"BEGIN CERTIFICATE" in data:
         try:
@@ -50,7 +47,6 @@ def _load(data: bytes) -> list[x509.Certificate]:
         return [x509.load_der_x509_certificate(data)]
     except Exception:
         return []
-
 
 def construir(fuentes: list[Path], destino: Path) -> int:
     seen: dict[str, x509.Certificate] = {}
@@ -99,7 +95,6 @@ def construir(fuentes: list[Path], destino: Path) -> int:
     destino.write_text("".join(parts), encoding="utf-8")
     return len(seen)
 
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -118,7 +113,6 @@ def main() -> int:
     n = construir(args.fuentes, args.out)
     print(f"unique={n} -> {args.out}")
     return 0 if n else 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

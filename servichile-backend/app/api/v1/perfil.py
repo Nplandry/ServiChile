@@ -53,12 +53,10 @@ ANTECEDENTES_POR_MINUTO = 10
 
 AVAL_POR_MINUTO = 8
 
-
 @router.get("", response_model=PerfilSalida)
 def ver_perfil(usuario: UsuarioActualDep, servicio: ServicioReporteIdentidadDep):
 
     return to_perfil_out(servicio.estado(usuario))
-
 
 @router.patch("", response_model=PerfilSalida)
 def actualizar_perfil(
@@ -82,7 +80,6 @@ def actualizar_perfil(
         raise HTTPException(status.HTTP_409_CONFLICT, error.mensaje) from None
 
     return to_perfil_out(servicio.estado(actualizado))
-
 
 @router.post(
     "/biometria", response_model=BiometriaSalida, status_code=status.HTTP_201_CREATED
@@ -139,7 +136,6 @@ async def verificar_biometria(
         nivel_xp=estado.nivel_xp,
     )
 
-
 @router.post(
     "/cedula", response_model=CedulaSalida, status_code=status.HTTP_201_CREATED
 )
@@ -187,7 +183,6 @@ async def verificar_cedula(
         face_score=resultado.face_score,
         motivo=resultado.motivo,
     )
-
 
 @router.post(
     "/antecedentes", response_model=AntecedentesSalida, status_code=status.HTTP_201_CREATED
@@ -248,7 +243,6 @@ async def verificar_antecedentes(
         senales=list(resultado.senales),
         motivo=resultado.motivo,
     )
-
 
 @router.post("/aval", response_model=AvalSalida, status_code=status.HTTP_201_CREATED)
 async def verificar_aval(

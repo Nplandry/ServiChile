@@ -68,11 +68,9 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "051_compras_publicacion_fks.sql",
 ]
 
-
 def _psql_url(database_url: str) -> str:
 
     return database_url.replace("postgresql+psycopg://", "postgresql://", 1)
-
 
 def _correr_sql(archivo: Path, database_url: str) -> None:
 
@@ -83,7 +81,6 @@ def _correr_sql(archivo: Path, database_url: str) -> None:
     print("→", " ".join(cmd))
 
     subprocess.run(cmd, check=True)
-
 
 def _schema_listo(engine) -> bool:
 
@@ -102,7 +99,6 @@ def _schema_listo(engine) -> bool:
         "imagen_url",
         "logo_url",
     }.issubset(cols)
-
 
 def main() -> None:
 
@@ -265,7 +261,6 @@ def main() -> None:
         print(f"DB lista. Usuarios existentes: {usuarios}.")
 
     sembrar(reset=args.reset_seed)
-
 
 if __name__ == "__main__":
 

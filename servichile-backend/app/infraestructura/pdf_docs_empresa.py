@@ -1,4 +1,4 @@
-"""Analizador PDF de documentos legales de empresa (PAdES G1 + híbrido G2)."""
+
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from app.dominio.docs_empresa import (
 )
 from app.infraestructura.pades import verificar_firma_pades
 from app.infraestructura.pdf_textual import extraer_texto_pdf
-
 
 def _rechazo(
     tipo: TipoDocEmpresa,
@@ -30,7 +29,6 @@ def _rechazo(
         sha256_hash=sha256_hash,
         grupo=grupo,
     )
-
 
 class AnalizadorPdfDocEmpresa:
     def __init__(self, ca_pem_path: str | None = None) -> None:
@@ -67,7 +65,7 @@ class AnalizadorPdfDocEmpresa:
                 )
             pades_ok = True
             entidad_emisora = pades.entidad_emisora
-            # Texto solo desde bytes cubiertos por la firma (ENTIRE_FILE).
+
             bytes_texto = pades.pdf_firmado_bytes or contenido
 
         try:
@@ -81,8 +79,7 @@ class AnalizadorPdfDocEmpresa:
                     "cifrado",
                     sha256_hash=sha256_hash,
                 )
-            # Si el stream firmado reconstruido no abre, usar PDF original
-            # solo cuando ya pasó ENTIRE_FILE (equivalente criptográfico).
+
             if tipo in TIPOS_PADES and pades_ok:
                 try:
                     texto, num_paginas, escaneo = extraer_texto_pdf(contenido)

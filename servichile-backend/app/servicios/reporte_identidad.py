@@ -22,7 +22,6 @@ from app.servicios.perfil import aplicar_perfil
 from app.servicios.progreso_cliente import ServicioProgresoCliente
 from app.tiempo import ahora_utc
 
-
 class ServicioReporteIdentidad(MezclaReporteEvidencias):
     def __init__(
         self,

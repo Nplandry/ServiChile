@@ -23,9 +23,8 @@ from app.configuracion import Configuracion
 
 log = logging.getLogger(__name__)
 
-
 def _exige_pago_publicacion(settings: Configuracion) -> bool:
-    """Pago obligatorio salvo pytest con APP_ENV=test (no basta APP_ENV=test solo)."""
+
     if os.environ.get("SERVICHILE_SKIP_PAGO_PUBLICACION") == "1":
         return False
     if settings.app_env == "test" and os.environ.get("PYTEST_CURRENT_TEST"):
@@ -95,7 +94,6 @@ NO_TITULAR_ELIMINAR = "Solo quien creó la empresa puede eliminarla."
 
 RUT_EN_USO = "Este RUT de empresa ya está registrado."
 
-
 def _opcion_query(valor: str | None, normalizar) -> str | None:
     try:
         return normalizar(valor)
@@ -103,7 +101,6 @@ def _opcion_query(valor: str | None, normalizar) -> str | None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, error.mensaje
         ) from None
-
 
 def _catalogo_query(valor: str | None, normalizar) -> str | None:
     if valor is None or not valor.strip():
@@ -114,7 +111,6 @@ def _catalogo_query(valor: str | None, normalizar) -> str | None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, error.mensaje
         ) from None
-
 
 @router.get("", response_model=list[NegocioEnMapaSalida])
 def listar(
@@ -170,12 +166,10 @@ def listar(
     )
     return payload
 
-
 @router.get("/mias", response_model=list[NegocioTitularSalida])
 def listar_mias(usuario: UsuarioActualDep, servicio: ServicioNegocioDep):
 
     return servicio.listar_mios(usuario.id)
-
 
 @router.post("", response_model=NegocioTitularSalida, status_code=status.HTTP_201_CREATED)
 def crear(
@@ -247,7 +241,7 @@ def crear(
     creado = None
     try:
         if buy_order:
-            # Una sola TX: reserva + ficha + consumo (sin commit intermedio).
+
             if exige_pago:
                 pagos_pub.reservar_para_alta(
                     usuario.id, buy_order, commit=False
@@ -291,9 +285,7 @@ def crear(
     invalidar_negocio(cache, creado.id if creado else None)
     return encolar_evaluador(background_tasks, creado.id, servicio=servicio) or creado
 
-
 DOCS_EMPRESA_POR_MINUTO = 10
-
 
 @router.post(
     "/{business_id}/documentos/{tipo}",
@@ -363,7 +355,6 @@ async def verificar_doc_empresa(
         servicio.respuesta_doc_empresa(actualizado, tipo_norm, resultado)
     )
 
-
 @router.delete(
     "/{business_id}/documentos/{tipo}",
     response_model=DocEmpresaSalida,
@@ -375,7 +366,7 @@ def revocar_doc_empresa(
     servicio: ServicioNegocioDep,
     cache: CacheRespuestaDep,
 ):
-    """Revoca un documento verificado (el titular debe revalidar subiendo otro PDF)."""
+
     exige_cuenta_proveedor(usuario)
     tipo_norm = (tipo or "").strip().lower()
     if tipo_norm not in TIPOS_PDF:
@@ -405,7 +396,6 @@ def revocar_doc_empresa(
         servicio.respuesta_doc_revocado(actualizado, tipo_norm)
     )
 
-
 @router.get("/{business_id}/reputation", response_model=ReputacionSalida)
 def reputacion(
     business_id: uuid.UUID,
@@ -416,10 +406,9 @@ def reputacion(
     cache: CacheRespuestaDep,
     settings: ConfiguracionDep,
 ):
-    """Público: teaser cacheable; compra/titular: desglose completo sin caché HTTP/Redis."""
+
     from app.dominio.transparencia.valoracion import teaser_observables_publico
 
-    # Respuesta varía por Authorization: nunca Cache-Control: public (CDN).
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Vary"] = "Authorization"
 
@@ -454,7 +443,7 @@ def reputacion(
             "docs_empresa": None,
         }
     )
-    # Redis solo guarda la vista pública (sin docs ni desglose completo).
+
     cache.guardar_json(
         clave,
         publico.model_dump(mode="json"),
@@ -463,9 +452,7 @@ def reputacion(
     response.headers["X-Cache"] = "MISS"
     return publico
 
-
 REFRESCO_EVALUADOR_POR_MINUTO = 5
-
 
 @router.post("/{business_id}/rater-refresh", response_model=ReputacionSalida)
 def refrescar_evaluador(
@@ -475,7 +462,7 @@ def refrescar_evaluador(
     limiter: LimiteSolicitudesDep,
     cache: CacheRespuestaDep,
 ):
-    """Re-evalúa Places / rastreador_web / ChileCompra y persiste el índice."""
+
     exige_cuenta_proveedor(usuario)
     if not limiter.permitir(
         f"refresco_evaluador:{usuario.id}:{business_id}", REFRESCO_EVALUADOR_POR_MINUTO
@@ -493,7 +480,6 @@ def refrescar_evaluador(
         ) from None
     invalidar_negocio(cache, business_id)
     return out
-
 
 @router.patch("/{business_id}/rut", response_model=NegocioTitularSalida)
 def actualizar_rut(
@@ -523,7 +509,6 @@ def actualizar_rut(
     if pendiente:
         return encolar_evaluador(background_tasks, business_id, servicio=servicio) or titular
     return titular
-
 
 @router.patch("/{business_id}", response_model=NegocioTitularSalida)
 def actualizar(
@@ -573,7 +558,6 @@ def actualizar(
     if pendiente:
         return encolar_evaluador(background_tasks, business_id, servicio=servicio) or titular
     return titular
-
 
 @router.delete("/{business_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar(

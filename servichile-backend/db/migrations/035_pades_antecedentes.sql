@@ -1,4 +1,4 @@
--- Metadatos de auditoría PAdES para certificado de antecedentes (sin retener PDF).
+
 ALTER TABLE usuarios
     ADD COLUMN IF NOT EXISTS antecedentes_pades boolean NOT NULL DEFAULT false;
 

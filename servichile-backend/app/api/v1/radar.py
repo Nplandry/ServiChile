@@ -1,4 +1,4 @@
-"""Entrega del informe comercial: requiere compra autorizada o ser titular."""
+
 
 from __future__ import annotations
 
@@ -20,7 +20,6 @@ router_radar = APIRouter(prefix="/v1/businesses", tags=["Radar"])
 
 _NO_ENCONTRADO = "Negocio no encontrado."
 _SIN_COMPRA = "Debe comprar el informe de proveedor para acceder."
-
 
 @router_radar.post(
     "/{business_id}/informe-riesgo",

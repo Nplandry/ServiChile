@@ -1,4 +1,4 @@
-"""Transparencia empresarial: un solo índice (señales + documentos)."""
+
 
 from app.dominio.transparencia.valoracion import (
     ValoracionDocumentos,

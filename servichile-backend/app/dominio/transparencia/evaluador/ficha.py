@@ -1,9 +1,4 @@
-"""Algoritmo de confianza de ficha (Google Places / identidad física).
 
-Prioridad: baja tasa de falsos positivos y falsos negativos.
-- FP: nunca puntuar una ficha de otra empresa (p.ej. Geodetec ≠ Gestech).
-- FN: si websiteUri = dominio de la empresa, aceptar aunque el nombre difiera un poco.
-"""
 
 from __future__ import annotations
 
@@ -12,7 +7,6 @@ import unicodedata
 from dataclasses import asdict, dataclass, field
 from typing import Any
 from urllib.parse import urlparse
-
 
 STOPWORDS = {
     "ltda",
@@ -88,11 +82,10 @@ CHILE_HINTS = (
     "o'higgins",
 )
 
-
 @dataclass
 class EvaluacionFicha:
     confiable: bool
-    confianza: float  # 0..1
+    confianza: float
     puntaje_coincidencia: int
     razones: list[str] = field(default_factory=list)
     nombre_lugar: str | None = None
@@ -107,11 +100,9 @@ class EvaluacionFicha:
     def a_dict(self) -> dict[str, Any]:
         return asdict(self)
 
-
 def _plegar(s: str) -> str:
     s = unicodedata.normalize("NFKD", s or "")
     return "".join(c for c in s if not unicodedata.combining(c)).lower()
-
 
 def _host(url: str | None) -> str:
     if not url:
@@ -122,7 +113,6 @@ def _host(url: str | None) -> str:
     host = (urlparse(u).netloc or "").removeprefix("www.")
     return host
 
-
 def raiz_dominio(dominio: str | None) -> str | None:
     host = _host(dominio) if dominio and "://" in (dominio or "") else (dominio or "").lower()
     host = host.removeprefix("www.").split("/")[0]
@@ -131,9 +121,8 @@ def raiz_dominio(dominio: str | None) -> str | None:
     stem = host.split(".")[0]
     return stem if len(stem) >= 3 else None
 
-
 def tokens_marca(nombre_empresa: str | None, dominio: str | None = None) -> list[str]:
-    """Tokens de marca distintivos; el stem del dominio va primero."""
+
     tokens: list[str] = []
     stem = raiz_dominio(dominio)
     if stem and stem not in STOPWORDS:
@@ -148,7 +137,6 @@ def tokens_marca(nombre_empresa: str | None, dominio: str | None = None) -> list
         if folded not in tokens:
             tokens.append(folded)
     return tokens
-
 
 def _levenshtein(a: str, b: str) -> int:
     if a == b:
@@ -166,9 +154,8 @@ def _levenshtein(a: str, b: str) -> int:
         prev = cur
     return prev[-1]
 
-
 def _similar_pero_distinto(a: str, b: str) -> bool:
-    """Detecta colisiones tipo gestech/geodetec (parecido ≠ mismo)."""
+
     if not a or not b or a == b:
         return False
     if a in b or b in a:
@@ -181,7 +168,6 @@ def _similar_pero_distinto(a: str, b: str) -> bool:
     ratio = dist / max(len(a), len(b))
     return 0.15 <= ratio <= 0.45
 
-
 def _tokens_nombre_lugar(pname: str) -> list[str]:
     return [
         t
@@ -189,9 +175,8 @@ def _tokens_nombre_lugar(pname: str) -> list[str]:
         if len(t) >= 3 and t not in STOPWORDS
     ]
 
-
 def afiliacion_nombre(tokens: list[str], place_name: str) -> tuple[bool, str]:
-    """Coincidencia fuerte de nombre: algún fragmento de marca aparece completo en displayName."""
+
     pname = _plegar(place_name)
     if not tokens or not pname:
         return False, "sin nombre Places o sin fragmentos"
@@ -203,7 +188,6 @@ def afiliacion_nombre(tokens: list[str], place_name: str) -> tuple[bool, str]:
             return True, f"fragmento '{tok}' como palabra en nombre Places"
     return False, f"ningún fragmento {tokens} en '{place_name}'"
 
-
 def detectar_colision_marca(tokens: list[str], place_name: str) -> bool:
     ptoks = _tokens_nombre_lugar(place_name)
     for tok in tokens:
@@ -212,16 +196,14 @@ def detectar_colision_marca(tokens: list[str], place_name: str) -> bool:
                 return True
     return False
 
-
 def dominios_coinciden(dominio_empresa: str, website_uri: str | None) -> bool:
-    """Match estricto de host (mismo sitio o subdominio)."""
+
     want = _host(dominio_empresa) or (dominio_empresa or "").lower().removeprefix("www.")
     got = _host(website_uri)
     if not want or not got:
         return False
     want = want.split("/")[0]
     return got == want or got.endswith("." + want)
-
 
 def puntuar_candidato_lugar(
     place: dict[str, Any],
@@ -231,7 +213,7 @@ def puntuar_candidato_lugar(
     comuna: str | None = None,
     ciudad: str | None = None,
 ) -> EvaluacionFicha:
-    """Evalúa un candidato Places y decide si la ficha es usable para scoring."""
+
     addr = (place.get("formattedAddress") or "").lower()
     web = (place.get("websiteUri") or "").lower()
     pname_raw = (place.get("displayName") or {}).get("text") or ""
@@ -352,7 +334,6 @@ def puntuar_candidato_lugar(
         colision_marca=colision_marca,
     )
 
-
 def elegir_lugar_confiable(
     places: list[dict[str, Any]],
     *,
@@ -361,7 +342,7 @@ def elegir_lugar_confiable(
     comuna: str | None = None,
     ciudad: str | None = None,
 ) -> tuple[dict[str, Any] | None, EvaluacionFicha]:
-    """Elige el mejor candidato; solo lo retorna si la ficha es confiable."""
+
     if not places:
         vacio = EvaluacionFicha(
             confiable=False,
@@ -398,7 +379,6 @@ def elegir_lugar_confiable(
     if not mejor_eval.confiable:
         return None, mejor_eval
     return mejor_lugar, mejor_eval
-
 
 FISICA_PARAM_IDS = (
     "fis_places_exists",

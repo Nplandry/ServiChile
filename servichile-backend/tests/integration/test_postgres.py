@@ -36,7 +36,6 @@ TABLAS = (
     "usuarios",
 )
 
-
 @pytest.fixture(scope="module")
 def engine():
 
@@ -72,7 +71,6 @@ def engine():
 
     eng.dispose()
 
-
 @pytest.fixture
 def db(engine):
 
@@ -83,7 +81,6 @@ def db(engine):
         c.execute(text("TRUNCATE " + ", ".join(TABLAS) + " CASCADE"))
 
     return Session
-
 
 @pytest.fixture
 def client(db):
@@ -106,7 +103,6 @@ def client(db):
 
     app.dependency_overrides.clear()
 
-
 def test_restricciones_email_minusculas(db):
 
     with db() as s:
@@ -120,7 +116,6 @@ def test_restricciones_email_minusculas(db):
             )
 
         s.rollback()
-
 
 def test_perfil_constraints_y_cascade(db):
 
@@ -148,7 +143,6 @@ def test_perfil_constraints_y_cascade(db):
         s.commit()
 
         assert s.scalar(text("select count(*) from perfiles")) == 0
-
 
 def test_registro_y_patch_perfil_en_postgres(client, db):
 
@@ -184,9 +178,8 @@ def test_registro_y_patch_perfil_en_postgres(client, db):
 
     assert tuple(fila) == (68, "persona")
 
-
 def test_indice_unico_compra_autorizada(db):
-    """049: solo una fila autorizada por (usuario, business)."""
+
     with db() as s:
         uid = s.scalar(
             text(

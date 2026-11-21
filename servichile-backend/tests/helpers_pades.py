@@ -1,4 +1,4 @@
-"""Helpers PAdES: CA de prueba + firma + vault temporal (ca_chile + test root)."""
+
 
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ from pyhanko.sign import signers
 from pyhanko.sign.signers.pdf_signer import PdfSignatureMetadata
 
 from app.infraestructura.trust_vault import ruta_ca_default
-
 
 def pdf_con_texto(texto: str) -> bytes:
     writer = PdfWriter()
@@ -47,13 +46,12 @@ def pdf_con_texto(texto: str) -> bytes:
     writer.write(buf)
     return buf.getvalue()
 
-
 def crear_ca_y_hoja(
     *,
     leaf_cn: str,
     leaf_org: str | None = None,
 ) -> tuple[bytes, bytes, bytes]:
-    """Devuelve (root_pem, leaf_cert_pem, leaf_key_pem)."""
+
     now = datetime.now(timezone.utc)
     root_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     root_name = x509.Name(
@@ -123,13 +121,11 @@ def crear_ca_y_hoja(
     )
     return root_pem, leaf_pem, key_pem
 
-
 def vault_con_raiz_prueba(destino: Path, root_pem: bytes) -> Path:
     base = ruta_ca_default()
     contenido = base.read_bytes() if base.is_file() else b""
     destino.write_bytes(contenido + b"\n" + root_pem)
     return destino
-
 
 def firmar_pdf_pades(
     pdf_bytes: bytes,

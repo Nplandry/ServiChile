@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
 
-
 def test_registro_normaliza_email_y_no_expone_hash(client: TestClient):
 
     r = client.post(
@@ -23,7 +22,6 @@ def test_registro_normaliza_email_y_no_expone_hash(client: TestClient):
 
     assert "password_hash" not in body
 
-
 def test_registro_duplicado(client: TestClient):
 
     datos = {
@@ -36,7 +34,6 @@ def test_registro_duplicado(client: TestClient):
     client.post("/v1/auth/registro", json=datos)
 
     assert client.post("/v1/auth/registro", json=datos).status_code == 409
-
 
 def test_registro_password_corta(client: TestClient):
 
@@ -52,7 +49,6 @@ def test_registro_password_corta(client: TestClient):
 
     assert r.status_code == 422
 
-
 def test_login_y_yo(client: TestClient, token: str):
 
     r = client.get("/v1/auth/yo", headers={"Authorization": f"Bearer {token}"})
@@ -60,7 +56,6 @@ def test_login_y_yo(client: TestClient, token: str):
     assert r.status_code == 200
 
     assert r.json()["email"] == "maria@servichile.cl"
-
 
 def test_login_password_incorrecta(client: TestClient, token: str):
 
@@ -70,7 +65,6 @@ def test_login_password_incorrecta(client: TestClient, token: str):
     )
 
     assert r.status_code == 401
-
 
 def test_login_email_inexistente_mismo_error(client: TestClient):
 
@@ -82,7 +76,6 @@ def test_login_email_inexistente_mismo_error(client: TestClient):
 
     assert r.json()["detail"] == "Correo o contraseña incorrectos."
 
-
 def test_token_invalido(client: TestClient):
 
     assert (
@@ -93,7 +86,6 @@ def test_token_invalido(client: TestClient):
     )
 
     assert client.get("/v1/auth/yo").status_code == 401
-
 
 def test_rate_limit_login(client: TestClient):
 

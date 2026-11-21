@@ -1,7 +1,4 @@
--- Intenta alinear FKs de compras_informe con el modelo ORM.
--- Si el rol no es owner de usuarios/business_entities, el ALTER fallará:
--- ejecutar como superuser o owner de esas tablas.
--- La app sigue validando integridad aunque fallen los FKs.
+
 
 DO $$
 BEGIN

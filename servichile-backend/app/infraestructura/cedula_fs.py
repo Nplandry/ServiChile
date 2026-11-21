@@ -1,4 +1,4 @@
-"""Almacén local de foto frontal de cédula (JPEG comprimido)."""
+
 
 from __future__ import annotations
 
@@ -17,7 +17,6 @@ from app.dominio.cedula import (
 )
 from app.dominio.errores import CedulaInvalida
 
-
 class AlmacenamientoCedulaLocal:
     def __init__(
         self,
@@ -32,7 +31,7 @@ class AlmacenamientoCedulaLocal:
         self.calidad_jpeg = min(95, max(50, int(calidad_jpeg)))
 
     def preparar_en_memoria(self, contenido: bytes) -> tuple[bytes, MetaCedula]:
-        """Comprime en memoria sin escribir a disco."""
+
         jpeg, ancho, alto = self._comprimir(contenido)
         meta = MetaCedula(
             ruta_relativa="",

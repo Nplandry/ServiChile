@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
 
-
 def test_ruta_inexistente_mensaje_personalizado(client: TestClient):
     r = client.get("/esta-ruta-no-existe")
     assert r.status_code == 404

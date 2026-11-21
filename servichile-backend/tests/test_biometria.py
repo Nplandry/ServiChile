@@ -10,13 +10,11 @@ def _jpeg(w: int = 120, h: int = 160, color=(30, 90, 160)) -> bytes:
     img.save(buf, format="JPEG", quality=85)
     return buf.getvalue()
 
-
 def test_biometria_requiere_sesion(client: TestClient):
     r = client.post(
         "/v1/perfil/biometria", files={"foto": ("a.jpg", _jpeg(), "image/jpeg")}
     )
     assert r.status_code == 401
-
 
 def test_biometria_guarda_archivo_comprimido(
     client: TestClient, token: str, biometria_dir: Path
@@ -48,10 +46,9 @@ def test_biometria_guarda_archivo_comprimido(
     assert despues["biometria_bytes"] == body["biometria_bytes"]
     assert despues["biometria_retener_hasta"]
 
-
 def test_biometria_png_tambien_pasa(client: TestClient, token: str):
-    png = _jpeg()  # el endpoint acepta imagen; usamos JPEG válido
-    # PNG real 64x64
+    png = _jpeg()
+
     img = Image.new("RGB", (64, 64), (200, 40, 40))
     buf = BytesIO()
     img.save(buf, format="PNG")
@@ -62,7 +59,6 @@ def test_biometria_png_tambien_pasa(client: TestClient, token: str):
     )
     assert r.status_code == 201, r.text
 
-
 def test_biometria_basura_da_422(client: TestClient, token: str):
     h = {"Authorization": f"Bearer {token}"}
     r = client.post(
@@ -71,7 +67,6 @@ def test_biometria_basura_da_422(client: TestClient, token: str):
         files={"foto": ("x.bin", b"no-es-imagen", "application/octet-stream")},
     )
     assert r.status_code == 422
-
 
 def test_biometria_reenvio_sobrescribe_archivo(
     client: TestClient, token: str, biometria_dir: Path
@@ -98,7 +93,6 @@ def test_biometria_reenvio_sobrescribe_archivo(
     assert sha2 != sha1
     perfil = client.get("/v1/perfil", headers=h).json()
     assert perfil["biometria_verificada"] is True
-
 
 def test_eliminar_cuenta_borra_selfie(
     client: TestClient, token: str, biometria_dir: Path

@@ -1,5 +1,4 @@
--- Tipos de cuenta: persona | contratista | proveedor
--- proveedor = antigua empresa; contratista y persona comparten funcionalidad.
+
 
 ALTER TABLE perfiles
     DROP CONSTRAINT IF EXISTS perfiles_tipo_cuenta_check;
