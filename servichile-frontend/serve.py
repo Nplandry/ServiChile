@@ -41,7 +41,6 @@ def main() -> None:
     args = parser.parse_args()
     httpd = ThreadingHTTPServer((args.bind, args.port), Handler)
     print(f"ServiChile frontend: http://localhost:{args.port}/index.html")
-    print(f"404 personalizado: {PAGE_404.name}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
