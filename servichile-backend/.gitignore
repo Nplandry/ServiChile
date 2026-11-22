@@ -5,6 +5,7 @@ __pycache__/
 .pytest_cache/
 data/
 var/
+db/migrations/
 *.pdf
 !docs/*.pdf
 .DS_Store

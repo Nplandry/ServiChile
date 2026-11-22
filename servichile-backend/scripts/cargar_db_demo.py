@@ -51,7 +51,7 @@ MIGRACIONES = [
     ROOT / "db" / "migrations" / "034_docs_empresa.sql",
     ROOT / "db" / "migrations" / "035_pades_antecedentes.sql",
     ROOT / "db" / "migrations" / "036_pades_trust_hashes.sql",
-    ROOT / "db" / "migrations" / "037_observables_json.sql",
+    ROOT / "db" / "migrations" / "037_observables_ciber_json.sql",
     ROOT / "db" / "migrations" / "038_final_score_permite_cero.sql",
     ROOT / "db" / "migrations" / "039_drop_is_verified_profile.sql",
     ROOT / "db" / "migrations" / "040_limpia_legacy_metricas_perfil.sql",

@@ -13,5 +13,6 @@
 **/node_modules/
 **/.vercel
 servichile-backend/data/
+servichile-backend/db/migrations/
 *.pdf
 !docs/**/*.pdf
