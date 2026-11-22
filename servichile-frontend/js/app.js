@@ -45,15 +45,17 @@ const Carga = {
     const query = q >= 0 ? src.slice(q) : '';
     const partes = Carga.PARTES[bare];
     if (!partes) return Carga._loadOne(src);
-    if (!Carga._jobs[src]) {
-      Carga._jobs[src] = (async function () {
+    // Clave distinta al script final: si usamos `src`, _loadOne(src) se espera a sí mismo.
+    const bundleKey = 'bundle:' + src;
+    if (!Carga._jobs[bundleKey]) {
+      Carga._jobs[bundleKey] = (async function () {
         for (let i = 0; i < partes.length; i++) {
           await Carga._loadOne(partes[i] + query);
         }
         await Carga._loadOne(src);
       })();
     }
-    return Carga._jobs[src];
+    return Carga._jobs[bundleKey];
   },
 
   async serie(srcs) {

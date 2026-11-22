@@ -1,4 +1,4 @@
-const CACHE_NAME = 'servichile-v219';
+const CACHE_NAME = 'servichile-v230';
 
 self.addEventListener('install', function () {
   self.skipWaiting();
