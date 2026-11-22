@@ -1,15 +1,57 @@
 const Carga = {
   _jobs: Object.create(null),
 
-  script(src) {
+  /** Partes a cargar antes de la fachada (mismo árbol js/modules/). */
+  PARTES: {
+    'js/modules/market-monetizacion.js': [
+      'js/modules/market-monetizacion-catalogo.js',
+      'js/modules/market-monetizacion-checkout.js',
+      'js/modules/market-monetizacion-entrega.js'
+    ],
+    'js/modules/perfil-empresa.js': [
+      'js/modules/perfil-empresa-pago.js',
+      'js/modules/perfil-empresa-form.js',
+      'js/modules/perfil-empresa-lista.js'
+    ],
+    'js/modules/subir-confianza.js': [
+      'js/modules/subir-confianza-estado.js',
+      'js/modules/subir-confianza-progreso.js',
+      'js/modules/subir-confianza-docs.js',
+      'js/modules/subir-confianza-identidad.js',
+      'js/modules/subir-confianza-ui.js'
+    ]
+  },
+
+  _loadOne(src) {
     if (!Carga._jobs[src]) {
       Carga._jobs[src] = new Promise(function (resolve, reject) {
         const el = document.createElement('script');
         el.src = src;
-        el.onload = function () { resolve(); };
-        el.onerror = function () { reject(new Error(src)); };
+        el.onload = function () {
+          resolve();
+        };
+        el.onerror = function () {
+          reject(new Error(src));
+        };
         document.body.appendChild(el);
       });
+    }
+    return Carga._jobs[src];
+  },
+
+  script(src) {
+    const q = src.indexOf('?');
+    const bare = q >= 0 ? src.slice(0, q) : src;
+    const query = q >= 0 ? src.slice(q) : '';
+    const partes = Carga.PARTES[bare];
+    if (!partes) return Carga._loadOne(src);
+    if (!Carga._jobs[src]) {
+      Carga._jobs[src] = (async function () {
+        for (let i = 0; i < partes.length; i++) {
+          await Carga._loadOne(partes[i] + query);
+        }
+        await Carga._loadOne(src);
+      })();
     }
     return Carga._jobs[src];
   },
