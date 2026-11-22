@@ -3234,6 +3234,21 @@ html.boot-authed .market-skyline {
   width: auto;
 }
 
+.perfil-empresa__form-status {
+  margin: var(--space-xs) 0 0;
+  min-height: 0;
+  color: var(--color-text-muted, #64748b);
+}
+
+.perfil-empresa__form-status:empty {
+  display: none;
+  margin: 0;
+}
+
+.perfil-empresa__form-status--error {
+  color: var(--color-danger, #b91c1c);
+}
+
 .perfil-empresa__resultados {
   display: grid;
   gap: 0.5rem;
@@ -5436,6 +5451,11 @@ body.reporte-qr-modal-open {
   border: 2px solid currentColor;
   border-radius: 50%;
   opacity: 0.7;
+}
+
+.auth__hero .auth-fig--ring.auth-fig--tl {
+  top: 2%;
+  left: -3.75rem;
 }
 
 .auth-fig--dot {

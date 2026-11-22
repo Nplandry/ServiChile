@@ -407,14 +407,7 @@ const PerfilEmpresa = {
         'text',
         'Calle, número, comuna o ciudad donde opera la empresa.'
       ),
-      PerfilEmpresa.campoTexto(
-        'peTelefono',
-        'Teléfono',
-        false,
-        30,
-        'tel',
-        'Móvil chileno con +56, p. ej. +56 9 1234 5678.'
-      ),
+      PerfilEmpresa.campoTexto('peTelefono', 'Teléfono', false, 30, 'tel'),
       PerfilEmpresa.campoTexto('peWeb', 'Sitio web', false, 200),
       PerfilEmpresa.campoRecurso(
         'peBanner',
@@ -472,6 +465,13 @@ const PerfilEmpresa = {
     cancelar.addEventListener('click', () => PerfilEmpresa.cerrarPanel());
     acciones.append(enviar, cancelar);
     form.appendChild(acciones);
+
+    const formStatus = document.createElement('p');
+    formStatus.id = 'perfilEmpresaFormStatus';
+    formStatus.className = 'status-text status-text--sm perfil-empresa__form-status';
+    formStatus.setAttribute('role', 'status');
+    formStatus.setAttribute('aria-live', 'polite');
+    form.appendChild(formStatus);
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -545,6 +545,8 @@ const PerfilEmpresa = {
     if (!datos) return null;
     if (datos.nombre.length < 2) {
       PerfilEmpresa.setStatus('Ingrese el nombre de la empresa.');
+      const peNombre = document.getElementById('peNombre');
+      if (peNombre) peNombre.focus();
       return null;
     }
     let rut_empresa = datos.rut_empresa;
@@ -553,15 +555,25 @@ const PerfilEmpresa = {
       (typeof Security !== 'undefined' && !Security.validateRut(rut_empresa))
     ) {
       PerfilEmpresa.setStatus('Ingrese un RUT de empresa válido, p. ej. 12.345.678-9.');
+      const peRutBad = document.getElementById('peRut');
+      if (peRutBad) {
+        peRutBad.setAttribute('aria-invalid', 'true');
+        peRutBad.focus();
+      }
       return null;
     }
     if (typeof Security !== 'undefined') {
       rut_empresa = Security.formatRut(rut_empresa);
       const peRut = document.getElementById('peRut');
-      if (peRut) peRut.value = rut_empresa;
+      if (peRut) {
+        peRut.value = rut_empresa;
+        peRut.removeAttribute('aria-invalid');
+      }
     }
     if (datos.direccion.length < 3) {
       PerfilEmpresa.setStatus('Ingrese la dirección de oficina.');
+      const peDir = document.getElementById('peDireccion');
+      if (peDir) peDir.focus();
       return null;
     }
     let telefono = (datos.telefono || '').trim();
@@ -1134,8 +1146,15 @@ const PerfilEmpresa = {
   },
 
   setStatus(msg) {
-    const el = document.getElementById('perfilEmpresaStatus');
-    if (el) el.textContent = msg || '';
+    const texto = msg || '';
+    const formEl = document.getElementById('perfilEmpresaFormStatus');
+    const globalEl = document.getElementById('perfilEmpresaStatus');
+    const destino = formEl || globalEl;
+    if (destino) destino.textContent = texto;
+    if (formEl && globalEl) globalEl.textContent = '';
+    if (formEl) {
+      formEl.classList.toggle('perfil-empresa__form-status--error', !!texto);
+    }
   },
 
   pintarCargaMias(host, texto) {

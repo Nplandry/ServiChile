@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Informe técnico: Backend ServiChile</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800&display=swap');
+:root {
+  --brand: #2563EB;
+  --brand-dark: #1E40AF;
+  --brand-light: #3B82F6;
+  --brand-soft: #EFF6FF;
+  --brand-mid: #DBEAFE;
+  --ink: #0F172A;
+  --muted: #64748B;
+  --line: #93C5FD;
+  --paper: #ffffff;
+  --bg: #F1F5F9;
+  --shadow: 0 18px 50px rgba(30, 64, 175, 0.14);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: "Source Sans 3", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(900px 420px at 100% 0%, rgba(37,99,235,.08), transparent 55%), var(--bg);
+  line-height: 1.7;
+  font-size: 17px;
+  position: relative;
+}
+.page-skyline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(88vh, 920px);
+  z-index: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 0 4px;
+  pointer-events: none;
+  opacity: 0.12;
+}
+.page-skyline span {
+  display: block;
+  position: relative;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #93C5FD 0%, #3B82F6 45%, #1E40AF 100%);
+  border-radius: 2px 2px 0 0;
+  margin-right: 4px;
+}
+.page-skyline span::before {
+  content: "";
+  position: absolute;
+  inset: 10% 16% auto;
+  height: 60%;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,.4) 0 2px,
+    transparent 2px 9px
+  ),
+  repeating-linear-gradient(
+    to right,
+    rgba(255,255,255,.3) 0 2px,
+    transparent 2px 8px
+  );
+  opacity: 0.5;
+  pointer-events: none;
+}
+.page-skyline span:nth-child(1) { width: 22px; height: 18%; margin-right: 13px; }
+.page-skyline span:nth-child(2) { width: 78px; height: 71%; margin-right: 2px; }
+.page-skyline span:nth-child(3) { width: 31px; height: 39%; margin-right: 17px; }
+.page-skyline span:nth-child(4) { width: 112px; height: 94%; margin-right: 1px; border-radius: 7px 1px 0 0; }
+.page-skyline span:nth-child(5) { width: 18px; height: 26%; margin-right: 9px; }
+.page-skyline span:nth-child(6) { width: 64px; height: 58%; margin-right: 4px; }
+.page-skyline span:nth-child(7) { width: 43px; height: 14%; margin-right: 21px; opacity: 0.72; }
+.page-skyline span:nth-child(8) { width: 97px; height: 86%; margin-right: 2px; }
+.page-skyline span:nth-child(9) { width: 27px; height: 47%; margin-right: 11px; }
+.page-skyline span:nth-child(10) { width: 129px; height: 100%; margin-right: 3px; border-radius: 2px 8px 0 0; }
+.page-skyline span:nth-child(11) { width: 36px; height: 33%; margin-right: 15px; }
+.page-skyline span:nth-child(12) { width: 71px; height: 77%; margin-right: 1px; }
+.page-skyline span:nth-child(13) { width: 15px; height: 22%; margin-right: 8px; }
+.page-skyline span:nth-child(14) { width: 88px; height: 63%; margin-right: 5px; border-radius: 0; }
+.page-skyline span:nth-child(15) { width: 49px; height: 41%; margin-right: 19px; }
+.page-skyline span:nth-child(16) { width: 104px; height: 91%; margin-right: 2px; }
+.page-skyline span:nth-child(17) { width: 24px; height: 29%; margin-right: 12px; }
+.page-skyline span:nth-child(18) { width: 57px; height: 52%; margin-right: 6px; }
+.page-skyline span:nth-child(19) { width: 33px; height: 11%; margin-right: 16px; opacity: 0.68; }
+.page-skyline span:nth-child(20) { width: 119px; height: 82%; margin-right: 1px; border-radius: 5px 0 0 0; }
+.page-skyline span:nth-child(21) { width: 41px; height: 45%; margin-right: 10px; }
+.page-skyline span:nth-child(22) { width: 20px; height: 35%; margin-right: 14px; }
+.page-skyline span:nth-child(23) { width: 93px; height: 69%; margin-right: 3px; }
+.page-skyline span:nth-child(24) { width: 62px; height: 24%; margin-right: 18px; }
+.page-skyline span:nth-child(25) { width: 136px; height: 97%; margin-right: 2px; border-radius: 1px 6px 0 0; }
+.page-skyline span:nth-child(26) { width: 29px; height: 37%; margin-right: 7px; }
+.page-skyline span:nth-child(27) { width: 81px; height: 74%; margin-right: 4px; }
+.page-skyline span:nth-child(28) { width: 17px; height: 16%; margin-right: 20px; opacity: 0.7; }
+.page-skyline span:nth-child(29) { width: 108px; height: 88%; margin-right: 1px; }
+.page-skyline span:nth-child(30) { width: 46px; height: 43%; margin-right: 0; }
+.cover {
+  min-height: 100vh;
+  display: block;
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  color: #0F172A;
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(37,99,235,.22), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 0% 100%, rgba(30,64,175,.12), transparent 50%),
+    linear-gradient(160deg, #F8FBFF 0%, #EFF6FF 45%, #DBEAFE 100%);
+}
+.cover-stage {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(48px, 8vh, 96px) clamp(22px, 5vw, 48px) 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+}
+.cover-copy {
+  max-width: 100%;
+  width: 100%;
+}
+.cover-index {
+  width: 100%;
+  margin: 20px 0 28px;
+  font-family: "Source Sans 3", sans-serif;
+}
+.cover-rating {
+  display: flex;
+  align-items: center;
+  margin: 0 0 16px;
+  opacity: 0.45;
+}
+.cover-rating__stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cover-rating__stars svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  color: #2563EB;
+}
+.cover-rating__stars svg:nth-child(1) { opacity: 0.9; }
+.cover-rating__stars svg:nth-child(2) { opacity: 0.82; }
+.cover-rating__stars svg:nth-child(3) { opacity: 0.74; }
+.cover-rating__stars svg:nth-child(4) { opacity: 0.66; }
+.cover-rating__stars svg:nth-child(5) { opacity: 0.58; }
+.cover-rating__stars svg:nth-child(6) { opacity: 0.48; }
+.cover-rating__stars svg:nth-child(7) { opacity: 0.38; }
+.cover-rating__stars svg:nth-child(8) { opacity: 0.28; }
+.cover-rating__stars svg:nth-child(9) { opacity: 0.18; }
+.cover-rating__stars svg:nth-child(10) { opacity: 0.1; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(1) { opacity: 0.72; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(2) { opacity: 0.64; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(3) { opacity: 0.56; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(4) { opacity: 0.48; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(5) { opacity: 0.4; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(6) { opacity: 0.33; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(7) { opacity: 0.26; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(8) { opacity: 0.2; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(9) { opacity: 0.14; }
+.cover-index .indice-desglose__lista > .indice-desglose__item:nth-child(10) { opacity: 0.08; }
+.cover-index .market__card-score--detalle {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: #EFF6FF;
+  border-radius: 8px;
+}
+.cover-index .market__card-score--detalle strong {
+  font-size: 1.25rem;
+  color: #2563EB;
+}
+.cover-index .market__card-score-lbl {
+  display: block;
+  font-size: 0.72rem;
+  color: #64748B;
+  line-height: 1.25;
+}
+.cover-index .indice-desglose {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  width: 100%;
+}
+.cover-index .indice-desglose__titulo {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+.cover-index .indice-desglose__cabecera {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1E40AF, #2563EB);
+  color: #fff;
+}
+.cover-index .indice-desglose__cabecera .indice-desglose__pista {
+  height: 1.05rem;
+}
+.cover-index .indice-desglose__item {
+  display: grid;
+  gap: 0.35rem;
+}
+.cover-index .indice-desglose__cabezal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+}
+.cover-index .indice-desglose__nombre {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+.cover-index .indice-desglose__cabecera .indice-desglose__nombre,
+.cover-index .indice-desglose__cabecera .indice-desglose__barra-lab {
+  color: #fff;
+}
+.cover-index .indice-desglose__cabecera .indice-desglose__barra-lab {
+  opacity: 0.9;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.cover-index .indice-desglose__barras {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+.cover-index .indice-desglose__barra-fila {
+  display: grid;
+  gap: 0.2rem;
+}
+.cover-index .indice-desglose__pista {
+  height: 0.85rem;
+  border-radius: 999px;
+  background: #EFF6FF;
+  overflow: hidden;
+}
+.cover-index .indice-desglose__cabecera .indice-desglose__pista {
+  background: rgba(15, 23, 42, 0.28);
+}
+.cover-index .indice-desglose__barra {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #64748b, #94a3b8);
+}
+.cover-index .indice-desglose__barra--nucleo {
+  background: linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,.8));
+}
+.cover-index .indice-desglose__barra--docs {
+  background: linear-gradient(90deg, #1e3a8a, #2563EB);
+}
+.cover-index .indice-desglose__barra--plataforma {
+  background: linear-gradient(90deg, #1E40AF, #2563EB);
+}
+.cover-index .indice-desglose__barra--ciber {
+  background: linear-gradient(90deg, #1e3a8a, #2563EB);
+}
+.cover-index .indice-desglose__barra--contractual {
+  background: linear-gradient(90deg, #0f766e, #14b8a6);
+}
+.cover-index .indice-desglose__barra--operativa {
+  background: linear-gradient(90deg, #b45309, #D97706);
+}
+.cover-index .indice-desglose__barra--legal {
+  background: linear-gradient(90deg, #1E40AF, #3B82F6);
+}
+.cover-index .indice-desglose__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.cover-index .indice-desglose__filtro {
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #93C5FD;
+  border-radius: 999px;
+  background: #fff;
+  color: #0F172A;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.cover-index .indice-desglose__filtro--on {
+  color: #fff;
+  background: #2563EB;
+  border-color: #2563EB;
+}
+.cover-index .indice-desglose__filtro--todos {
+  color: #0f766e;
+  border-color: #99f6e4;
+  background: #f0fdfa;
+}
+.cover-index .indice-desglose__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+.cover-index .indice-desglose__meta {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2563EB;
+  white-space: nowrap;
+}
+.cover-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 18px;
+  font-family: "Source Sans 3", sans-serif;
+}
+.cover-brand .brand__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(2.75rem, 5vw, 3.5rem);
+  height: clamp(2.75rem, 5vw, 3.5rem);
+  background-color: #2563EB;
+  color: #ffffff;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+  flex: 0 0 auto;
+}
+.cover-brand .brand__title {
+  margin: 0;
+  font-size: clamp(2rem, 4.5vw, 3.25rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: #2563EB;
+}
+.brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Source Sans 3", sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #2563EB;
+  color: #fff;
+  border: 2px solid #1E40AF;
+  width: fit-content;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 20px rgba(37,99,235,.22);
+}
+.brand-pill::before {
+  content: "";
+  width: 8px; height: 8px;
+  border-radius: 999px;
+  background: #93C5FD;
+  box-shadow: 0 0 0 4px rgba(147,197,253,.3);
+}
+.cover h1 {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: clamp(22px, 3vw, 36px);
+  line-height: 1.15;
+  margin: 0 0 14px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #0B1F4D;
+  max-width: none;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .cover h1 { white-space: normal; }
+}
+.cover .cover-stack {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: clamp(16px, 2vw, 20px);
+  font-weight: 600;
+  color: #334155;
+  margin: 0 0 8px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.cover .subtitle {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: clamp(14px, 1.6vw, 17px);
+  font-weight: 500;
+  color: #64748B;
+  margin: 0 0 20px;
+  max-width: 36ch;
+}
+@media (max-width: 720px) {
+  .cover .cover-stack { white-space: normal; }
+}
+.cover-autor {
+  margin: 8px 0 0;
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748B;
+  line-height: 1.45;
+}
+.cover-repo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  margin: 4px 0 0;
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748B;
+  line-height: 1.45;
+}
+.cover-repo span {
+  margin: 0;
+}
+.cover-repo__github {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+.cover-repo__github:hover,
+.cover-repo__github:focus-visible {
+  color: #0B1F4D;
+  outline: none;
+}
+.cover-repo__github svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.cover-footer {
+  position: relative;
+  z-index: 1;
+  padding: 14px clamp(22px, 5vw, 48px) 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #1E40AF;
+  font-size: 13px;
+  font-family: "Source Sans 3", sans-serif;
+  border-top: 1px solid rgba(37,99,235,.18);
+  background: rgba(255,255,255,.55);
+}
+.wrap {
+  max-width: 960px;
+  margin: 48px auto 0;
+  padding: 0 clamp(16px, 4vw, 24px) 88px;
+  position: relative;
+  z-index: 1;
+}
+.doc {
+  position: relative;
+  z-index: 1;
+  background: var(--paper);
+  border: 1px solid var(--brand-mid);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  padding: clamp(26px, 4vw, 52px);
+}
+h2 {
+  font-family: "Source Sans 3", sans-serif;
+  color: var(--brand-dark);
+  font-size: clamp(22px, 2.5vw, 30px);
+  margin: 46px 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 3px solid var(--brand);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+h2:first-child { margin-top: 0; }
+h3 {
+  font-family: "Source Sans 3", sans-serif;
+  color: var(--brand);
+  font-size: 1.2rem;
+  margin: 30px 0 10px;
+}
+h4 {
+  font-family: "Source Sans 3", sans-serif;
+  color: var(--brand-dark);
+  margin: 22px 0 8px;
+}
+p { margin: 0 0 14px; }
+code, pre, kbd, samp { font-family: "Source Sans 3", sans-serif; }
+.divider {
+  border: 0;
+  border-top: none;
+  margin: 30px 0;
+}
+.brand-ol {
+  list-style: none;
+  margin: 12px 0 22px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.brand-ol li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  background: linear-gradient(180deg, #F8FBFF, var(--brand-soft));
+  border: 1px solid var(--brand-mid);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.brand-ol .num {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.05rem;
+  height: 2.05rem;
+  padding: 0 .4rem;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-family: "Source Sans 3", sans-serif;
+  font-weight: 800;
+  font-size: 0.9rem;
+  line-height: 1;
+  border: 2px solid var(--brand-dark);
+  box-shadow: 0 6px 14px rgba(37,99,235,.28);
+}
+.brand-ol .li-text { padding-top: 2px; }
+.brand-ol .brand-ol { margin: 12px 0 4px; }
+.table-wrap {
+  overflow-x: auto;
+  margin: 14px 0 24px;
+  border-radius: 14px;
+  border: 1px solid var(--brand-mid);
+  box-shadow: 0 8px 24px rgba(37,99,235,.06);
+}
+.table-wrap--api {
+  overflow-x: hidden;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  min-width: 560px;
+}
+.table-wrap--api table {
+  min-width: 0;
+  table-layout: fixed;
+  font-size: 0.78rem;
+}
+.table-wrap--api th,
+.table-wrap--api td {
+  padding: 8px 7px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+.table-wrap--api th:nth-child(1),
+.table-wrap--api td:nth-child(1) { width: 9%; }
+.table-wrap--api th:nth-child(2),
+.table-wrap--api td:nth-child(2) { width: 22%; }
+.table-wrap--api th:nth-child(3),
+.table-wrap--api td:nth-child(3) { width: 10%; }
+.table-wrap--api th:nth-child(4),
+.table-wrap--api td:nth-child(4) { width: 33%; }
+.table-wrap--api th:nth-child(5),
+.table-wrap--api td:nth-child(5) { width: 14%; }
+.table-wrap--api th:nth-child(6),
+.table-wrap--api td:nth-child(6) { width: 12%; }
+th {
+  font-family: "Source Sans 3", sans-serif;
+  background: var(--brand);
+  color: #fff;
+  text-align: left;
+  padding: 12px 13px;
+  font-weight: 700;
+}
+td {
+  padding: 11px 13px;
+  border-top: 1px solid var(--brand-mid);
+  vertical-align: top;
+}
+tbody tr:nth-child(even) { background: var(--brand-soft); }
+.img-note {
+  color: var(--muted);
+  font-style: italic;
+  background: var(--brand-soft);
+  border-left: 4px solid var(--brand);
+  padding: 10px 14px;
+  border-radius: 0 12px 12px 0;
+}
+.figure {
+  margin: 18px 0 28px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--brand-mid);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(37,99,235,.08);
+}
+.figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  background: #fff;
+}
+.figure-er {
+  overflow: hidden;
+}
+.figure-er .er-scroll {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 640px;
+  border-radius: 10px;
+  background: #fff;
+  scrollbar-color: var(--brand) var(--brand-soft);
+}
+.figure-er img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-width: 0;
+  border-radius: 8px;
+  image-rendering: -webkit-optimize-contrast;
+  cursor: zoom-in;
+}
+.figure-er.is-zoomed .er-scroll {
+  max-height: min(80vh, 820px);
+}
+.figure-er.is-zoomed img {
+  width: 220%;
+  max-width: none;
+  cursor: zoom-out;
+}
+.figure figcaption {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 10px;
+  text-align: center;
+}
+.img-credit {
+  margin: 6px 0 18px;
+  text-align: right;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.setup {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 22px;
+}
+.setup__intro {
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+.setup__block {
+  border: 1px solid var(--brand-mid);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #F8FBFF, #EFF6FF);
+  overflow: hidden;
+}
+.setup__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--brand-mid);
+  background: #fff;
+}
+.setup__n {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  border: 2px solid var(--brand-dark);
+}
+.setup__label {
+  margin: 0;
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+.setup__cmd {
+  margin: 0;
+  padding: 12px 14px;
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #E2E8F0;
+  background: #0F172A;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.setup__note {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  color: #1E293B;
+  background: #fff;
+  border-top: none;
+}
+.setup__section {
+  margin: 18px 0 8px;
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+@media print {
+  .cover { min-height: auto; page-break-after: always; }
+  .cover-stage { min-height: auto; }
+  .wrap { margin-top: 0; }
+  body { background: #fff; }
+  .doc { box-shadow: none; border: none; }
+  .figure-er .er-scroll { max-height: none; overflow: visible; }
+  .figure-er img,
+  .figure-er.is-zoomed img { width: 100%; max-width: 100%; }
+}
+
+.dir-tree-wrap {
+  margin: 14px 0 18px;
+  overflow: visible;
+  border: 1px solid var(--brand-mid);
+  border-radius: 6px;
+  background: #0F172A;
+}
+.dir-tree {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #E2E8F0;
+  white-space: pre;
+}
+</style>
+</head>
+<body>
+<div class="page-skyline" aria-hidden="true">
+  <span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span>
+</div>
+<header class="cover">
+  <div class="cover-stage">
+    <div class="cover-copy">
+      <div class="cover-brand">
+        <span class="brand__mark">S</span>
+        <span class="brand__title">ServiChile</span>
+      </div>
+      <h1>Informe técnico: Backend ServiChile</h1>
+      <p class="cover-stack">API Python 3.12, FastAPI, PostgreSQL, Redis, monolito modular por capas</p>
+      <p class="subtitle">Transparencia de proveedores B2B</p>
+      <div class="cover-repo">
+        <span>Repositorio de código: ServiChile</span>
+        <a class="cover-repo__github" href="https://github.com/Nplandry/ServiChile" target="_blank" rel="noopener noreferrer" aria-label="GitHub ServiChile">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.29 0 .32.22.7.83.58A12.01 12.01 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        </a>
+      </div>
+      <p class="cover-autor">Autor del Documento: Nicolas Poblete Landry</p>
+    </div>
+    <aside class="cover-index" aria-hidden="true">
+      <div class="cover-rating">
+        <div class="cover-rating__stars" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.4 6.5L12 16.9 5.99 20.3l1.4-6.5L2.5 9.3l6.6-.7L12 2.5z"/></svg>
+        </div>
+      </div>
+      <section class="indice-desglose">
+        <ul class="indice-desglose__lista">
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--docs" style="width:91%"></span></div>
+          </li>
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--plataforma" style="width:74%"></span></div>
+          </li>
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--operativa" style="width:86%"></span></div>
+          </li>
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--legal" style="width:64%"></span></div>
+          </li>
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--contractual" style="width:69%"></span></div>
+          </li>
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--ciber" style="width:58%"></span></div>
+          </li>
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--docs" style="width:81%"></span></div>
+          </li>
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--plataforma" style="width:47%"></span></div>
+          </li>
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--operativa" style="width:73%"></span></div>
+          </li>
+          <li class="indice-desglose__item">
+            <div class="indice-desglose__pista"><span class="indice-desglose__barra indice-desglose__barra--legal" style="width:55%"></span></div>
+          </li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+</header>
+<main class="wrap">
+  <article class="doc">
+<h2 id="índice">Índice</h2>
+<ol class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text">Introducción</span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text">Resumen del sistema</span></li><li><span class="num" aria-hidden="true">3</span><span class="li-text">Trazabilidad respecto del Hito 1</span></li><li><span class="num" aria-hidden="true">4</span><span class="li-text">Decisiones tecnológicas</span></li><li><span class="num" aria-hidden="true">5</span><span class="li-text">Arquitectura: monolito modular por capas</span></li><li><span class="num" aria-hidden="true">6</span><span class="li-text">Separación de responsabilidades y capas</span></li><li><span class="num" aria-hidden="true">7</span><span class="li-text">Diseño de la API REST</span></li><li><span class="num" aria-hidden="true">8</span><span class="li-text">Persistencia y modelo de datos</span></li><li><span class="num" aria-hidden="true">9</span><span class="li-text">Redis: caché, límites y estado operativo</span></li><li><span class="num" aria-hidden="true">10</span><span class="li-text">Configuración y credenciales</span></li><li><span class="num" aria-hidden="true">11</span><span class="li-text">Instalación local y verificación operativa</span></li><li><span class="num" aria-hidden="true">12</span><span class="li-text">Validaciones, errores y seguridad</span></li><li><span class="num" aria-hidden="true">13</span><span class="li-text">Referencias técnicas</span></li><li><span class="num" aria-hidden="true">14</span><span class="li-text">Anexos</span></li></ol>
+<h2 id="audiencia">Audiencia</h2>
+<p>El documento sirve como referencia de implementación, mantenimiento y consumo de la API y está pensado para:</p>
+<ol class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text">Desarrolladores de Software e Ingenieros de Back-End.</span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text">Ingenieros o analistas de Datos y DBA.</span></li><li><span class="num" aria-hidden="true">3</span><span class="li-text">Ingenieros de DevOps.</span></li><li><span class="num" aria-hidden="true">4</span><span class="li-text">Ingenieros de QA y Testing.</span></li></ol>
+<h2 id="1-introducción">1. Introducción</h2>
+<h3>1.1 Propósito y alcance</h3>
+<p>Este documento especifica el componente backend de ServiChile. Una plataforma B2B para verificación y transparencia entre proveedores, contratistas y personas naturales. Describe decisiones de ingeniería, arquitectura en capas, contrato REST, modelo PostgreSQL, gestión de secretos, instalación local y criterios de verificación operativa.</p>
+<p>Este documento solo abarca el sistema técnico y su contexto operativo. Quedan fuera las estrategias comerciales y de precios.</p>
+<h3>1.2 Supuestos</h3>
+<ul class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text">PostgreSQL en la máquina de desarrollo.</span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text">Redis en la máquina de desarrollo.</span></li><li><span class="num" aria-hidden="true">3</span><span class="li-text">Esquema creado con un script de inicializacion SQL.</span></li><li><span class="num" aria-hidden="true">4</span><span class="li-text">Cliente y servidor desacoplados: la PWA consume al servidor por HTTP.</span></li><li><span class="num" aria-hidden="true">5</span><span class="li-text">Control de versiones Git y artefactos en el monorepo ServiChile.</span></li></ul>
+<h2 id="2-resumen-del-sistema">2. Resumen del sistema</h2>
+<p><strong>ServiChile</strong> es un monolito modular por capas. Se despliega en un único proceso, lo que simplifica la operación y el manejo de transacciones locales, mientras mantiene su código estrictamente separado por responsabilidades para asegurar que sea legible, funcional, desacoplado, escalable y fácil de probar.</p>
+<p>El sistema centraliza la autenticación, la autorización, la persistencia y las reglas de negocio sobre cuentas, verificación de identidad y documentos, empresas, índices, trabajos, pagos con Webpay y reportes. Todas estas funcionalidades se exponen mediante una API versionada y documentada a través de OpenAPI.</p>
+<p><strong>Qué puede hacer el backend</strong></p>
+<div class="table-wrap"><table><thead><tr><th>Capacidad</th><th>En la práctica</th></tr></thead><tbody><tr><td>Cuentas y perfil</td><td>Crear cuenta, iniciar sesión y completar el perfil según tipo_cuenta (persona, contratista o proveedor).</td></tr><tr><td>Verificación de identidad y documentos</td><td>Subir selfie, cédula y aval de la persona, y PDF de documentos con comprobación de la firma digital y parámetros propios de verificación.</td></tr><tr><td>Empresas en el directorio</td><td>Crear, editar o borrar la ficha de un proveedor, y agregarla en el mapa.</td></tr><tr><td>Índice del proveedor</td><td>Guardar y mostrar un puntaje de transparencia basado en sitio web, Places, ChileCompra, documentos validados, entre otros.</td></tr><tr><td>Trabajos</td><td>Abrir, concretar o cancelar un trabajo entre persona y proveedor.</td></tr><tr><td>Pagos</td><td>Sistema de pagos con Webpay integrado. Tras pagar, el acceso queda persistido en la cuenta.</td></tr><tr><td>Generación de reportes</td><td>Emitir y validar un reporte de confianza de corta duración.</td></tr></tbody></table></div>
+<p>Preguntas que el sistema responde con evidencia:</p>
+<ol class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text"><strong>Quién es la persona.</strong></span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text"><strong>Si su conducta respalda lo declarado.</strong></span></li><li><span class="num" aria-hidden="true">3</span><span class="li-text"><strong>Qué tan transparente es el proveedor (score e indicadores medibles).</strong></span></li></ol>
+<h3>2.1 Validación de identidad y documentos</h3>
+<p>El sistema implementa cuatro flujos deterministas para verificar identidad y respaldo documental de usuarios y empresas. Mediante OCR, comparación biométrica y validación de firmas PAdES (PDF Advanced Electronic Signatures), se extrae evidencia verificable minimizando la retención de archivos sensibles en disco.</p>
+<div class="table-wrap"><table><thead><tr><th>Flujo</th><th>Entrada</th><th>Comportamiento</th><th>Retención</th></tr></thead><tbody><tr><td>Biometría</td><td>POST /v1/perfil/biometria</td><td>JPEG comprimido y metadata</td><td>Se retiene el equipo del cliente.</td></tr><tr><td>Cédula</td><td>POST /v1/perfil/cedula</td><td>OCR, RUT en carnet comprobado y face-match contra la selfie</td><td>Foto del carnet no se retiene</td></tr><tr><td>Aval</td><td>POST /v1/perfil/aval</td><td>Reglas personalizada por tipo de documentos(carta, boleta, póliza, etc)</td><td>PDF no se retiene</td></tr><tr><td>Docs empresa</td><td>POST de documentos por tipo</td><td>PDF textual o PAdES (PDF Advanced Electronic Signatures)</td><td>Hashes antireproducción</td></tr></tbody></table></div>
+<h3>2.2 Tipos de cuenta</h3>
+<p>Cada usuario autenticado tiene un perfil. El valor se fija al registrarse y condiciona la autorización en la capa de servicios. Los valores válidos son:</p>
+<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Rol en la plataforma</th></tr></thead><tbody><tr><td>persona</td><td>Cuenta de persona natural. Completa verificación personal, abre trabajos y compra el informe provedores.</td></tr><tr><td>contratista</td><td>Misma base de permisos API que persona, orientada a quien contrata servicios.</td></tr><tr><td>proveedor</td><td>Puede crear y administrar fichas en el directorio, cargar documentos legales de empresa y pagar la publicación con Webpay.</td></tr></tbody></table></div>
+<h2 id="3-trazabilidad-respecto-a-la-propuesta-inicial">3. Trazabilidad respecto a la Propuesta Inicial</h2>
+<h3>Qué cambió</h3>
+<p>En el Hito 1, el eje de la plataforma era un asistente conversacional basado en IA generativa para orientar al usuario ante temas legales y contractuales. Tras la retroalimentación recibida, se cuestionó tanto la justificación real de usar LLMs como el riesgo regulatorio y de seguridad que implicaba enviar datos personales y tributarios a proveedores externos de IA.</p>
+<p>Como resultado, se eliminó la dependencia de IA generativa y se rediseñó el producto en torno a un catálogo B2B donde la plataforma permite encontrar al proveedor más adecuado y resuelve con datos duros, verificación documental y trazabilidad criptográfica el riesgo de contratar y confiar en posibles proveedores.</p>
+<h3>Por qué se realizó este ajuste</h3>
+<p>La pregunta operativa dejó de ser "cómo asesorar mediante informacion legal" para pasar a ser "cómo validar la identidad, conducta y solvencia de una contraparte antes de cerrar un trato, ir a terreno o publicarse en el catálogo".</p>
+<p>Este cambio exigió reemplazar respuestas probabilísticas de un modelo de lenguaje por métricas deterministas y auditables:</p>
+<ul class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text"><strong>Índice de Transparencia:</strong> Scoring automático con datos verificables (Web, documentos oficiales, Google Places y ChileCompra) para filtrar proveedores.</span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text"><strong>Trazabilidad QR:</strong> Validación de identidad y cierre de trabajos concretados para evitar reseñas falsas.</span></li><li><span class="num" aria-hidden="true">3</span><span class="li-text"><strong>Monetización Freemium:</strong> Acceso público gratuito. Cobros únicos sin comisiones ni suscripciones:<ol class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text">Informe ($9.990 CLP)</span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text">Publicación de ficha ($8.990 CLP).</span></li></ol></span></li></ul>
+<h3>4.1 Lenguaje y base de datos</h3>
+<div class="table-wrap"><table><thead><tr><th>Tecnología</th><th>Versión</th><th>Por qué</th></tr></thead><tbody><tr><td>Python</td><td>3.12</td><td>Ecosistema maduro para archivos, índices, datos internos y HTTP. Menor barrera de entrada del equipo para trabajar en el dominio y capas con el criterio adecuado. Juega en contra menor paralelismo de CPU y menos estructura rígida que Java y TypeScript. Python lo compensa con I/O asíncrono y tipado opcional en algunos casos.</td></tr><tr><td>PostgreSQL</td><td>16</td><td>UUID, JSONB del índice, FK y unicidad de RUT. Se descartó SQLite por concurrencia y MySQL ya que el sistema se alineaba mas con el uso de JSONB para filtrar e indexar estructuras variables <strong>(Python Software Foundation, n.d.-a; PostgreSQL Global Development Group, n.d.-b)</strong>.</td></tr></tbody></table></div>
+<h3>4.2 Frameworks y librerías del runtime</h3>
+<div class="table-wrap"><table><thead><tr><th>Paquete</th><th>Versión</th><th>Rol y motivo</th></tr></thead><tbody><tr><td>fastapi</td><td>0.162.0</td><td>Framework web de la API. OpenAPI automático, Depends y ASGI.</td></tr><tr><td>uvicorn[standard]</td><td>0.54.0</td><td>Servidor ASGI para correr FastAPI en local y en despliegue.</td></tr><tr><td>pydantic</td><td>2.14.2</td><td>Validación de cuerpos y respuestas HTTP. Tipado estricto del contrato.</td></tr><tr><td>pydantic-settings</td><td>2.16.2</td><td>Carga tipada de variables de entorno sin secretos en el código.</td></tr><tr><td>email-validator</td><td>2.3.0</td><td>Validación de correos en registro y login.</td></tr><tr><td>sqlalchemy</td><td>2.1.6</td><td>ORM en la capa de infraestructura. Sesiones y mapeo a Postgres sin filtrar el ORM al dominio.</td></tr><tr><td>psycopg[binary]</td><td>3.3.6</td><td>Driver Postgres para SQLAlchemy.</td></tr><tr><td>argon2-cffi</td><td>25.1.0</td><td>Hash de contraseñas alineado a OWASP Password Storage.</td></tr><tr><td>PyJWT</td><td>2.15.1</td><td>Emisión y verificación de JWT de sesión y del token de reporte (RFC 7519).</td></tr><tr><td>redis</td><td>8.1.0</td><td>Cliente compartido: caché de lecturas públicas, rate limits y estado de workers. Obligatorio fuera de test.</td></tr><tr><td>python-multipart</td><td>0.0.20</td><td>Parseo de multipart para subidas de foto y PDF en FastAPI.</td></tr><tr><td>pypdf</td><td>6.9.1</td><td>Lectura de PDF y extracción de texto para aval, antecedentes y docs de empresa.</td></tr><tr><td>pyHanko</td><td>0.31.0</td><td>Verificación de firma electrónica avanzada.</td></tr><tr><td>Pillow</td><td>12.1.1</td><td>Procesamiento de imágenes de biometría y cédula.</td></tr><tr><td>pytesseract</td><td>0.3.13</td><td>Puente a Tesseract OCR para leer el RUN en la foto de cédula.</td></tr><tr><td>opencv-python-headless</td><td>4.12.0.88</td><td>Alineación de carnet y face-match entre selfie y cédula.</td></tr><tr><td>numpy</td><td>2.2.6</td><td>Dependencia numérica de OpenCV en el pipeline de imagen.</td></tr><tr><td>certifi</td><td>2026.10.23</td><td>Bundle de CA para TLS en clientes HTTP.</td></tr><tr><td>httpx</td><td>0.28.1</td><td>Cliente HTTP async del evaluador (sitio, Places, ChileCompra) y de Transbank.</td></tr><tr><td>beautifulsoup4</td><td>4.13.4</td><td>Parseo HTML del "sondeo" HTTP dirigido al sitio del proveedor.</td></tr><tr><td>lxml</td><td>5.4.0</td><td>Parser XML-HTML rápido usado por Beautiful Soup.</td></tr></tbody></table></div>
+<h3>4.3 Herramientas de desarrollo y calidad</h3>
+<div class="table-wrap"><table><thead><tr><th>Paquete</th><th>Versión</th><th>Por qué</th></tr></thead><tbody><tr><td>pytest</td><td>9.2.0</td><td>Suite de pruebas automatizadas del backend.</td></tr><tr><td>httpx2</td><td>2.16.0</td><td>Cliente de prueba HTTP usado en tests de la API.</td></tr><tr><td>import-linter</td><td>2.16</td><td>Contratos de importación entre capas (dominio sin frameworks, routers sin SQL).</td></tr></tbody></table></div>
+<h3>4.4 Integraciones externas</h3>
+<p>Google Places API, API de Mercado Público y ChileCompra, y Webpay Transbank se consumen por HTTP. La validación documental no depende de un LLM alguno.</p>
+<h3>4.5 Herramientas y cuentas usadas en el desarrollo</h3>
+<p>cuentas de servicios externos:</p>
+<div class="table-wrap"><table><thead><tr><th>Herramienta</th><th>Uso en el proyecto</th></tr></thead><tbody><tr><td><strong>Google Cloud</strong></td><td>Cuenta de proyecto con <strong>facturación activada</strong> para crear y habilitar una clave de <strong>Google Places API</strong>. Tambien se uso para almacenar algunas imagenes en Stoarge y el despliegue que no esta considerado en esta parte de documentacion.</td></tr><tr><td>Mercado Público con ChileCompra</td><td>Ticket para consultas por RUT.</td></tr><tr><td>Transbank Webpay (solo integración)</td><td>Credenciales de ambiente de prueba para pagos de informe y publicación en local.</td></tr><tr><td>Cursor AI: Premium</td><td>Desarrollo Asistido con IA, con el humano en el centro del criterio.</td></tr></tbody></table></div>
+<p>Las claves viven solo en .env no en el repositorio. Ver sección 10.</p>
+<h2 id="5-arquitectura-monolito-modular-por-capas">5. Arquitectura: monolito modular por capas</h2>
+<h3>5.1 Monolito y arquitectura en capas en vez de distribuido</h3>
+<p>El Back-End se implementa atraves de un único artefacto en un proceso uvicorn y PostgreSQL con el código separado por capas de responsabilidad fija. Por ende, la cuenta, verificación, ficha, índice, pagos y trabajos forman el mismo flujo y deben compartir el mismo estado. Centralizarlos en una aplicación y una base mantiene esa coherencia de punta a punta. Las capas ordenan el código y el despliegue único mantiene juntas las reglas y los datos del negocio.</p>
+<p>La arquitectura se organiza en cinco capas con roles fijos:</p>
+<ol class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text"><strong>Dominio:</strong> Contiene la lógica pura del negocio, incluyendo entidades, reglas y errores propios, sin depender de librerías adicionales.</span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text"><strong>Servicios:</strong> Corresponde a la capa de aplicación donde viven los casos de uso que orquestan los flujos del sistema.</span></li><li><span class="num" aria-hidden="true">3</span><span class="li-text"><strong>API:</strong> Gestiona la recepción de peticiones HTTP y la validación de esquemas.</span></li><li><span class="num" aria-hidden="true">4</span><span class="li-text"><strong>Infraestructura:</strong> Implementa la persistencia Postgres, Redis (caché y límites), PDF/PAdES (PDF Advanced Electronic Signatures) y la integración con Webpay.</span></li><li><span class="num" aria-hidden="true">5</span><span class="li-text"><strong>Ensamblado:</strong> Conecta e inyecta todas estas piezas al momento de arrancar la aplicación.</span></li></ol>
+<h3>5.2 Capas y carácter</h3>
+<p>Una capa exterior puede usar la interior, al revés está prohibido.</p>
+<div class="table-wrap"><table><thead><tr><th>Capa</th><th>Paquete</th><th>Carácter</th><th>Rol</th></tr></thead><tbody><tr><td>Presentación</td><td>PWA</td><td><strong>Abierta</strong></td><td>Capa de presentacion. habla solo HTTP/REST con la API</td></tr><tr><td>API</td><td>app.api</td><td><strong>Abierta</strong> al exterior y <strong>Cerrada</strong> a la BD</td><td>Routers, esquemas Pydantic, códigos HTTP, sin reglas de negocio ni SQL</td></tr><tr><td>Servicios</td><td>app.servicios</td><td><strong>Cerrada</strong></td><td>Casos de uso. Orquestan dominio vía puertos, sin ORM ni JWT</td></tr><tr><td>Dominio</td><td>app.dominio</td><td><strong>Cerrada</strong> (nucleo)</td><td>Entidades, reglas, errores y contratos. Sin FastAPI, SQLAlchemy ni Pydantic</td></tr><tr><td>Infraestructura</td><td>app.infraestructura</td><td><strong>Abierta</strong> a sistemas externos</td><td>Repositorios Postgres, Redis, Argon2/JWT, Places, ChileCompra, sitio, PAdES (PDF Advanced Electronic Signatures), Webpay, etc.</td></tr><tr><td>Ensamblado</td><td>app.ensamblado y dependencias</td><td>Composición</td><td>Al arrancar <strong>inyecta</strong> adaptadores concretos en los servicios</td></tr></tbody></table></div>
+<h3>5.3 Recorrido de una petición</h3>
+<p>Ejemplo caso de uso: comprar o consultar un recurso de negocio autenticado.</p>
+<ol class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text">La <strong>PWA</strong> envía HTTPS a /v1/... con Authorization: Bearer.</span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text">La <strong>API</strong> valida el esquema (Pydantic), resuelve la sesión y llama al caso de uso.</span></li><li><span class="num" aria-hidden="true">3</span><span class="li-text">El <strong>servicio</strong> aplica la regla de negocio usando entidades y puertos del <strong>dominio</strong>.</span></li><li><span class="num" aria-hidden="true">4</span><span class="li-text">El <strong>adaptador</strong> de infraestructura ejecuta el efecto lateral, por ejemplo a través de un repositorio.</span></li><li><span class="num" aria-hidden="true">5</span><span class="li-text">La respuesta sube de nuevo: dominio a servicio, servicio a mapeo HTTP y mapeo HTTP a cliente.</span></li></ol>
+<h3>5.4 Diagrama</h3>
+<figure class="figure">
+  <img src="informe-2.png" alt="" loading="lazy"/>
+</figure>
+<p class="img-credit">elaboracion propia</p>
+<h3>5.5 Relación con la sección siguiente</h3>
+<p>Esta sección fija <strong>por qué</strong> el monolito y <strong>qué significa</strong> cada capa. La sección 6 concreta la <strong>estructura de carpetas</strong>, el recorrido archivo a archivo y las evidencias de separación.</p>
+<h2 id="6-separación-de-responsabilidades-y-capas">6. Separación de responsabilidades y capas</h2>
+<h3>6.1 Estructura de carpetas</h3>
+<div class="table-wrap"><table><thead><tr><th>Capa</th><th>Ubicación</th><th>Responsabilidad</th></tr></thead><tbody><tr><td>Dominio</td><td>app/dominio/</td><td>Entidades, errores y reglas sin FastAPI ni SQLAlchemy, solo python vanilla.</td></tr><tr><td>Servicios</td><td>app/servicios/</td><td>Casos de uso que orquestan dominio e infraestructura</td></tr><tr><td>Infraestructura</td><td>app/infraestructura/</td><td>Repositorios Postgres, JWT, Argon2, rater, PDF, PAdES (PDF Advanced Electronic Signatures), disco</td></tr><tr><td>API</td><td>app/api/</td><td>Schemas Pydantic, routers /v1, dependencias, mapeo HTTP</td></tr><tr><td>Ensamblado</td><td>app/ensamblado/</td><td>Factories, arranque, bucles</td></tr><tr><td>Entrada</td><td>app/principal.py</td><td>App FastAPI, CORS, montaje de routers</td></tr></tbody></table></div>
+<h4>Directorio completo del backend</h4>
+<div class="dir-tree-wrap"><pre class="dir-tree">servichile-backend/
+├── app/
+│   ├── api/
+│   │   ├── esquemas/
+│   │   │   ├── __init__.py
+│   │   │   ├── comunes.py
+│   │   │   ├── negocios.py
+│   │   │   ├── pagos.py
+│   │   │   ├── perfil_autenticacion.py
+│   │   │   ├── radar.py
+│   │   │   ├── reporte.py
+│   │   │   └── trabajos.py
+│   │   ├── v1/
+│   │   │   ├── __init__.py
+│   │   │   ├── autenticacion.py
+│   │   │   ├── negocios.py
+│   │   │   ├── pagos.py
+│   │   │   ├── perfil.py
+│   │   │   ├── radar.py
+│   │   │   ├── reporte.py
+│   │   │   └── trabajos.py
+│   │   ├── __init__.py
+│   │   ├── autorizacion.py
+│   │   ├── dependencias.py
+│   │   └── mapeos.py
+│   ├── dominio/
+│   │   ├── transparencia/
+│   │   │   ├── evaluador/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── ficha.py
+│   │   │   │   ├── fijos.py
+│   │   │   │   ├── motor.py
+│   │   │   │   ├── parametros.py
+│   │   │   │   └── segmento.py
+│   │   │   ├── __init__.py
+│   │   │   ├── trabajos_indice.py
+│   │   │   └── valoracion.py
+│   │   ├── __init__.py
+│   │   ├── antecedentes.py
+│   │   ├── aval.py
+│   │   ├── biometria.py
+│   │   ├── cedula.py
+│   │   ├── docs_empresa.py
+│   │   ├── docs_empresa_meta.py
+│   │   ├── entidades.py
+│   │   ├── errores.py
+│   │   ├── ficha_negocio.py
+│   │   ├── oferta_negocio.py
+│   │   ├── pades.py
+│   │   ├── pago_informe.py
+│   │   ├── pago_publicacion.py
+│   │   ├── progreso_cliente.py
+│   │   ├── puertos.py
+│   │   ├── radar_comercial.py
+│   │   ├── reporte_estado.py
+│   │   ├── rut.py
+│   │   ├── telefono.py
+│   │   ├── texto_pdf.py
+│   │   └── tipo_cuenta.py
+│   ├── ensamblado/
+│   │   ├── __init__.py
+│   │   ├── arranque.py
+│   │   ├── evaluador.py
+│   │   ├── evaluador_estado.py
+│   │   ├── pagos.py
+│   │   └── pagos_estado.py
+│   ├── infraestructura/
+│   │   ├── certs/
+│   │   │   ├── ca_chile.pem
+│   │   │   └── README.md
+│   │   ├── evaluador/
+│   │   │   ├── __init__.py
+│   │   │   ├── adaptador.py
+│   │   │   ├── cache_lugares.py
+│   │   │   ├── chilecompra.py
+│   │   │   ├── http_sync.py
+│   │   │   ├── places.py
+│   │   │   └── rastreador_web.py
+│   │   ├── persistencia/
+│   │   │   ├── __init__.py
+│   │   │   ├── mapeo.py
+│   │   │   ├── modelos.py
+│   │   │   └── repositorios.py
+│   │   ├── seguridad/
+│   │   │   ├── __init__.py
+│   │   │   ├── hasheador.py
+│   │   │   ├── jwt_reporte.py
+│   │   │   └── jwt_sesion.py
+│   │   ├── __init__.py
+│   │   ├── biometria_fs.py
+│   │   ├── cache_respuesta.py
+│   │   ├── cedula_fs.py
+│   │   ├── cedula_ocr.py
+│   │   ├── cedula_vision.py
+│   │   ├── correo_plataforma.py
+│   │   ├── geocodificacion.py
+│   │   ├── limite_solicitudes.py
+│   │   ├── pades.py
+│   │   ├── pdf_antecedentes.py
+│   │   ├── pdf_aval.py
+│   │   ├── pdf_docs_empresa.py
+│   │   ├── pdf_textual.py
+│   │   ├── redis_cliente.py
+│   │   ├── transbank_webpay.py
+│   │   ├── trust_vault.py
+│   │   └── verificacion.py
+│   ├── servicios/
+│   │   ├── __init__.py
+│   │   ├── autenticacion.py
+│   │   ├── cuenta.py
+│   │   ├── negocio.py
+│   │   ├── negocio_reputacion.py
+│   │   ├── pades_anti_replay.py
+│   │   ├── pago_informe.py
+│   │   ├── pago_publicacion.py
+│   │   ├── perfil.py
+│   │   ├── progreso_cliente.py
+│   │   ├── radar_comercial.py
+│   │   ├── reporte.py
+│   │   ├── reporte_evidencias.py
+│   │   ├── reporte_identidad.py
+│   │   └── trabajo.py
+│   ├── __init__.py
+│   ├── configuracion.py
+│   ├── principal.py
+│   └── tiempo.py
+├── db/
+│   └── init_script.sql
+├── scripts/
+│   ├── __init__.py
+│   ├── aplicar_migraciones_compras.py
+│   ├── cargar_db_demo.py
+│   ├── construir_ca_chile.py
+│   └── sembrar_negocios.py
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── helpers_pades.py
+│   ├── servichile_api_collection.json
+│   ├── test_autenticacion.py
+│   ├── test_docs_empresa.py
+│   ├── test_evaluador.py
+│   ├── test_negocios.py
+│   ├── test_pago_informe.py
+│   ├── test_perfil.py
+│   ├── test_seguridad.py
+│   └── test_trabajos.py
+├── .dockerignore
+├── .env.example
+├── .gitignore
+├── .importlinter
+├── Dockerfile
+├── requirements-dev.txt
+└── requirements.txt</pre></div>
+<p><strong>(*)import-linter</strong> impide que el dominio importe frameworks y que los routers consulten la base directamente.</p>
+<h2 id="7-diseño-de-la-api-rest">7. Diseño de la API REST</h2>
+<h3>7.1 Criterios</h3>
+<ul class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text"><strong>Versionado:</strong> las rutas de negocio usan el prefijo /v1.</span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text"><strong>Salud:</strong> GET /salud queda fuera de /v1 porque no forma parte del contrato de recursos de negocio.</span></li><li><span class="num" aria-hidden="true">3</span><span class="li-text"><strong>Autenticación:</strong> header Authorization: Bearer &lt;access_token&gt;.</span></li><li><span class="num" aria-hidden="true">4</span><span class="li-text"><strong>Estilo:</strong> recursos y verbos HTTP, con cuerpos validados con Pydantic.</span></li><li><span class="num" aria-hidden="true">5</span><span class="li-text"><strong>Documentación interactiva:</strong> OpenAPI en /docs disponible en entorno local.</span></li><li><span class="num" aria-hidden="true">6</span><span class="li-text"><strong>Contrato extendido:</strong> OpenAPI en /docs y tabla 7.2 de este informe.</span></li></ul>
+<h3>7.2 Tabla de recursos</h3>
+<div class="table-wrap table-wrap--api"><table><thead><tr><th>Método</th><th>Ruta</th><th>Sesión</th><th>Cuerpo de ejemplo</th><th>Éxito</th><th>Errores</th></tr></thead><tbody>
+<tr><td><strong>GET</strong></td><td><strong>/salud</strong></td><td>No</td><td>—</td><td><strong>200</strong> {"estado":"ok"}</td><td></td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/auth/registro</strong></td><td>No</td><td>{"email":"ana@ejemplo.cl","nombre":"Ana","password":"clave-1","perfil":{"tipo_cuenta":"persona"}}</td><td><strong>201</strong> Usuario</td><td>409, 422, 429</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/auth/login</strong></td><td>No</td><td>{"email":"ana@ejemplo.cl","password":"clave-1"}</td><td><strong>200</strong> Token</td><td>401, 422, 429</td></tr>
+<tr><td><strong>GET</strong></td><td><strong>/v1/auth/yo</strong></td><td>Sí</td><td>Bearer &lt;token&gt;</td><td><strong>200</strong> Usuario</td><td>401</td></tr>
+<tr><td><strong>DELETE</strong></td><td><strong>/v1/auth/yo</strong></td><td>Sí</td><td>{"password":"clave-1"}</td><td><strong>204</strong></td><td>401, 403, 422</td></tr>
+<tr><td><strong>GET</strong></td><td><strong>/v1/perfil</strong></td><td>Sí</td><td>—</td><td><strong>200</strong> Perfil</td><td>401</td></tr>
+<tr><td><strong>PATCH</strong></td><td><strong>/v1/perfil</strong></td><td>Sí</td><td>{"edad":28,"telefono":"+56912345678","rut":"12345678-5"}</td><td><strong>200</strong> Perfil</td><td>401, 409, 422</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/perfil/biometria</strong></td><td>Sí</td><td>multipart foto=@selfie.jpg</td><td><strong>201</strong></td><td>401, 413, 422, 429</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/perfil/cedula</strong></td><td>Sí</td><td>multipart foto=@cedula.jpg</td><td><strong>201</strong></td><td>401, 409, 413, 422</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/perfil/aval</strong></td><td>Sí</td><td>multipart archivo=@aval.pdf</td><td><strong>201</strong></td><td>401, 413, 422</td></tr>
+<tr><td><strong>GET</strong></td><td><strong>/v1/businesses</strong></td><td>No</td><td>?q=logistica</td><td><strong>200</strong> lista</td><td>422</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/businesses</strong></td><td>Sí proveedor</td><td>{"nombre":"Logística Sur","rut_empresa":"76123456-0","buy_order":"SCP…"}</td><td><strong>201</strong></td><td>401, 403, 402, 409, 422</td></tr>
+<tr><td><strong>GET</strong></td><td><strong>/v1/businesses/mias</strong></td><td>Sí</td><td>—</td><td><strong>200</strong></td><td>401</td></tr>
+<tr><td><strong>PATCH</strong></td><td><strong>/v1/businesses/{id}</strong></td><td>Sí titular</td><td>{"descripcion":"Despacho RM"}</td><td><strong>200</strong></td><td>401, 403, 404, 422</td></tr>
+<tr><td><strong>DELETE</strong></td><td><strong>/v1/businesses/{id}</strong></td><td>Sí creador</td><td>—</td><td><strong>204</strong></td><td>401, 403, 404</td></tr>
+<tr><td><strong>GET</strong></td><td><strong>/v1/businesses/{id}/reputation</strong></td><td>No</td><td>—</td><td><strong>200</strong> snapshot</td><td>404</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/businesses/{id}/rater-refresh</strong></td><td>Sí titular</td><td>{}</td><td><strong>200</strong></td><td>401, 403, 404, 429, 503</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/businesses/{id}/documentos/{tipo}</strong></td><td>Sí titular</td><td>multipart archivo=@doc.pdf</td><td><strong>201</strong></td><td>401, 403, 404, 413, 422</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/trabajos</strong></td><td>Sí</td><td>{"business_id":"uuid"}</td><td><strong>201</strong> con qr_token</td><td>401, 404, 422</td></tr>
+<tr><td><strong>GET</strong></td><td><strong>/v1/trabajos</strong></td><td>Sí</td><td>—</td><td><strong>200</strong> lista</td><td>401</td></tr>
+<tr><td><strong>DELETE</strong></td><td><strong>/v1/trabajos/{id}</strong></td><td>Sí</td><td>—</td><td><strong>200</strong> cancelado</td><td>401, 404, 409</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/businesses/{id}/trabajos/concretar</strong></td><td>Sí titular</td><td>{"qr_token":"…"}</td><td><strong>200</strong></td><td>401, 403, 404, 409</td></tr>
+<tr><td><strong>GET</strong></td><td><strong>/v1/reporte</strong></td><td>Sí</td><td>—</td><td><strong>200</strong> payload QR</td><td>401</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/reporte/validar</strong></td><td>Sí</td><td>{"payload":"…"}</td><td><strong>200</strong></td><td>401, 422, 429</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/pagos/informe</strong></td><td>Sí</td><td>{"business_id":"uuid","return_url":"http://localhost:5500/?pago=retorno"}</td><td><strong>200</strong> Webpay</td><td>401, 422</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/pagos/informe/confirmar</strong></td><td>Sí</td><td>{"token_ws":"…"}</td><td><strong>200</strong></td><td>401, 422</td></tr>
+<tr><td><strong>POST</strong></td><td><strong>/v1/pagos/publicacion</strong></td><td>Sí proveedor</td><td>{"return_url":"http://localhost:5500/?pago=retorno"}</td><td><strong>200</strong> ticket SCP</td><td>401, 403, 422</td></tr>
+</tbody></table></div>
+<h2 id="8-persistencia-y-modelo-de-datos">8. Persistencia y modelo de datos</h2>
+<p>La persistencia de datos se gestiona en PostgreSQL 16, encapsulada tras repositorios dentro de la capa de infraestructura para mantener el dominio totalmente desacoplado de SQLAlchemy y del esquema físico. El modelo relacional asegura la integridad referencial, impone restricciones de unicidad sobre el correo electrónico y el RUT, y emplea el tipo de dato <strong>JSONB</strong> para almacenar los observables de los indices de cada usuario y los documentos de empresa. Finalmente, toda la estructura de la base de datos se despliega mediante un script reproducible o migraciones numeradas.</p>
+<p>A continuación se resumen entidades, cómo levantar la base y el diagrama entidad–relación:</p>
+<h3>8.1 Entidades principales</h3>
+<div class="table-wrap"><table><thead><tr><th>Entidad</th><th>Clave</th><th>Relaciones y tipos</th></tr></thead><tbody><tr><td>usuarios</td><td>UUID PK</td><td>email único, password_hash (Argon2) y perfil 1:1</td></tr><tr><td>perfiles</td><td>UUID PK, FK a usuario</td><td>edad, tipo_cuenta (persona, contratista, proveedor), flags de verificación</td></tr><tr><td>business_entities</td><td>UUID PK</td><td>rut_empresa único, reclamado_por hacia usuario y JSONB docs</td></tr><tr><td>business_reputation_metrics</td><td>FK business</td><td>final_score y observables JSONB</td></tr><tr><td>trabajos</td><td>UUID PK</td><td>usuario, business, estado, qr_token único</td></tr><tr><td>compras_informe</td><td>UUID PK</td><td>buy_order, estado autorizado, reservado o consumido, y FKs</td></tr><tr><td>compras_publicacion</td><td>UUID PK</td><td>buy_order SCP y mismos estados del ticket de creación de empresa</td></tr><tr><td>Evidencia</td><td>tablas y meta</td><td>biometría , aval, hashes PAdES (PDF Advanced Electronic Signatures) anti-replicacion</td></tr></tbody></table></div>
+<h3>8.2 Script reproducible</h3>
+<div class="table-wrap"><table><thead><tr><th>Situación</th><th>Acción</th></tr></thead><tbody><tr><td>Base nueva</td><td>psql con -f db/init_script.sql</td></tr><tr><td>Base existente ya migrada</td><td>usar seed con python -m scripts.cargar_db_demo</td></tr><tr><td>Datos demo</td><td>python -m scripts.cargar_db_demo</td></tr></tbody></table></div>
+<h3>8.3 Modelado Visual de Datos</h3>
+<figure class="figure figure-er" id="figura-modelo-datos">
+  <div class="er-scroll">
+    <img src="informe-modelo-datos.png" width="4096" height="3116" alt="" loading="lazy" title="Clic para ampliar"/>
+  </div>
+</figure>
+<script>
+(() => {
+  const fig = document.getElementById("figura-modelo-datos");
+  if (!fig) return;
+  fig.addEventListener("click", () => fig.classList.toggle("is-zoomed"));
+})();
+</script>
+<p class="img-credit">elaboracion propia en mermaid.live</p>
+<h2 id="9-redis-caché-límites-y-estado-operativo">9. Redis: caché, límites y estado operativo</h2>
+<p>En APP_ENV=local y production la variable REDIS_URL es obligatoria y el arranque hace ping.</p>
+<h3>9.1 Para qué se usa</h3>
+<div class="table-wrap"><table><thead><tr><th>Uso</th><th>Claves / mecanismo</th><th>Comportamiento</th></tr></thead><tbody><tr><td>Caché del mapa</td><td>Prefijo sc:mapa:v1:</td><td>GET /v1/businesses guarda el listado filtrado. Cabecera X-Cache: HIT o MISS.</td></tr><tr><td>Caché de reputación</td><td>Prefijo sc:rep:v1:</td><td>Solo la <strong>vista pública</strong>. Titular o comprador hace bypass (X-Cache: BYPASS) y lee Postgres.</td></tr><tr><td>Rate limits</td><td>Buckets rl:…</td><td>Login y registro por correo e IP, y otros endpoints sensibles. Respuesta <strong>429</strong>.</td></tr><tr><td>Estado de workers</td><td>servichile:evaluador_estado, servichile:pagos_reconciliar_estado</td><td>Marcas para GET /salud (éxito o error del evaluador y reconciliación Webpay).</td></tr></tbody></table></div>
+<h3>9.2 Prueba de carga en local</h3>
+<p>Medición contra GET /v1/businesses con un solo worker uvicorn, Postgres y Redis locales.</p>
+<div class="table-wrap"><table><thead><tr><th>Concurrencia</th><th>Peticiones</th><th>Pérdida</th><th>RPS aproximado</th><th>p50 (ms)</th><th>p95 (ms)</th><th>X-Cache</th></tr></thead><tbody><tr><td>25</td><td>400</td><td>0 %</td><td>~440</td><td>~39</td><td>~161</td><td>HIT</td></tr><tr><td>100</td><td>800</td><td>0 %</td><td>~660–1000</td><td>~80–134</td><td>~128–291</td><td>HIT</td></tr><tr><td>200</td><td>1000</td><td>0 %</td><td>~400</td><td>~404</td><td>~981</td><td>HIT</td></tr></tbody></table></div>
+<p>A 100 concurrentes el punto es cómodo. A 200 la API no pierde peticiones, pero la latencia sube porque un solo proceso satura. Sin Redis el cuello vuelve a Postgres y al pool de conexiones.</p>
+<h2 id="10-configuración-y-credenciales">10. Configuración y credenciales</h2>
+<p>Los secretos <strong>no</strong> se versionan. Se cargan con Pydantic Settings desde variables de entorno. El .env local se mantiene mínimo. El resto usa defaults en configuracion.py.</p>
+<div class="table-wrap"><table><thead><tr><th>Elemento</th><th>Rol</th></tr></thead><tbody><tr><td>.env</td><td>Local e ignorado por Git</td></tr><tr><td>.env.example</td><td>Plantilla sin valores reales. Documenta nombres necesarios y formatos</td></tr><tr><td>DATABASE_URL</td><td>Conexión Postgres</td></tr><tr><td>JWT_SECRET</td><td>Firma de tokens (al menos 32 caracteres)</td></tr><tr><td>CORS_ORIGINS</td><td>Orígenes permitidos del cliente</td></tr><tr><td>REDIS_URL</td><td>Obligatorio fuera de test (ej. redis://localhost:6379/0)</td></tr><tr><td>SMTP_*</td><td>Comprobantes de pago </td></tr><tr><td>Production</td><td>Transbank real, PRINT_TOKEN_SECRET distinto de JWT, CORS sin localhost</td></tr></tbody></table></div>
+<p>De la evidencia biométrica y de cédula, solo la imagen se persiste en el dispositivo del cliente, no en URL pública. La validación la ejecuta el backend. Certificados PEM de confianza en la infraestructura del componente backend. No hay claves de API ni contraseñas embebidas en el código fuente.</p>
+<h2 id="11-instalación-local-y-verificación-operativa">11. Instalación local y verificación operativa</h2>
+<h3>11.1 Levantamiento</h3>
+<p class="setup__intro">Pasos en la terminal:</p>
+<div class="setup">
+  <div class="setup__block">
+    <div class="setup__head"><span class="setup__n">1</span><p class="setup__label">Entrar al backend</p></div>
+    <pre class="setup__cmd">cd servichile-backend</pre>
+  </div>
+  <div class="setup__block">
+    <div class="setup__head"><span class="setup__n">2</span><p class="setup__label">Crear y activar el entorno virtual</p></div>
+    <pre class="setup__cmd">python3.12 -m venv .venv &amp;&amp; source .venv/bin/activate</pre>
+  </div>
+  <div class="setup__block">
+    <div class="setup__head"><span class="setup__n">3</span><p class="setup__label">Instalar dependencias de desarrollo</p></div>
+    <pre class="setup__cmd">pip install -r requirements-dev.txt</pre>
+  </div>
+  <div class="setup__block">
+    <div class="setup__head"><span class="setup__n">4</span><p class="setup__label">Preparar secretos y conexiones locales</p></div>
+    <pre class="setup__cmd">cp .env.example .env y completar JWT_SECRET, DATABASE_URL y REDIS_URL</pre>
+  </div>
+  <div class="setup__block">
+    <div class="setup__head"><span class="setup__n">5</span><p class="setup__label">Levantar Redis en Docker</p></div>
+    <pre class="setup__cmd">docker run -d --name servichile-redis -p 6379:6379 redis:7-alpine</pre>
+  </div>
+  <div class="setup__block">
+    <div class="setup__head"><span class="setup__n">6</span><p class="setup__label">Crear el esquema en PostgreSQL</p></div>
+    <pre class="setup__cmd">psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/init_script.sql</pre>
+  </div>
+  <div class="setup__block">
+    <div class="setup__head"><span class="setup__n">7</span><p class="setup__label">Arrancar la API con recarga automática</p></div>
+    <pre class="setup__cmd">uvicorn app.principal:app --reload --port 8000</pre>
+  </div>
+</div>
+<p class="setup__section">Frontend en otro terminal.</p>
+<div class="setup">
+  <div class="setup__block">
+    <div class="setup__head"><span class="setup__n">8</span><p class="setup__label">Servir la PWA en el puerto 5500</p></div>
+    <pre class="setup__cmd">cd servichile-frontend
+python3 serve.py 5500</pre>
+  </div>
+</div>
+<p>Comprobación mínima: GET http://localhost:8000/salud debe responder <strong>200</strong> con dependencias.redis y dependencias.postgres en ok (y smtp según configuración). Una ruta inventada en el API o en el front debe mostrar el 404 personalizado (sección 12.2).</p>
+<h3>11.2 Verificación CRUD</h3>
+<p>Con el servidor en ejecución, validar crear, leer, actualizar y borrar contra datos reales en Postgres:</p>
+<div class="table-wrap"><table><thead><tr><th>Paso</th><th>Petición</th><th>Esperado</th><th>Comprobación</th></tr></thead><tbody><tr><td>Auth</td><td>POST /v1/auth/login</td><td>200 con token</td><td>Token usable</td></tr><tr><td>Crear</td><td>POST /v1/businesses</td><td>201 con id</td><td>Aparece en listado o fila en base</td></tr><tr><td>Leer</td><td>GET /v1/businesses/mias</td><td>200</td><td>Coincide con lo creado</td></tr><tr><td>Actualizar</td><td>PATCH /v1/businesses/{id}</td><td>200</td><td>Campo modificado persistido</td></tr><tr><td>Borrar</td><td>DELETE /v1/businesses/{id}</td><td>204</td><td>Ausente en un nuevo GET</td></tr></tbody></table></div>
+<h2 id="12-validaciones-errores-y-seguridad">12. Validaciones, errores y seguridad</h2>
+<h3>12.1 Mapeo de respuestas</h3>
+<div class="table-wrap"><table><thead><tr><th>Código</th><th>Uso típico</th></tr></thead><tbody><tr><td>200, 201, 204</td><td>Lectura, alta, borrado sin cuerpo</td></tr><tr><td>401</td><td>Sesión ausente o JWT inválido</td></tr><tr><td>403</td><td>Contraseña de borrado incorrecta, no titular o rol insuficiente</td></tr><tr><td>404</td><td>Recurso inexistente, ruta desconocida o ajeno según la regla</td></tr><tr><td>409</td><td>Conflicto (RUT o email en uso, trabajo ya cerrado, alta_conflicto)</td></tr><tr><td>402</td><td>Publicación sin ticket de creación de empresa válido</td></tr><tr><td>413</td><td>Archivo sobre el límite</td></tr><tr><td>422</td><td>Validación Pydantic o regla de formato</td></tr><tr><td>429</td><td>Límite de tasa</td></tr><tr><td>503</td><td>Dependencia del evaluador no disponible</td></tr></tbody></table></div>
+<h3>12.2 Mensajes 404 personalizados</h3>
+<p>Las <strong>rutas inexistentes</strong> tienen respuesta propia:</p>
+<div class="table-wrap"><table><thead><tr><th>Capa</th><th>Comportamiento</th></tr></thead><tbody><tr><td><strong>API</strong></td><td>Responde JSON {"detail": "Ruta no encontrada:"}. Los 404 de negocio conservan su mensaje.</td></tr><tr><td><strong>Frontend</strong></td><td>Página 404.html con identidad visual.</td></tr></tbody></table></div>
+<h3>12.3 Controles</h3>
+<ul class="brand-ol"><li><span class="num" aria-hidden="true">1</span><span class="li-text"><strong>Entrada:</strong> Pydantic en el borde HTTP.</span></li><li><span class="num" aria-hidden="true">2</span><span class="li-text"><strong>Autorización:</strong> titularidad y tipo de cuenta en la capa de servicios.</span></li><li><span class="num" aria-hidden="true">3</span><span class="li-text"><strong>Archivos:</strong> tipos y tamaños acotados, y PAdES (PDF Advanced Electronic Signatures) con CA local.</span></li><li><span class="num" aria-hidden="true">4</span><span class="li-text"><strong>Pagos:</strong> ticket de creación de empresa autorizado, luego reservado, luego consumido. Reservas vencidas liberables. Transacción atómica en alta con pago.</span></li><li><span class="num" aria-hidden="true">5</span><span class="li-text"><strong>Redis:</strong> rate limits compartidos, caché solo de teaser público e invalidación al mutar.</span></li><li><span class="num" aria-hidden="true">6</span><span class="li-text"><strong>Secretos:</strong> solo entorno, CORS explícito y evidencia fuera de URL pública.</span></li></ul>
+<h2 id="13-referencias">13. Referencias</h2>
+<p>Referencias en norma APA (7.ª ed.). Cada fuente sostiene una decisión concreta del backend; no se listan como bibliografía ornamental.</p>
+<div class="table-wrap"><table><thead><tr><th>Decisión en el sistema</th><th>Fuente que la sostiene</th></tr></thead><tbody>
+<tr><td>API versionada /v1, verbos HTTP y contrato OpenAPI</td><td>Tiangolo (FastAPI); Fielding (2000); Richardson y Amundsen (2013)</td></tr>
+<tr><td>Validación de cuerpos en el borde HTTP</td><td>Pydantic</td></tr>
+<tr><td>Persistencia relacional + JSONB para observables</td><td>PostgreSQL Global Development Group (n.d.-a; n.d.-b); SQLAlchemy</td></tr>
+<tr><td>Hash de contraseñas Argon2id</td><td>OWASP Password Storage Cheat Sheet</td></tr>
+<tr><td>Tokens de sesión JWT</td><td>Jones, Bradley y Sakimura (2015), RFC 7519</td></tr>
+<tr><td>Caché, rate limits y estado entre réplicas</td><td>Redis Ltd.; redis-py</td></tr>
+<tr><td>Monolito modular primero, capas cerradas</td><td>Fowler (2015); Matthes (import-linter)</td></tr>
+<tr><td>Firma PAdES y confianza documental</td><td>ETSI EN 319 142; Valvekens (pyHanko)</td></tr>
+<tr><td>Pagos Webpay Plus</td><td>Transbank Developers</td></tr>
+<tr><td>Fuentes del índice (Places, ChileCompra, sitio)</td><td>Google Places API; Mercado Público; Beautiful Soup</td></tr>
+<tr><td>Tratamiento de datos personales</td><td>Chile (2024), Ley N° 21.719</td></tr>
+</tbody></table></div>
+<p>Chile. (2024). Ley N° 21.719 que regula la protección y el tratamiento de los datos personales y crea la Agencia de Protección de Datos Personales. Biblioteca del Congreso Nacional de Chile. https://www.bcn.cl/leychile/navegar?idNorma=1208171</p>
+<p>Dirección de Compras y Contratación Pública. (n.d.). Mercado Público. https://www.mercadopublico.cl/</p>
+<p>Encode. (n.d.). HTTPX. https://www.python-httpx.org/</p>
+<p>European Telecommunications Standards Institute. (2016). Electronic Signatures and Infrastructures (ESI). PAdES (PDF Advanced Electronic Signatures) digital signatures (ETSI EN 319 142). https://www.etsi.org/standards</p>
+<p>Fielding, R. T. (2000). Architectural styles and the design of network-based software architectures [Tesis doctoral, University of California, Irvine]. https://ics.uci.edu/~fielding/pubs/dissertation/top.htm</p>
+<p>Fowler, M. (2015, 19 de junio). MonolithFirst. https://martinfowler.com/bliki/MonolithFirst.html</p>
+<p>Google. (n.d.). Places API. Google for Developers. https://developers.google.com/maps/documentation/places/web-service</p>
+<p>Jones, M., Bradley, J., y Sakimura, N. (2015). JSON Web Token (JWT) (RFC 7519). Internet Engineering Task Force. https://www.rfc-editor.org/rfc/rfc7519</p>
+<p>Matthes, D. (n.d.). import-linter. https://import-linter.readthedocs.io/</p>
+<p>Open Worldwide Application Security Project. (n.d.). Password storage cheat sheet. https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html</p>
+<p>OpenCV. (n.d.). OpenCV documentation. https://docs.opencv.org/</p>
+<p>PostgreSQL Global Development Group. (n.d.-a). PostgreSQL 16 documentation. https://www.postgresql.org/docs/16/</p>
+<p>PostgreSQL Global Development Group. (n.d.-b). JSON types. https://www.postgresql.org/docs/current/datatype-json.html</p>
+<p>Pydantic. (n.d.). Pydantic. https://docs.pydantic.dev/</p>
+<p>Python Software Foundation. (n.d.-a). asyncio: Asynchronous I/O. https://docs.python.org/3/library/asyncio.html</p>
+<p>Python Software Foundation. (n.d.-b). The Python language reference. https://docs.python.org/3/reference/</p>
+<p>Redis Ltd. (n.d.). Redis documentation. https://redis.io/docs/latest/</p>
+<p>redis-py authors. (n.d.). redis-py. https://redis-py.readthedocs.io/</p>
+<p>Richardson, L. (n.d.). Beautiful Soup documentation. https://www.crummy.com/software/BeautifulSoup/bs4/doc/</p>
+<p>Richardson, L., y Amundsen, M. (2013). RESTful Web APIs. O’Reilly Media.</p>
+<p>SQLAlchemy. (n.d.). SQLAlchemy 2.0 documentation. https://docs.sqlalchemy.org/</p>
+<p>Tiangolo, S. (n.d.). FastAPI. https://fastapi.tiangolo.com/</p>
+<p>Transbank. (n.d.). Webpay Plus. https://www.transbankdevelopers.cl/</p>
+<p>Uvicorn. (n.d.). Uvicorn. https://www.uvicorn.org/</p>
+<p>Valvekens, M. (n.d.). pyHanko. https://pyhanko.readthedocs.io/</p>
+<p>Nota. Las entradas con (n.d.) son documentación oficial en línea sin fecha editorial fija. Se usan como fuente primaria del comportamiento de cada tecnología del backend.</p>
+<h2 id="14-anexos">14. Anexos</h2>
+<div class="table-wrap"><table><thead><tr><th>Anexo</th><th>Contenido</th></tr></thead><tbody><tr><td>A</td><td>OpenAPI en /docs y tabla de recursos de este informe</td></tr><tr><td>B</td><td>db/init_script.sql: esquema reproducible de base nueva</td></tr><tr><td>C</td><td>README.md: instalación y operación explicita</td></tr><tr><td>D</td><td>.env.example: plantilla de configuración</td></tr><tr><td>E</td><td>tests/ y Postman tests/servichile_api_collection.json</td></tr><tr><td>F</td><td>app/infraestructura/certs/: PEM públicos de confianza del estado y del gobierno de chile</td></tr><tr><td>G</td><td>https://github.com/Nplandry/ServiChile (desarrollo, QA, produccion)</td></tr></tbody></table></div>
+  </article>
+</main>
+</body>
+</html>

@@ -1,4 +1,4 @@
-/* Catálogo visible. Los ids los valida el backend en app/dominio/oferta_negocio.py. */
+
 const Oferta = {
   MAX_SERVICIOS: 6,
   MAX_REFERENCIAS: 8,

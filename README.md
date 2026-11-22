@@ -43,8 +43,6 @@ Las reglas de capas se verifican con import-linter lint-imports, ver .importlint
 
 ## Endpoints
 
-Los tests de integración con PostgreSQL en tests integration se omiten sin TEST_DATABASE_URL.
-
 | Método | Ruta | Sesión | Descripción | Archivo | Estado |
 |---|---|---|---|---|---|
 | GET | /salud | No | Healthcheck | app.principal | Implementado y probado |
