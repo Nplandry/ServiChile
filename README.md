@@ -257,3 +257,5 @@ source .venv/bin/activate
 pytest
 lint-imports
 ```
+
+<!-- desarrollo -->
