@@ -36,9 +36,6 @@ servichile-backend/
 │       ├── autorizacion.py      # Permisos API
 │       └── v1/                  # Routers v1
 ├── db/init_script.sql           # Esquema inicial
-├── docs/
-│   ├── api_interface_table.md   # Tabla API
-│   └── modelo_datos.md          # Modelo datos
 └── tests/                       # Pruebas pytest
 ```
 
@@ -70,7 +67,7 @@ Los tests de integración con PostgreSQL en tests integration se omiten sin TEST
 | GET | /v1/businesses/{id}/reputation | No | Índice de Transparencia | app.api.v1.negocios | Implementado y probado |
 | DELETE | /v1/businesses/{id} | Sí, creador | Elimina la empresa | app.api.v1.negocios | Implementado y probado |
 
-Los endpoints con Sí en Sesión requieren la cabecera Authorization Bearer access_token. El detalle de esquemas está en docs api_interface_table.md.
+Los endpoints con Sí en Sesión requieren la cabecera Authorization Bearer access_token.
 
 ## Levantar en local
 
@@ -112,7 +109,7 @@ Las pruebas unitarias usan SQLite en memoria. No necesitan PostgreSQL.
 
 ## Configuración
 
-El .env lleva secretos, entorno e integraciones. Los precios oficiales viven solo en dominio PRECIO_INFORME_CLP, PRECIO_PUBLICACION_CLP; sin override por env.
+Precios viven en el dominio
 
 | Variable | Obligatoria | Notas |
 |----------|-------------|--------|
@@ -242,8 +239,6 @@ python -m scripts.aplicar_migraciones_compras
 ```
 
 ## Frontend
-
-Use localhost (no 127.0.0.1).
 
 ```bash
 cd servichile-frontend
