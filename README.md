@@ -243,12 +243,6 @@ cd servichile-frontend
 python3 serve.py 5500
 ```
 
-```
-API:       http://localhost:8000/docs
-Frontend:  http://localhost:5500/index.html
-Salud:     http://localhost:8000/salud
-```
-
 ## Tests
 
 ```bash
