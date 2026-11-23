@@ -115,9 +115,8 @@ class ServicioReporteIdentidad(MezclaReporteEvidencias):
             raise RutEnUso("Este RUT ya está registrado en otra cuenta.")
         if not self.verificador.existe_y_activo(rut):
             raise RutRechazado(
-                "No se pudo verificar el RUT ante una fuente oficial. "
-                "Complete la verificación con cédula en Verificación, "
-                "o configure CHILECOMPRA_TICKET para cruzar Mercado Público."
+                "No se pudo verificar el RUT. En producción use la "
+                "verificación con cédula en Verificación."
             )
         usuario.rut = rut
         usuario.rut_verificado = True

@@ -24,19 +24,29 @@ class ChileCompraVerificadorRut:
     def __init__(self, ticket: str, *, tiempo_espera: float = 3.0) -> None:
         self.cliente = ClienteChileCompra(ticket)
         self.tiempo_espera = tiempo_espera
+        self.ultimo_detalle: str | None = None
 
     def existe_y_activo(self, rut: str) -> bool:
+        self.ultimo_detalle = None
         if not (rut or "").strip():
+            self.ultimo_detalle = "RUT vacío"
             return False
         if not self.cliente.configurado:
             log.warning("ChileCompraVerificadorRut sin ticket; rechaza RUT.")
+            self.ultimo_detalle = "CHILECOMPRA_TICKET no configurado"
             return False
         ok, data, err = self.cliente.buscar_proveedor(rut, tiempo_espera=self.tiempo_espera)
         if not ok:
             log.info("ChileCompra RUT %s: %s", rut, err)
+            self.ultimo_detalle = err or "error al consultar Mercado Público"
             return False
         codigo = ClienteChileCompra.codigo_desde(data if isinstance(data, dict) else None)
-        return bool(codigo)
+        if not codigo:
+            self.ultimo_detalle = (
+                "el RUT no aparece como proveedor en Mercado Público"
+            )
+            return False
+        return True
 
 def construir_verificador_rut(
     nombre: str,
@@ -49,10 +59,10 @@ def construir_verificador_rut(
     ticket = (chilecompra_ticket or "").strip()
 
     if modo == "muestra":
-        if env == "test":
+        if env in ("test", "local"):
             return MuestraVerificadorRut()
         log.warning(
-            "Verificador 'muestra' fuera de APP_ENV=test: se usa estricto "
+            "Verificador 'muestra' fuera de APP_ENV=test|local: se usa estricto "
             "(no se marca identidad solo por dígito verificador)."
         )
         return EstrictoVerificadorRut()

@@ -159,9 +159,7 @@
       'peRut',
       'RUT de la empresa',
       true,
-      12,
-      'text',
-      'Necesario para ChileCompra y consultas de estado del proveedor.'
+      12
     );
     form.append(
       intro,

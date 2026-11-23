@@ -144,11 +144,10 @@ class Configuracion(BaseSettings):
 
     @model_validator(mode="after")
     def _derivar_rut_verifier(self) -> Self:
-
-        if self.app_env == "test":
+        # Identidad de persona: DV en local/test. ChileCompra (ticket) es solo
+        # para el evaluador de empresas, no para verificar RUT personal.
+        if self.app_env in ("test", "local"):
             self.rut_verifier = "muestra"
-        elif (self.chilecompra_ticket or "").strip():
-            self.rut_verifier = "chilecompra"
         else:
             self.rut_verifier = "estricto"
         return self

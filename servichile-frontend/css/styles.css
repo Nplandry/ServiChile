@@ -2105,8 +2105,6 @@ html.boot-authed #main[hidden] {
   font-size: 0.88rem;
   line-height: 1.4;
   color: var(--color-text);
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  border-left: 3px solid var(--color-primary);
 }
 
 .indice-desglose__filtro--bloqueado,
