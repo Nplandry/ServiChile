@@ -1,0 +1,73 @@
+2. registro
+POST http://127.0.0.1:8000/v1/auth/registro
+Content-Type: application/json
+
+{
+  "email": "proveedor.demo@servichile.cl",
+  "nombre": "Proveedor Demo",
+  "password": "ClaveSegura123",
+  "perfil": {
+    "tipo_cuenta": "proveedor",
+    "edad": 35
+  }
+}
+1. login
+POST http://127.0.0.1:8000/v1/auth/login
+Content-Type: application/json
+{
+  "email": "proveedor.demo@servichile.cl",
+  "password": "ClaveSegura123"
+}
+Respuesta esperada:
+{
+  "access_token": "eyJ...",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+
+
+curl.exe -X POST "http://127.0.0.1:8000/v1/auth/registro" -H "Content-Type: application/json" -d "{\"email\":\"proveedor.demo@servichile.cl\",\"nombre\":\"Proveedor Demo\",\"password\":\"ClaveSegura123\",\"perfil\":{\"tipo_cuenta\":\"proveedor\",\"edad\":35}}"
+
+curl.exe -X POST "http://127.0.0.1:8000/v1/auth/login" -H "Content-Type: application/json" -d "{\"email\":\"proveedor.demo@servichile.cl\",\"password\":\"ClaveSegura123\"}"
+
+set TOKEN=eyJ_PEGAR_AQUI
+
+curl.exe -X GET "http://127.0.0.1:8000/v1/businesses?categoria=tecnologia" -H "Authorization: Bearer %TOKEN%"
+
+curl.exe -X POST "http://127.0.0.1:8000/v1/businesses" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"nombre\":\"Empresa Demo SpA\",\"categoria\":\"tecnologia\",\"direccion\":\"Av. Providencia 1200, Santiago\",\"descripcion\":\"Servicios B2B de prueba\",\"telefono\":\"+56912345678\",\"sitio_web\":\"https://ejemplo.cl\",\"rut_empresa\":\"76.123.456-0\",\"servicios\":[\"desarrollo\"],\"industrias\":[\"retail\"],\"contrataciones\":[],\"referencias\":[]}"
+
+set BID=00000000-0000-0000-0000-000000000000
+
+curl.exe -X PATCH "http://127.0.0.1:8000/v1/businesses/%BID%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"nombre\":\"Empresa Demo Actualizada SpA\",\"categoria\":\"tecnologia\",\"direccion\":\"Av. Apoquindo 3000, Las Condes\",\"descripcion\":\"Ficha actualizada\",\"telefono\":\"+56987654321\",\"sitio_web\":\"https://ejemplo.cl\",\"servicios\":[\"consultoria\"],\"industrias\":[\"finanzas\"],\"contrataciones\":[],\"referencias\":[]}"
+
+curl.exe -X DELETE "http://127.0.0.1:8000/v1/businesses/%BID%" -H "Authorization: Bearer %TOKEN%"
+
+
+
+1) POST http://127.0.0.1:8000/v1/auth/registro
+Header: Content-Type: application/json
+Body:
+{"email":"proveedor.demo@servichile.cl","nombre":"Proveedor Demo","password":"ClaveSegura123","perfil":{"tipo_cuenta":"proveedor","edad":35}}
+
+2) POST http://127.0.0.1:8000/v1/auth/login
+Header: Content-Type: application/json
+Body:
+{"email":"proveedor.demo@servichile.cl","password":"ClaveSegura123"}
+
+3) GET http://127.0.0.1:8000/v1/businesses?categoria=tecnologia
+Header: Authorization: Bearer PEGAR_TOKEN
+
+4) POST http://127.0.0.1:8000/v1/businesses
+Header: Authorization: Bearer PEGAR_TOKEN
+Header: Content-Type: application/json
+Body:
+{"nombre":"Empresa Demo SpA","categoria":"tecnologia","direccion":"Av. Providencia 1200, Santiago","descripcion":"Servicios B2B de prueba","telefono":"+56912345678","sitio_web":"https://ejemplo.cl","rut_empresa":"76.123.456-0","servicios":["desarrollo"],"industrias":["retail"],"contrataciones":[],"referencias":[]}
+
+5) PATCH http://127.0.0.1:8000/v1/businesses/PEGAR_ID
+Header: Authorization: Bearer PEGAR_TOKEN
+Header: Content-Type: application/json
+Body:
+{"nombre":"Empresa Demo Actualizada SpA","categoria":"tecnologia","direccion":"Av. Apoquindo 3000, Las Condes","descripcion":"Ficha actualizada","telefono":"+56987654321","sitio_web":"https://ejemplo.cl","servicios":["consultoria"],"industrias":["finanzas"],"contrataciones":[],"referencias":[]}
+
+6) DELETE http://127.0.0.1:8000/v1/businesses/PEGAR_ID
+Header: Authorization: Bearer PEGAR_TOKEN
