@@ -1,0 +1,290 @@
+{
+  "info": {
+    "name": "ServiChile — Businesses CRUD",
+    "description": "CRUD de /v1/businesses.\n\nOrden sugerido: Registro proveedor → Login → Crear → Leer → Actualizar → Borrar.\n\nCrear y actualizar requieren cuenta `proveedor` y Bearer token.\nEn local, si create responde 402, arranque uvicorn con `SERVICHILE_SKIP_PAGO_PUBLICACION=1` o complete el flujo de pago y envíe `buy_order`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "email",
+      "value": "proveedor-demo@servichile.cl"
+    },
+    {
+      "key": "password",
+      "value": "clave-demo-123"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "businessId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth",
+      "item": [
+        {
+          "name": "0.1 Registro proveedor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 creado o 409 ya registrado', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/registro",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"nombre\": \"Proveedor Demo\",\n  \"password\": \"{{password}}\",\n  \"perfil\": {\n    \"edad\": 40,\n    \"tipo_cuenta\": \"proveedor\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "0.2 Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('token bearer', () => pm.expect(cuerpo.token_type).to.eql('bearer'));",
+                  "pm.collectionVariables.set('token', cuerpo.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Crear",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) {",
+              "  const cuerpo = pm.response.json();",
+              "  pm.collectionVariables.set('businessId', cuerpo.id);",
+              "  pm.test('devuelve id y nombre', () => {",
+              "    pm.expect(cuerpo).to.have.property('id');",
+              "    pm.expect(cuerpo.nombre).to.eql('Pyme Demo SpA');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/v1/businesses",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Pyme Demo SpA\",\n  \"categoria\": \"tecnologia\",\n  \"direccion\": \"Providencia 100, Santiago\",\n  \"descripcion\": \"Empresa demo para Postman\",\n  \"telefono\": \"+56 9 1111 2222\",\n  \"sitio_web\": \"https://demo.servichile.cl\",\n  \"imagen_url\": \"https://cdn.ejemplo.cl/banner-pyme.jpg\",\n  \"logo_url\": \"https://cdn.ejemplo.cl/logo-pyme.png\",\n  \"rut_empresa\": \"76.123.456-0\",\n  \"servicios\": [],\n  \"industrias\": [],\n  \"contrataciones\": [],\n  \"referencias\": []\n}"
+        }
+      }
+    },
+    {
+      "name": "2. Leer",
+      "item": [
+        {
+          "name": "2.1 Listar marketplace",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('lista de negocios', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/businesses"
+          }
+        },
+        {
+          "name": "2.2 Listar mis empresas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const lista = pm.response.json();",
+                  "pm.test('incluye la empresa creada', () => {",
+                  "  const id = pm.collectionVariables.get('businessId');",
+                  "  if (id) pm.expect(lista.some(n => n.id === id)).to.be.true;",
+                  "  else pm.expect(lista).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/v1/businesses/mias"
+          }
+        },
+        {
+          "name": "2.3 Leer reputación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('business_id coincide', () => {",
+                  "  const cuerpo = pm.response.json();",
+                  "  pm.expect(cuerpo.business_id).to.eql(pm.collectionVariables.get('businessId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/businesses/{{businessId}}/reputation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Actualizar",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const cuerpo = pm.response.json();",
+              "pm.test('nombre actualizado', () => pm.expect(cuerpo.nombre).to.eql('Pyme Demo Actualizada SpA'));",
+              "pm.test('categoria actualizada', () => pm.expect(cuerpo.categoria).to.eql('industria'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/v1/businesses/{{businessId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Pyme Demo Actualizada SpA\",\n  \"categoria\": \"industria\",\n  \"direccion\": \"Las Condes 50, Santiago\",\n  \"descripcion\": \"Ficha actualizada desde Postman\",\n  \"telefono\": \"+56 9 8765 4321\",\n  \"sitio_web\": \"https://actualizada.servichile.cl\",\n  \"rut_empresa\": \"76.123.456-0\",\n  \"servicios\": [],\n  \"industrias\": [],\n  \"contrataciones\": [],\n  \"referencias\": []\n}"
+        }
+      }
+    },
+    {
+      "name": "4. Borrar",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/v1/businesses/{{businessId}}"
+      }
+    }
+  ]
+}

@@ -15,6 +15,7 @@ from app.api.mapeos import to_usuario_out
 from app.api.esquemas import EliminarCuentaEntrada, LoginEntrada, RegistroEntrada, TokenSalida, UsuarioSalida
 
 from app.dominio.errores import (
+    # Contraseña incorrecta al borrar cuenta
     ContrasenaIncorrecta,
     CredencialesInvalidas,
     EmailYaRegistrado,
