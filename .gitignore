@@ -16,3 +16,4 @@ servichile-backend/data/
 servichile-backend/db/migrations/
 *.pdf
 !docs/**/*.pdf
+!slides/**/*.pdf
