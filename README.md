@@ -25,6 +25,10 @@
 | DELETE | /v1/businesses/{id}                             | Sí, creador   | Elimina la empresa                                | app.api.v1.negocios      | Implementado y probado |
 
 ## Levantar en local
+Requisitos previos:
+Python 3.12
+Docker y psql instalado y en ejecución
+Puertos libres: 5432, 6379, 8000, 5500
 
 Requisitos: Python 3.12 y PostgreSQL. Ejemplo con Docker:
 
