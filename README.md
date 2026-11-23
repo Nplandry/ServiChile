@@ -1,4 +1,21 @@
 # ServiChile API
+ServiChile es una plataforma chilena que agrega una capa de confianza verificable antes de
+cerrar cualquier contratación entre empresas, transformando datos dispersos en evidencia
+objetiva y comparable.
+El sistema articula tres perfiles: persona, contratista y proveedor. Este último publica su empresa
+en un catálogo abierto donde cada ficha muestra un Índice de Transparencia de cero a diez,
+calculado automáticamente cruzando datos de su sitio web, Google Places, ChileCompra y
+documentos formales, con opción de recálculo inmediato por parte del titular. Esta vitrina
+pública ordena y filtra el mercado desde el primer vistazo, mientras que el radar comercial
+profundo audita riesgos legales, contratos y ciberseguridad, y se desbloquea bajo pago antes de
+tomar la decisión final.
+Para reemplazar las reseñas informales por respaldo real, la confianza se acredita con identidad y
+trazabilidad. Las personas validan su cuenta con RUT, cédula y biometría para emitir un Reporte
+de Confianza verificable por código QR. Cuando un comprador inicia un servicio con un
+proveedor documentado, el titular utiliza ese mismo QR para certificar si el trabajo se concretó o
+no, amarrando el historial comercial a transacciones reales.
+Sobre esta base, ServiChile monetiza directamente en el momento de contratar a través de dos
+mecanismos:
 
 ## Endpoints
 
