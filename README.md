@@ -25,6 +25,7 @@
 | DELETE | /v1/businesses/{id}                             | Sí, creador   | Elimina la empresa                                | app.api.v1.negocios      | Implementado y probado |
 
 ## Levantar en local
+
 Requisitos previos:
 Python 3.12
 Docker y psql instalado y en ejecución
@@ -33,67 +34,34 @@ Puertos libres: 5432, 6379, 8000, 5500
 Requisitos: Python 3.12 y PostgreSQL. Ejemplo con Docker:
 
 ```bash
+#posgresql
 docker run -d --name servichile-db -p 5432:5432 \
   -e POSTGRES_USER=servichile -e POSTGRES_PASSWORD=servichile -e POSTGRES_DB=servichile \
   postgres:16
-```
 
-Luego:
 
-```bash
-cd servichile-backend
+# Redis
+docker run -d --name servichile-redis -p 6379:6379 redis:7-alpine
+
+# Backend
+cd ~/servichile/ServiChile/servichile-backend
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 
 cp .env.example .env
 python -c "import secrets; print(secrets.token_urlsafe(48))"
-
-psql "postgresql://servichile:servichile@localhost:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
-
-uvicorn app.principal:app --reload
 ```
 
-Pegue el valor generado en JWT_SECRET del .env.
-
-## Pruebas
+```bash
+psql "postgresql://servichile:servichile@localhost:5432/servichile" -v ON_ERROR_STOP=1 -f db/init_script.sql
+python -m scripts.cargar_db_demo
+uvicorn app.principal:app --reloadPruebas
+```
 
 ```bash
 pytest
 ```
-
-Las pruebas unitarias usan SQLite en memoria. No necesitan PostgreSQL.
-
-# Cómo levantar
-
-## Backend
-
-```bash
-cd servichile-backend
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.txt
-cp .env.example .env
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-```
-
-Pegue el token en JWT_SECRET del .env.
-
-### Postgres
-
-```bash
-docker run -d --name servichile-db -p 5432:5432 \
-  -e POSTGRES_USER=servichile -e POSTGRES_PASSWORD=servichile -e POSTGRES_DB=servichile \
-  postgres:16
-```
-
-### Redis
-
-```bash
-docker run -d --name servichile-redis -p 6379:6379 redis:7-alpine
-```
-
-En .env: REDIS_URL=redis://localhost:6379/0
 
 ### Mailhog
 
